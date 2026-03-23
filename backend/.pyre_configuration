@@ -1,0 +1,7 @@
+{
+  "site_package_search_strategy": "all",
+  "source_directories": ["."],
+  "search_path": [
+    "/Users/abdullahabdosh/Desktop/ElectraWireless-Business-Console/backend/.venv/lib/python3.13/site-packages"
+  ]
+}
