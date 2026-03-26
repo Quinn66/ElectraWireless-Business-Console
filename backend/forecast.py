@@ -12,6 +12,7 @@ def load_sample_data() -> list[dict]:
 
 
 def project_forward(
+        # test commi
     revenue: float,
     expenses: float,
     growth_rate: float,  # monthly % as decimal, e.g. 0.05 = 5%
