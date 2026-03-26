@@ -21,8 +21,8 @@ ElectraWireless-Business-Console/
     └── src/
         ├── main.tsx
         ├── App.tsx           ← Root layout, state, API calls
-        ├── InputPanel.tsx    ← Sliders + what-if toggles (Cole)
-        └── ForecastChart.tsx ← Recharts line chart (Jeffrey)
+        ├── InputPanel.tsx    ← Sliders + what-if toggles
+        └── ForecastChart.tsx ← Recharts line chart 
 ```
 
 ---
@@ -43,8 +43,8 @@ ElectraWireless-Business-Console/
 
 ```bash
 cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+pip install -r requirements.txt OR python3 -m pip install -r requirements.txt
+uvicorn main:app --reload OR python3 -m uvicorn main:app --reload
 ```
 
 API runs at `http://localhost:8000`
