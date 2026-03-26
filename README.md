@@ -21,8 +21,8 @@ ElectraWireless-Business-Console/
     └── src/
         ├── main.tsx
         ├── App.tsx           ← Root layout, state, API calls
-        ├── InputPanel.tsx    ← Sliders + what-if toggles (Cole)
-        └── ForecastChart.tsx ← Recharts line chart (Jeffrey)
+        ├── InputPanel.tsx    ← Sliders + what-if toggles
+        └── ForecastChart.tsx ← Recharts line chart 
 ```
 
 ---
