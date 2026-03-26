@@ -43,8 +43,8 @@ ElectraWireless-Business-Console/
 
 ```bash
 cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+pip install -r requirements.txt OR python3 -m pip install -r requirements.txt
+uvicorn main:app --reload OR python3 -m uvicorn main:app --reload
 ```
 
 API runs at `http://localhost:8000`
