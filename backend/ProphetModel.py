@@ -1,95 +1,114 @@
 import logging
-logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
+logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
+import os
+import contextlib
 import pandas as pd
-import json
 import matplotlib.pyplot as plt
 from darts import TimeSeries
 from darts.models import Prophet as DartsProphet
+from darts.metrics import mae, mape
+import json
 
-# adjust parameters currently just on default settings, these setting make it super innacurate for now
-# prophet_params = {
-#     "growth": "linear",                # "linear" or "logistic"
-#     "seasonality_mode": "additive",    # "additive" or "multiplicative"
-#     "yearly_seasonality": True,        # True, False, or int
-#     "weekly_seasonality": True,        # True, False, or int
-#     "daily_seasonality": False,        # True, False, or int
-#     "changepoint_prior_scale": 0.05
-# }
-
-# loading data from the sample
+# Load Revenue Data
 df = pd.read_csv("sample_data.csv")
 df['ds'] = pd.to_datetime(df['month'])
 df['y'] = df['revenue'].astype(float)
 
-# Convert to Darts TimeSeries
-series = TimeSeries.from_dataframe(df, 'ds', 'y')
+# Train/Test Split (80/20)
+split_idx = int(len(df) * 0.5)
+train_df = df.iloc[:split_idx]
+test_df = df.iloc[split_idx:]
 
-# train test data currently 50/50
-split = len(series) // 2
-train, test = series[:split], series[split:]
+# Convert to TimeSeries
+train_series = TimeSeries.from_dataframe(train_df, time_col='ds', value_cols='y')
+test_series = TimeSeries.from_dataframe(test_df, time_col='ds', value_cols='y')
 
-# darts prophet model using defualt settings for now
+# Initialize Prophet Model
 model = DartsProphet(
-    # growth=prophet_params["growth"],
-    # seasonality_mode=prophet_params["seasonality_mode"],
-    # yearly_seasonality=prophet_params["yearly_seasonality"],
-    # weekly_seasonality=prophet_params["weekly_seasonality"],
-    # daily_seasonality=prophet_params["daily_seasonality"],
-    # changepoint_prior_scale=prophet_params["changepoint_prior_scale"]
+    growth="linear",
+    seasonality_mode="additive",
+    yearly_seasonality=False,
+    weekly_seasonality=False,
+    daily_seasonality=False,
+    changepoint_prior_scale=0.01
 )
-model.fit(train)
 
-# Forecast test period
-forecast = model.predict(len(test))
+# Train Model
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    model.fit(train_series, verbose=False)
 
+# Historical Forecasts for Train
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    train_pred_series = model.historical_forecasts(
+        train_series,
+        start=0.0,
+        forecast_horizon=1,
+        stride=1,
+        retrain=True,
+        verbose=False,
+        show_warnings=False,
+        overlap_end=False
+    )
 
-# Prepare full results JSON (train + test)
-# Forecast for train period
-train_pred = model.predict(len(train))
+# Flatten predictions & align actuals
+train_pred_values = train_pred_series.values().flatten().tolist()
+train_actual_values = train_series.slice_intersect(train_pred_series).values().flatten().tolist()
+train_time_values = [t.strftime("%Y-%m") for t in train_series.slice_intersect(train_pred_series).time_index]
 
-results = []
-# Train period
-for t, a, p in zip(train.time_index, train.values(), train_pred.values()):
-    results.append({
-        "month": str(t),
-        "actual_revenue": float(a[0]),
-        "predicted_revenue": float(p[0])
-    })
+# Forecast Test Period
+with contextlib.redirect_stderr(open(os.devnull, 'w')):
+    forecast_series = model.predict(len(test_series))
 
-# Test period
-for t, a, p in zip(test.time_index, test.values(), forecast.values()):
-    results.append({
-        "month": str(t),
-        "actual_revenue": float(a[0]),
-        "predicted_revenue": float(p[0])
-    })
+test_pred_values = forecast_series.values().flatten().tolist()
+test_actual_values = test_series.values().flatten().tolist()
+test_time_values = [t.strftime("%Y-%m") for t in test_series.time_index]
 
-with open("results.json", "w") as f:
-    json.dump(results, f, indent=4)
+# Save to JSON
+predictions = {
+    "train": {
+        "time": train_time_values,
+        "actual": train_actual_values,
+        "predicted": train_pred_values
+    },
+    "test": {
+        "time": test_time_values,
+        "actual": test_actual_values,
+        "predicted": test_pred_values
+    }
+}
 
-print("Done. Full results saved to results.json")
+with open("predictions.json", "w") as f:
+    json.dump(predictions, f, indent=4)
+
+# Compute Metrics
+mae_val = mae(test_series, forecast_series)
+mape_val = mape(test_series, forecast_series)
+print(f"Test MAE: {mae_val:.2f}, MAPE: {mape_val:.2f}%")
 
 # Plot from JSON
-# make graph based off of the .json
-with open("results.json", "r") as f:
+with open("predictions.json", "r") as f:
     data = json.load(f)
-
-months = [pd.to_datetime(d['month']) for d in data]
-actual = [d['actual_revenue'] for d in data]
-predicted = [d['predicted_revenue'] for d in data]
 
 plt.figure(figsize=(12,6))
 
-plt.plot(months, actual, label="Actual Revenue", color='blue', marker='o')
-plt.plot(months, predicted, label="Predicted Revenue", color='red', linestyle='--', marker='x')
+# Training data
+plt.plot(data["train"]["time"], data["train"]["actual"], label="Training Data", marker='o', color='green')
+plt.plot(data["train"]["time"], data["train"]["predicted"], label="Predicted (Train)", linestyle='--', marker='x', color='red')
+
+# Test data
+plt.plot(data["test"]["time"], data["test"]["actual"], label="Actual (Test)", marker='o', color='blue')
+plt.plot(data["test"]["time"], data["test"]["predicted"], label="Predicted (Test)", linestyle='--', marker='x', color='orange')
 
 plt.xlabel("Month")
 plt.ylabel("Revenue")
-plt.title("Revenue Forecast")
+plt.title("Revenue Forecast (Train vs Actual vs Predicted)")
 plt.legend()
 plt.grid(True)
-plt.tight_layout()
+plt.xticks(rotation=0)
 
+from matplotlib.ticker import MaxNLocator
+plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=12))
+
+plt.tight_layout()
 plt.show()
-plt.savefig("forecast.png")
