@@ -83,3 +83,19 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   border: 2px solid #0A0A0F;
 }
+
+/* Maps CSS variables to Tailwind v4 utility classes for the onboarding flow */
+@theme {
+  --color-primary:            hsl(43 55% 54%);
+  --color-primary-foreground: hsl(0 0% 10%);
+  --color-background:         hsl(240 10% 4%);
+  --color-foreground:         hsl(0 0% 95%);
+  --color-card:               hsl(240 8% 7%);
+  --color-card-foreground:    hsl(0 0% 95%);
+  --color-secondary:          hsl(240 5% 15%);
+  --color-secondary-foreground: hsl(0 0% 80%);
+  --color-muted:              hsl(240 5% 15%);
+  --color-muted-foreground:   hsl(240 4% 55%);
+  --color-border:             hsl(240 5% 14%);
+  --color-destructive:        hsl(0 73% 59%);
+}
