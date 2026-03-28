@@ -31,7 +31,7 @@ model = DartsProphet(
     yearly_seasonality=False,
     weekly_seasonality=False,
     daily_seasonality=False,
-    changepoint_prior_scale=0.01
+    changepoint_prior_scale=0.5
 )
 
 # Train Model
@@ -82,6 +82,7 @@ with open("predictions.json", "w") as f:
     json.dump(predictions, f, indent=4)
 
 # Compute Metrics
+# # Test MAE (Mean Absolute Error) and MAPE (Mean Absolute Percentage Error)
 mae_val = mae(test_series, forecast_series)
 mape_val = mape(test_series, forecast_series)
 print(f"Test MAE: {mae_val:.2f}, MAPE: {mape_val:.2f}%")
