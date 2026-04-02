@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { C_SUCCESS, C_ERROR, C_WARNING, C_PRIMARY, C_BORDER } from "@/lib/colors";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { useProjectionStore } from "@/store/projectionStore";
@@ -362,12 +364,10 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
   };
 
   // ── Styles ──
-  const BG = "#12121A";
-  const BORDER = "#1e1e2a";
-  const GOLD = "#C9A84C";
+  const BG = "rgba(255,255,255,0.55)";
 
   const btnPrimary: React.CSSProperties = {
-    backgroundColor: GOLD,
+    backgroundColor: C_PRIMARY,
     color: "#fff",
     border: "none",
     borderRadius: "8px",
@@ -380,8 +380,8 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
 
   const btnGhost: React.CSSProperties = {
     backgroundColor: "transparent",
-    color: "#666",
-    border: "1px solid #2a2a38",
+    color: "hsl(245 16% 55%)",
+    border: `1px solid ${C_BORDER}`,
     borderRadius: "8px",
     padding: "9px 18px",
     fontSize: "12.5px",
@@ -398,13 +398,14 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
 
   const orderedFields = ["startingMRR", "growthRate", "cogsPercent", "marketingSpend", "payroll"] as const;
 
-  return (
+  return createPortal(
     <div
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0,0,0,0.78)",
-        zIndex: 1000,
+        backgroundColor: "rgba(47,36,133,0.20)",
+        backdropFilter: "blur(6px)",
+        zIndex: 9999,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -415,21 +416,25 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
       <div
         style={{
           backgroundColor: BG,
-          border: `1px solid ${BORDER}`,
-          borderRadius: "14px",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          border: "2px solid rgba(255,255,255,0.70)",
+          borderRadius: "20px",
           width: "100%",
           maxWidth: "580px",
           maxHeight: "90vh",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          boxShadow: "0 8px 48px rgba(120,100,180,0.15)",
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: "20px 24px 16px",
-            borderBottom: `1px solid #1a1a24`,
+            borderBottom: `1px solid rgba(255,255,255,0.50)`,
+            backgroundColor: "rgba(255,255,255,0.30)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -437,10 +442,10 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
           }}
         >
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "#f0f0f0" }}>
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "hsl(242 44% 30%)" }}>
               Import Financial Data
             </div>
-            <div style={{ fontSize: "11px", color: "#555", marginTop: "2px" }}>
+            <div style={{ fontSize: "11px", color: "hsl(245 16% 49%)", marginTop: "2px" }}>
               {step === "standard" && "Step 1 — Select a data format"}
               {step === "upload"   && "Step 2 — Upload and preview your file"}
               {step === "confirm"  && "Step 3 — Review and apply"}
@@ -448,9 +453,10 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "#444", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#888")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+            aria-label="Close import modal"
+            style={{ background: "none", border: "none", color: "hsl(245 16% 60%)", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(245 16% 40%)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(245 16% 60%)")}
           >
             ✕
           </button>
@@ -469,29 +475,29 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                     key={s.id}
                     onClick={() => setStandard(s.id)}
                     style={{
-                      backgroundColor: active ? "#1a1a10" : "#0f0f18",
-                      border: `1px solid ${active ? `${GOLD}66` : "#1e1e2a"}`,
-                      borderLeft: `3px solid ${active ? GOLD : "#2a2a38"}`,
+                      backgroundColor: active ? "rgba(47,36,133,0.08)" : "rgba(255,255,255,0.50)",
+                      border: `1px solid ${active ? `${C_PRIMARY}` : C_BORDER}`,
+                      borderLeft: `3px solid ${active ? C_PRIMARY : C_BORDER}`,
                       borderRadius: "8px",
                       padding: "13px 16px",
                       cursor: "pointer",
                       transition: "border-color 0.15s, background 0.15s",
                     }}
-                    onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = "#333"; }}
-                    onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = "#1e1e2a"; }}
+                    onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = C_PRIMARY; }}
+                    onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = C_BORDER; }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: active ? GOLD : "#ccc", marginBottom: "3px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: active ? C_PRIMARY : "hsl(242 44% 30%)", marginBottom: "3px" }}>
                           {s.title}
                         </div>
-                        <div style={{ fontSize: "12px", color: "#666" }}>{s.description}</div>
+                        <div style={{ fontSize: "12px", color: "hsl(245 16% 55%)" }}>{s.description}</div>
                       </div>
                       <div
                         style={{
                           fontSize: "10px",
-                          color: "#555",
-                          backgroundColor: "#1a1a24",
+                          color: "hsl(245 16% 49%)",
+                          backgroundColor: "rgba(47,36,133,0.07)",
                           borderRadius: "4px",
                           padding: "2px 7px",
                           whiteSpace: "nowrap",
@@ -518,12 +524,12 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 style={{
-                  border: `2px dashed ${isDragging ? GOLD : file ? "#1D9E75" : "#2a2a38"}`,
+                  border: `2px dashed ${isDragging ? C_PRIMARY : file ? C_SUCCESS : C_BORDER}`,
                   borderRadius: "10px",
                   padding: "28px 20px",
                   textAlign: "center",
                   cursor: "pointer",
-                  backgroundColor: isDragging ? "#1a1a10" : "#0f0f18",
+                  backgroundColor: isDragging ? "rgba(47,36,133,0.08)" : "rgba(255,255,255,0.50)",
                   transition: "all 0.15s",
                 }}
               >
@@ -535,27 +541,27 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
                 />
                 {isLoading ? (
-                  <div style={{ color: "#555", fontSize: "13px" }}>Parsing file…</div>
+                  <div style={{ color: "hsl(245 16% 49%)", fontSize: "13px" }}>Parsing file…</div>
                 ) : file ? (
                   <>
-                    <div style={{ fontSize: "13px", color: "#1D9E75", fontWeight: 600 }}>✓ {file.name}</div>
-                    <div style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>
+                    <div style={{ fontSize: "13px", color: C_SUCCESS, fontWeight: 600 }}>✓ {file.name}</div>
+                    <div style={{ fontSize: "11px", color: "hsl(245 16% 49%)", marginTop: "4px" }}>
                       {parsedData ? `${parsedData.rows.length} rows, ${parsedData.headers.length} columns` : ""}
                     </div>
-                    <div style={{ fontSize: "11px", color: "#444", marginTop: "8px" }}>Click to replace</div>
+                    <div style={{ fontSize: "11px", color: "hsl(245 16% 60%)", marginTop: "8px" }}>Click to replace</div>
                   </>
                 ) : (
                   <>
                     <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.3 }}>↑</div>
-                    <div style={{ fontSize: "13px", color: "#888", fontWeight: 500 }}>Drag & drop or click to browse</div>
-                    <div style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>.csv or .xlsx accepted</div>
+                    <div style={{ fontSize: "13px", color: "hsl(245 16% 49%)", fontWeight: 500 }}>Drag & drop or click to browse</div>
+                    <div style={{ fontSize: "11px", color: "hsl(245 16% 49%)", marginTop: "4px" }}>.csv or .xlsx accepted</div>
                   </>
                 )}
               </div>
 
               {/* Parse error */}
               {parseError && (
-                <div style={{ backgroundColor: "#E24B4A1a", border: "1px solid #E24B4A44", borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: "#E24B4A" }}>
+                <div style={{ backgroundColor: `${C_ERROR}1a`, border: `1px solid ${C_ERROR}44`, borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C_ERROR }}>
                   {parseError}
                 </div>
               )}
@@ -563,15 +569,16 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
               {/* Preview table */}
               {parsedData && !parseError && (
                 <div>
-                  <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>
                     File Preview (first 5 rows)
                   </div>
-                  <div style={{ overflowX: "auto", border: `1px solid #1a1a24`, borderRadius: "8px" }}>
+                  <div style={{ border: `1px solid ${C_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
+                  <div style={{ overflowX: "auto" }}>
                     <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "max-content" }}>
                       <thead>
                         <tr>
                           {parsedData.headers.map((h, i) => (
-                            <th key={i} style={{ padding: "7px 10px", fontSize: "10.5px", color: "#555", fontWeight: 600, textAlign: "left", backgroundColor: "#0e0e16", borderBottom: "1px solid #1a1a24", whiteSpace: "nowrap" }}>
+                            <th key={i} style={{ padding: "8px 12px", fontSize: "10.5px", color: "hsl(245 16% 49%)", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", textAlign: "left", backgroundColor: "rgb(239, 237, 252)", borderBottom: `1px solid ${C_BORDER}`, whiteSpace: "nowrap" }}>
                               {h || `Col ${i + 1}`}
                             </th>
                           ))}
@@ -579,9 +586,13 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                       </thead>
                       <tbody>
                         {parsedData.rows.slice(0, 5).map((row, ri) => (
-                          <tr key={ri}>
+                          <tr
+                            key={ri}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+                          >
                             {parsedData.headers.map((_, ci) => (
-                              <td key={ci} style={{ padding: "6px 10px", fontSize: "11.5px", color: "#999", borderBottom: "1px solid #131320", whiteSpace: "nowrap" }}>
+                              <td key={ci} style={{ padding: "7px 12px", fontSize: "12px", color: "hsl(242 44% 40%)", borderBottom: `1px solid ${C_BORDER}`, whiteSpace: "nowrap", backgroundColor: "rgba(255,255,255,0.60)" }}>
                                 {String(row[ci] ?? "")}
                               </td>
                             ))}
@@ -590,13 +601,14 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                       </tbody>
                     </table>
                   </div>
+                  </div>
                 </div>
               )}
 
               {/* Custom column mapping */}
               {standard === "custom" && parsedData && (
                 <div>
-                  <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
                     Column Mapping
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -604,16 +616,16 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                       const labels: Record<string, string> = { revenue: "Revenue *", date: "Date", cogs: "COGS", marketing: "Marketing Spend", payroll: "Payroll" };
                       return (
                         <div key={field} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <div style={{ fontSize: "12px", color: "#888", width: "120px", flexShrink: 0 }}>{labels[field]}</div>
+                          <div style={{ fontSize: "12px", color: "hsl(245 16% 49%)", width: "120px", flexShrink: 0 }}>{labels[field]}</div>
                           <select
                             value={mapping[field]}
                             onChange={(e) => setMapping((m) => ({ ...m, [field]: e.target.value }))}
                             style={{
                               flex: 1,
-                              backgroundColor: "#0f0f18",
-                              border: "1px solid #2a2a38",
+                              backgroundColor: "rgba(255,255,255,0.70)",
+                              border: `1px solid ${C_BORDER}`,
                               borderRadius: "6px",
-                              color: "#ccc",
+                              color: "hsl(242 44% 30%)",
                               fontSize: "12px",
                               padding: "6px 10px",
                               cursor: "pointer",
@@ -636,10 +648,10 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
           {/* ── Step 3: Confirm ── */}
           {step === "confirm" && extracted && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div style={{ fontSize: "12.5px", color: "#666", lineHeight: 1.6 }}>
-                The following values were extracted from <span style={{ color: "#C9A84C" }}>{file?.name}</span>. Review them before applying to the dashboard sliders.
+              <div style={{ fontSize: "12.5px", color: "hsl(245 16% 55%)", lineHeight: 1.6 }}>
+                The following values were extracted from <span style={{ color: C_PRIMARY }}>{file?.name}</span>. Review them before applying to the dashboard sliders.
               </div>
-              <div style={{ border: `1px solid #1e1e2a`, borderRadius: "10px", overflow: "hidden" }}>
+              <div style={{ border: `1px solid ${C_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
                 {orderedFields.map((key, i) => {
                   const v = extracted[key];
                   const isLast = i === orderedFields.length - 1;
@@ -650,26 +662,26 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                         display: "flex",
                         alignItems: "center",
                         padding: "11px 16px",
-                        borderBottom: isLast ? "none" : "1px solid #131320",
-                        backgroundColor: "#0f0f18",
+                        borderBottom: isLast ? "none" : `1px solid ${C_BORDER}`,
+                        backgroundColor: "rgba(255,255,255,0.60)",
                       }}
                     >
-                      <div style={{ flex: 1, fontSize: "12.5px", color: "#aaa" }}>{FIELD_LABELS[key]}</div>
+                      <div style={{ flex: 1, fontSize: "12.5px", color: "hsl(242 44% 40%)" }}>{FIELD_LABELS[key]}</div>
                       {v !== undefined ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "13px", fontWeight: 600, color: "#1D9E75" }}>
+                          <span style={{ fontSize: "13px", fontWeight: 600, color: C_SUCCESS }}>
                             {fmtImportValue(key, v)}
                           </span>
-                          <span style={{ fontSize: "11px", color: "#1D9E75", opacity: 0.7 }}>✓ detected</span>
+                          <span style={{ fontSize: "11px", color: C_SUCCESS, opacity: 0.7 }}>✓ detected</span>
                         </div>
                       ) : (
-                        <span style={{ fontSize: "11px", color: "#F59E0B" }}>⚠ could not detect</span>
+                        <span style={{ fontSize: "11px", color: C_WARNING }}>⚠ could not detect</span>
                       )}
                     </div>
                   );
                 })}
               </div>
-              <div style={{ fontSize: "11px", color: "#444", lineHeight: 1.5 }}>
+              <div style={{ fontSize: "11px", color: "hsl(245 16% 60%)", lineHeight: 1.5 }}>
                 Only the fields marked as detected will be updated. All other sliders remain unchanged.
               </div>
             </div>
@@ -680,7 +692,8 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
         <div
           style={{
             padding: "16px 24px",
-            borderTop: "1px solid #1a1a24",
+            borderTop: `1px solid rgba(255,255,255,0.50)`,
+            backgroundColor: "rgba(255,255,255,0.30)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -731,6 +744,7 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type ScenarioPreset = "bear" | "base" | "bull" | "custom";
+export type AccountType = "user" | "industry" | "government";
 
 export interface SavedScenario {
   id: string;
@@ -42,7 +43,20 @@ export interface ProphetApiData {
   slider_forecast: SliderForecastPoint[];
 }
 
+export interface CustomSnapshot {
+  growthRate: number;
+  startingMRR: number;
+  churnRate: number;
+  cogsPercent: number;
+  marketingSpend: number;
+  payroll: number;
+  forecastMonths: number;
+}
+
 export interface ProjectionState {
+  accountType: AccountType | null;
+  setAccountType: (type: AccountType) => void;
+
   growthRate: number;
   startingMRR: number;
   churnRate: number;
@@ -56,6 +70,7 @@ export interface ProjectionState {
   totalScenarioRuns: number;
   recordScenarioRun: (scenario: string) => void;
   savedScenarios: SavedScenario[];
+  customSnapshot: CustomSnapshot | null;
 
   // API state
   apiData: ProphetApiData | null;
@@ -74,6 +89,7 @@ export interface ProjectionState {
   saveCustomScenario: (name: string) => void;
   deleteCustomScenario: (id: string) => void;
   loadCustomScenario: (id: string) => void;
+  saveCustomSnapshot: () => void;
   fetchProphetForecast: () => Promise<void>;
 }
 
@@ -86,6 +102,9 @@ const SCENARIO_PRESETS = {
 const API_BASE = "http://localhost:8000";
 
 export const useProjectionStore = create<ProjectionState>((set, get) => ({
+  accountType: null,
+  setAccountType: (type) => set({ accountType: type }),
+
   growthRate: 8,
   startingMRR: 18000,
   churnRate: 3,
@@ -98,6 +117,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   scenarioCounts: {},
   totalScenarioRuns: 0,
   savedScenarios: [],
+  customSnapshot: null,
   apiData: null,
   apiLoading: false,
   apiError: null,
@@ -119,11 +139,27 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
 
   setActiveScenario: (preset) => {
     if (preset === "custom") {
-      set({ activeScenario: "custom" });
+      const snap = get().customSnapshot;
+      set({ activeScenario: "custom", ...(snap ?? {}) });
       return;
     }
     set({ ...SCENARIO_PRESETS[preset], activeScenario: preset });
     get().recordScenarioRun(preset);
+  },
+
+  saveCustomSnapshot: () => {
+    const s = get();
+    set({
+      customSnapshot: {
+        growthRate:     s.growthRate,
+        startingMRR:    s.startingMRR,
+        churnRate:      s.churnRate,
+        cogsPercent:    s.cogsPercent,
+        marketingSpend: s.marketingSpend,
+        payroll:        s.payroll,
+        forecastMonths: s.forecastMonths,
+      },
+    });
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),

@@ -1,4 +1,5 @@
 import { MonthRow, formatCurrency } from "@/lib/projection";
+import { C_SUCCESS, C_ERROR } from "@/lib/colors";
 
 interface MonthlyTableProps {
   data: MonthRow[];
@@ -9,47 +10,39 @@ export function MonthlyTable({ data, forecastMonths }: MonthlyTableProps) {
   const visible = data.slice(0, 6);
   const remaining = forecastMonths - 6;
 
-  const thStyle: React.CSSProperties = {
-    fontSize: "11px",
-    color: "#555",
-    fontWeight: 500,
-    textAlign: "left",
-    padding: "8px 10px",
-    borderBottom: "1px solid #1a1a24",
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-  };
-  const tdStyle: React.CSSProperties = {
-    fontSize: "12.5px",
-    padding: "9px 10px",
-    borderBottom: "1px solid #131320",
-  };
-
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th style={thStyle}>Month</th>
-            <th style={thStyle}>Revenue</th>
-            <th style={thStyle}>Expenses</th>
-            <th style={thStyle}>Gross Margin</th>
-            <th style={thStyle}>Net Profit</th>
+            {["Month", "Revenue", "Expenses", "Gross Margin", "Net Profit"].map((h) => (
+              <th
+                key={h}
+                className="text-[10.5px] text-muted-foreground font-semibold text-left px-3 py-2 border-b border-border tracking-[0.07em] uppercase bg-[rgb(239,237,252)]"
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {visible.map((row) => (
-            <tr key={row.month} style={{ transition: "background 0.1s" }}>
-              <td style={{ ...tdStyle, color: "#888" }}>M{row.month}</td>
-              <td style={{ ...tdStyle, color: "#C9A84C" }}>{formatCurrency(row.revenue)}</td>
-              <td style={{ ...tdStyle, color: "#E24B4A" }}>{formatCurrency(row.expenses)}</td>
-              <td style={{ ...tdStyle, color: "#aaa" }}>{row.grossMargin.toFixed(1)}%</td>
+            <tr key={row.month} className="transition-colors hover:bg-primary/5">
+              <td className="text-[12px] px-3 py-[7px] border-b border-border/50 text-muted-foreground">
+                M{row.month}
+              </td>
+              <td className="text-[12px] px-3 py-[7px] border-b border-border/50 text-primary font-medium">
+                {formatCurrency(row.revenue)}
+              </td>
+              <td className="text-[12px] px-3 py-[7px] border-b border-border/50" style={{ color: C_ERROR }}>
+                {formatCurrency(row.expenses)}
+              </td>
+              <td className="text-[12px] px-3 py-[7px] border-b border-border/50 text-foreground/70">
+                {row.grossMargin.toFixed(1)}%
+              </td>
               <td
-                style={{
-                  ...tdStyle,
-                  color: row.netProfit >= 0 ? "#1D9E75" : "#E24B4A",
-                  fontWeight: 600,
-                }}
+                className="text-[12px] px-3 py-[7px] border-b border-border/50 font-semibold"
+                style={{ color: row.netProfit >= 0 ? C_SUCCESS : C_ERROR }}
               >
                 {formatCurrency(row.netProfit)}
               </td>
@@ -58,15 +51,7 @@ export function MonthlyTable({ data, forecastMonths }: MonthlyTableProps) {
         </tbody>
       </table>
       {forecastMonths > 6 && remaining > 0 && (
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: "11px",
-            color: "#444",
-            padding: "10px",
-            borderTop: "1px solid #131320",
-          }}
-        >
+        <div className="text-center text-[11px] text-muted-foreground/70 py-2.5 border-t border-border/50">
           … {remaining} more months — export to see full table
         </div>
       )}

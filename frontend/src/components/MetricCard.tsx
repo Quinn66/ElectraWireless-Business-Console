@@ -7,32 +7,18 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, subtext, valueColor }: MetricCardProps) {
   return (
-    <div
-      style={{
-        backgroundColor: "#12121A",
-        border: "1px solid #1e1e2a",
-        borderRadius: "10px",
-        padding: "16px 18px",
-        flex: 1,
-        minWidth: 0,
-      }}
-    >
-      <div style={{ fontSize: "11px", color: "#666", fontWeight: 500, letterSpacing: "0.06em", marginBottom: "6px", textTransform: "uppercase" }}>
+    <div className="bg-white/60 backdrop-blur-sm border border-border rounded-[10px] p-4 flex-1 min-w-0">
+      <div className="text-[11px] text-muted-foreground font-medium tracking-[0.06em] mb-1.5 uppercase">
         {label}
       </div>
       <div
-        style={{
-          fontSize: "22px",
-          fontWeight: 600,
-          color: valueColor ?? "#f0f0f0",
-          lineHeight: 1.2,
-          marginBottom: "4px",
-        }}
+        className="text-[22px] font-semibold leading-tight mb-1"
+        style={{ color: valueColor ?? "hsl(var(--foreground))" }}
       >
         {value}
       </div>
       {subtext && (
-        <div style={{ fontSize: "11px", color: "#555" }}>{subtext}</div>
+        <div className="text-[11px] text-muted-foreground">{subtext}</div>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { useProjectionStore } from "@/store/projectionStore";
 import { calcMonthlyData, calcBreakeven, formatCurrency } from "@/lib/projection";
 import { AnomalyAlerts } from "./AnomalyAlerts";
+import { C_SUCCESS, C_ERROR } from "@/lib/colors";
 
 const SCENARIO_LABELS: Record<string, string> = {
   bear: "Bear",
@@ -10,10 +11,10 @@ const SCENARIO_LABELS: Record<string, string> = {
 };
 
 const SCENARIO_COLORS: Record<string, string> = {
-  bear: "#E24B4A",
-  base: "#C9A84C",
-  bull: "#1D9E75",
-  custom: "#888",
+  bear: C_ERROR,
+  base: "hsl(var(--primary))",
+  bull: C_SUCCESS,
+  custom: "hsl(var(--muted-foreground))",
 };
 
 interface SummaryCardProps {
@@ -24,40 +25,15 @@ interface SummaryCardProps {
 
 function SummaryCard({ label, children, subtext }: SummaryCardProps) {
   return (
-    <div
-      style={{
-        backgroundColor: "#12121A",
-        border: "1px solid #1e1e2a",
-        borderRadius: "10px",
-        padding: "12px 16px",
-        flex: "1 1 140px",
-        minWidth: "120px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          color: "#555",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginBottom: "7px",
-        }}
-      >
+    <div className="bg-white/60 backdrop-blur-sm border border-border rounded-[10px] px-4 py-3 flex-1 min-w-[120px]">
+      <div className="text-[10px] font-semibold text-muted-foreground tracking-[0.08em] uppercase mb-[7px]">
         {label}
       </div>
-      <div
-        style={{
-          fontSize: "19px",
-          fontWeight: 700,
-          lineHeight: 1.2,
-          marginBottom: "4px",
-        }}
-      >
+      <div className="text-[19px] font-bold leading-tight mb-1">
         {children}
       </div>
       {subtext && (
-        <div style={{ fontSize: "10.5px", color: "#555", marginTop: "3px" }}>{subtext}</div>
+        <div className="text-[10.5px] text-muted-foreground mt-0.5">{subtext}</div>
       )}
     </div>
   );
@@ -73,17 +49,14 @@ export function FinancialSummaryBar() {
   const finalMonth = data[data.length - 1];
   const prevMonth = data.length > 1 ? data[data.length - 2] : null;
 
-  // Total Revenue: sum of all months
   const totalRevenue = data.reduce((s, r) => s + r.revenue, 0);
 
-  // MoM % change: final month vs second-to-last month
   const revChangePct =
     prevMonth && prevMonth.revenue > 0
       ? ((finalMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
       : 0;
   const revChangeUp = revChangePct >= 0;
 
-  // Gross Profit & Margin
   const totalGrossProfit = data.reduce(
     (s, r) => s + r.revenue * (r.grossMargin / 100),
     0
@@ -91,43 +64,33 @@ export function FinancialSummaryBar() {
   const avgGrossMargin =
     data.reduce((s, r) => s + r.grossMargin, 0) / data.length;
 
-  // Net Profit / Loss (final month)
-  const netProfitColor = finalMonth.netProfit >= 0 ? "#1D9E75" : "#E24B4A";
+  const netProfitColor = finalMonth.netProfit >= 0 ? C_SUCCESS : C_ERROR;
 
-  // Cash Runway / Break-even
   const breakevenLabel =
     breakeven !== null ? `Month ${breakeven}` : `> ${inputs.forecastMonths} mo`;
-  const breakevenColor = breakeven !== null ? "#C9A84C" : "#E24B4A";
+  const breakevenColor = breakeven !== null ? "hsl(var(--primary))" : C_ERROR;
 
   const runwayLabel =
     breakeven !== null ? `${breakeven} mo` : `> ${inputs.forecastMonths} mo`;
-  const runwayColor = breakeven !== null ? "#1D9E75" : "#E24B4A";
+  const runwayColor = breakeven !== null ? C_SUCCESS : C_ERROR;
 
-  // Scenario
   const scenarioKey = inputs.activeScenario;
   const scenarioLabel = SCENARIO_LABELS[scenarioKey] ?? "Custom";
-  const scenarioColor = SCENARIO_COLORS[scenarioKey] ?? "#888";
+  const scenarioColor = SCENARIO_COLORS[scenarioKey] ?? "hsl(var(--muted-foreground))";
 
   return (
-    <div
-      style={{
-        padding: "12px 24px",
-        borderBottom: "1px solid #1a1a24",
-        flexShrink: 0,
-        backgroundColor: "#0A0A0F",
-      }}
-    >
-      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "stretch" }}>
+    <div className="px-6 py-3 border-b border-border flex-shrink-0 bg-white/40 backdrop-blur-sm">
+      <div className="flex gap-2.5 flex-wrap items-stretch">
         {/* 1 — Total Revenue */}
         <SummaryCard
           label="Total Revenue"
           subtext={
-            <span style={{ color: revChangeUp ? "#1D9E75" : "#E24B4A" }}>
+            <span style={{ color: revChangeUp ? C_SUCCESS : C_ERROR }}>
               {revChangeUp ? "▲" : "▼"} {Math.abs(revChangePct).toFixed(1)}% MoM (final)
             </span>
           }
         >
-          <span style={{ color: "#C9A84C" }}>{formatCurrency(totalRevenue)}</span>
+          <span className="text-primary">{formatCurrency(totalRevenue)}</span>
         </SummaryCard>
 
         {/* 2 — Gross Profit & Margin */}
@@ -135,7 +98,7 @@ export function FinancialSummaryBar() {
           label="Gross Profit"
           subtext={`${avgGrossMargin.toFixed(1)}% avg margin`}
         >
-          <span style={{ color: "#f0f0f0" }}>{formatCurrency(totalGrossProfit)}</span>
+          <span className="text-foreground">{formatCurrency(totalGrossProfit)}</span>
         </SummaryCard>
 
         {/* 3 — Net Profit / Loss */}
@@ -178,17 +141,11 @@ export function FinancialSummaryBar() {
         {/* 6 — Active Scenario */}
         <SummaryCard label="Scenario" subtext="Active scenario">
           <span
+            className="inline-block rounded-[6px] px-3 py-0.5 text-sm font-bold tracking-[0.06em] uppercase border"
             style={{
-              display: "inline-block",
-              backgroundColor: `${scenarioColor}18`,
-              border: `1px solid ${scenarioColor}44`,
-              borderRadius: "6px",
-              padding: "1px 12px",
-              fontSize: "14px",
-              fontWeight: 700,
+              backgroundColor: `color-mix(in srgb, ${scenarioColor} 12%, transparent)`,
+              borderColor: `color-mix(in srgb, ${scenarioColor} 40%, transparent)`,
               color: scenarioColor,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
             }}
           >
             {scenarioLabel}
