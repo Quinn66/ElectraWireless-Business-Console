@@ -2,10 +2,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
-<<<<<<< Updated upstream
 
 SAMPLE_DATA_PATH = Path(__file__).parent / "sample_data.csv"
-=======
 from datetime import datetime
 from typing import Tuple, List, Dict
 import warnings
@@ -20,12 +18,10 @@ try:
 except ImportError:
     print("Warning: Darts library not available. Please install with: pip install darts")
     DARTS_AVAILABLE = False
->>>>>>> Stashed changes
 
 # Define the path to the financial dataset
 FINANCIAL_DATA_PATH = Path(__file__).parent / "financial_dataset.csv"
 
-<<<<<<< Updated upstream
 def load_sample_data() -> list[dict]:
     df = pd.read_csv(SAMPLE_DATA_PATH)
     df["profit"] = df["revenue"] - df["expenses"]
@@ -63,7 +59,6 @@ def project_forward(
         )
 
     return results
-=======
 def load_and_preprocess_data(file_path: str = None, company_id: str = "CMP_001") -> pd.DataFrame:
     """
     Load and preprocess the financial dataset.
@@ -519,4 +514,3 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"Pipeline failed with error: {e}")
->>>>>>> Stashed changes
