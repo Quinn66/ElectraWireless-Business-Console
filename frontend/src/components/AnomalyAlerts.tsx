@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import { calcMonthlyData, calcBreakeven } from "@/lib/projection";
+import { C_ERROR, C_WARNING } from "@/lib/colors";
 
 interface Alert {
   id: string;
@@ -22,7 +23,6 @@ function detectAlerts(
   const alerts: Alert[] = [];
   const finalMonth = data[data.length - 1];
 
-  // 1. Churn exceeds growth → net MRR is shrinking
   if (churnRate > growthRate) {
     alerts.push({
       id: "churn-exceeds-growth",
@@ -32,7 +32,6 @@ function detectAlerts(
     });
   }
 
-  // 2. No break-even in forecast horizon
   if (breakeven === null) {
     alerts.push({
       id: "no-breakeven",
@@ -42,7 +41,6 @@ function detectAlerts(
     });
   }
 
-  // 3. Negative EBITDA / net profit in final month
   if (finalMonth.netProfit < 0) {
     alerts.push({
       id: "negative-ebitda-final",
@@ -52,7 +50,6 @@ function detectAlerts(
     });
   }
 
-  // 4. COGS ratio > 50%
   if (cogsPercent > 50) {
     alerts.push({
       id: "high-cogs",
@@ -62,7 +59,6 @@ function detectAlerts(
     });
   }
 
-  // 5. Marketing spend exceeds gross profit in any month
   const marketingExceedsGP = data.some(
     (row) => marketingSpend > row.revenue * (row.grossMargin / 100)
   );
@@ -76,7 +72,6 @@ function detectAlerts(
     });
   }
 
-  // 6. High growth (> 15%) without break-even
   if (growthRate > 15 && breakeven === null) {
     alerts.push({
       id: "high-growth-no-breakeven",
@@ -107,12 +102,7 @@ export function AnomalyAlerts() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
 
-  // When an alert condition clears, remove it from the dismissed set so it
-  // can reappear if the condition becomes true again.
-  const activeAlertIdsKey = activeAlerts
-    .map((a) => a.id)
-    .sort()
-    .join(",");
+  const activeAlertIdsKey = activeAlerts.map((a) => a.id).sort().join(",");
 
   useEffect(() => {
     const activeIds = new Set(activeAlertIdsKey ? activeAlertIdsKey.split(",") : []);
@@ -120,54 +110,39 @@ export function AnomalyAlerts() {
       let changed = false;
       const next = new Set(prev);
       prev.forEach((id) => {
-        if (!activeIds.has(id)) {
-          next.delete(id);
-          changed = true;
-        }
+        if (!activeIds.has(id)) { next.delete(id); changed = true; }
       });
       return changed ? next : prev;
     });
   }, [activeAlertIdsKey]);
 
   const visibleAlerts = activeAlerts.filter((a) => !dismissed.has(a.id));
-
   if (visibleAlerts.length === 0) return null;
 
   const criticalCount = visibleAlerts.filter((a) => a.severity === "critical").length;
-  const warningCount = visibleAlerts.filter((a) => a.severity === "warning").length;
-  const dominantColor = criticalCount > 0 ? "#E24B4A" : "#F59E0B";
+  const warningCount  = visibleAlerts.filter((a) => a.severity === "warning").length;
+  const dominantColor = criticalCount > 0 ? C_ERROR : C_WARNING;
 
-  const dismiss = (id: string) =>
-    setDismissed((prev) => new Set([...prev, id]));
+  const dismiss = (id: string) => setDismissed((prev) => new Set([...prev, id]));
 
   return (
-    <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #1a1a24" }}>
-      {/* ── Toggle bar ── */}
+    <div className="mt-2.5 pt-2.5 border-t border-border">
+      {/* Toggle bar */}
       <div
         onClick={() => setExpanded((e) => !e)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          cursor: "pointer",
-          userSelect: "none",
-        }}
+        className="flex items-center gap-2 cursor-pointer select-none"
       >
-        <span style={{ fontSize: "11px", color: dominantColor, fontWeight: 700 }}>
+        <span className="text-[11px] font-bold" style={{ color: dominantColor }}>
           {expanded ? "▲" : "▼"}
         </span>
 
         {criticalCount > 0 && (
           <span
+            className="rounded px-2 py-0.5 text-[10.5px] font-bold tracking-[0.03em]"
             style={{
-              backgroundColor: "#E24B4A1a",
-              border: "1px solid #E24B4A40",
-              borderRadius: "4px",
-              padding: "1px 8px",
-              fontSize: "10.5px",
-              fontWeight: 700,
-              color: "#E24B4A",
-              letterSpacing: "0.03em",
+              backgroundColor: `${C_ERROR}1a`,
+              border: `1px solid ${C_ERROR}40`,
+              color: C_ERROR,
             }}
           >
             {criticalCount} critical
@@ -176,94 +151,51 @@ export function AnomalyAlerts() {
 
         {warningCount > 0 && (
           <span
+            className="rounded px-2 py-0.5 text-[10.5px] font-bold tracking-[0.03em]"
             style={{
-              backgroundColor: "#F59E0B1a",
-              border: "1px solid #F59E0B40",
-              borderRadius: "4px",
-              padding: "1px 8px",
-              fontSize: "10.5px",
-              fontWeight: 700,
-              color: "#F59E0B",
-              letterSpacing: "0.03em",
+              backgroundColor: `${C_WARNING}1a`,
+              border: `1px solid ${C_WARNING}40`,
+              color: C_WARNING,
             }}
           >
             {warningCount} warning{warningCount > 1 ? "s" : ""}
           </span>
         )}
 
-        <span style={{ fontSize: "10.5px", color: "#444" }}>
+        <span className="text-[10.5px] text-muted-foreground/60">
           {expanded ? "hide" : "show alerts"}
         </span>
       </div>
 
-      {/* ── Alert cards ── */}
+      {/* Alert cards */}
       {expanded && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "8px",
-            marginTop: "10px",
-          }}
-        >
+        <div className="flex flex-wrap gap-2 mt-2.5">
           {visibleAlerts.map((alert) => {
-            const color = alert.severity === "critical" ? "#E24B4A" : "#F59E0B";
+            const color = alert.severity === "critical" ? C_ERROR : C_WARNING;
             return (
               <div
                 key={alert.id}
+                className="rounded-[6px] flex gap-2.5 items-start flex-1 min-w-[220px]"
                 style={{
                   backgroundColor: `${color}0d`,
                   border: `1px solid ${color}2a`,
                   borderLeft: `3px solid ${color}`,
-                  borderRadius: "6px",
                   padding: "9px 12px 9px 14px",
-                  flex: "1 1 260px",
-                  minWidth: "220px",
-                  display: "flex",
-                  gap: "10px",
-                  alignItems: "flex-start",
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "11.5px",
-                      fontWeight: 700,
-                      color,
-                      marginBottom: "3px",
-                    }}
-                  >
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11.5px] font-bold mb-0.5" style={{ color }}>
                     {alert.title}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#666",
-                      lineHeight: 1.5,
-                    }}
-                  >
+                  <div className="text-[11px] text-muted-foreground leading-relaxed">
                     {alert.description}
                   </div>
                 </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dismiss(alert.id);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); dismiss(alert.id); }}
+                  aria-label="Dismiss alert"
                   title="Dismiss for this session"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#3a3a48",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    padding: "0 2px",
-                    flexShrink: 0,
-                    lineHeight: 1,
-                    transition: "color 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#888")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#3a3a48")}
+                  className="bg-transparent border-none text-muted-foreground/40 cursor-pointer text-xs p-0.5 flex-shrink-0 leading-none transition-colors hover:text-muted-foreground"
                 >
                   ✕
                 </button>

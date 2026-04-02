@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import { calcMonthlyData, calcBreakeven, calcARR, formatCurrency } from "@/lib/projection";
+import { C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors";
 
 interface Hint {
   severity: "warn" | "info" | "ok";
@@ -43,7 +44,6 @@ function buildHints(
   if (hints.length === 0)
     hints.push({ severity: "ok", text: `Growth at ${growthRate}%/mo with ${churnRate}% churn looks well-balanced for early-stage SaaS.` });
 
-  // Return up to 3, prioritising warnings
   const sorted = [...hints.filter(h => h.severity === "warn"), ...hints.filter(h => h.severity !== "warn")];
   return sorted.slice(0, 3);
 }
@@ -82,9 +82,7 @@ export function AIHintBlock() {
   const breakeven = calcBreakeven(inputs);
   const arr = calcARR(inputs);
   const avgRevenue = data.length > 0 ? data.reduce((s, r) => s + r.revenue, 0) / data.length : 0;
-  const avgGrossMargin = data.length > 0 ? data.reduce((s, r) => s + r.grossMargin, 0) / data.length : 0;
   const effectiveGrowth = ((1 + inputs.growthRate / 100) * (1 - inputs.churnRate / 100) - 1) * 100;
-  const finalMonth = data[data.length - 1];
 
   const hints = buildHints(
     inputs.growthRate, inputs.churnRate, inputs.cogsPercent,
@@ -98,40 +96,33 @@ export function AIHintBlock() {
   );
 
   const hintColor = (s: Hint["severity"]) =>
-    s === "warn" ? "#F59E0B" : s === "ok" ? "#1D9E75" : "#888";
+    s === "warn" ? C_WARNING : s === "ok" ? C_SUCCESS : "hsl(var(--muted-foreground))";
 
   return (
-    <div style={{ borderLeft: "2px solid #C9A84C", borderRadius: "0 6px 6px 0", overflow: "hidden" }}>
+    <div className="border-l-2 border-primary rounded-r-[6px] overflow-hidden">
       {/* Header */}
       <div
         onClick={() => setOpen(o => !o)}
-        style={{
-          backgroundColor: "#12121A",
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-        }}
+        className="bg-white/60 backdrop-blur-sm px-3 py-2 flex items-center justify-between cursor-pointer"
       >
-        <div style={{ fontSize: "10px", fontWeight: 700, color: "#C9A84C", letterSpacing: "0.1em" }}>
+        <div className="text-[10px] font-bold text-primary tracking-[0.1em]">
           ELLY INSIGHTS
         </div>
-        <span style={{ fontSize: "10px", color: "#444" }}>{open ? "▲" : "▼"}</span>
+        <span className="text-[10px] text-muted-foreground/70">{open ? "▲" : "▼"}</span>
       </div>
 
       {open && (
-        <div style={{ backgroundColor: "#0f0f18", display: "flex", flexDirection: "column", gap: "0" }}>
+        <div className="bg-white/40 backdrop-blur-sm flex flex-col">
 
           {/* Section 1: Configuration Assessment */}
-          <div style={{ padding: "10px 12px", borderTop: "1px solid #1a1a24" }}>
-            <div style={{ fontSize: "9px", fontWeight: 700, color: "#444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "7px" }}>
+          <div className="px-3 py-2.5 border-t border-border">
+            <div className="text-[9px] font-bold text-muted-foreground/70 tracking-[0.1em] uppercase mb-[7px]">
               Configuration Assessment
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div className="flex flex-col gap-1.5">
               {hints.map((h, i) => (
-                <p key={i} style={{ fontSize: "11px", color: hintColor(h.severity), lineHeight: 1.5, margin: 0 }}>
-                  <span style={{ marginRight: "5px" }}>{h.severity === "warn" ? "⚠" : h.severity === "ok" ? "✓" : "ℹ"}</span>
+                <p key={i} className="text-[11px] leading-relaxed m-0" style={{ color: hintColor(h.severity) }}>
+                  <span className="mr-1">{h.severity === "warn" ? "⚠" : h.severity === "ok" ? "✓" : "ℹ"}</span>
                   {h.text}
                 </p>
               ))}
@@ -139,34 +130,37 @@ export function AIHintBlock() {
           </div>
 
           {/* Section 2: Growth Trajectory */}
-          <div style={{ padding: "10px 12px", borderTop: "1px solid #1a1a24" }}>
-            <div style={{ fontSize: "9px", fontWeight: 700, color: "#444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "7px" }}>
+          <div className="px-3 py-2.5 border-t border-border">
+            <div className="text-[9px] font-bold text-muted-foreground/70 tracking-[0.1em] uppercase mb-[7px]">
               Growth Trajectory
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <p style={{ fontSize: "11px", color: "#aaa", lineHeight: 1.5, margin: 0 }}>
-                At {inputs.growthRate}% growth and {inputs.churnRate}% churn, net effective growth is <span style={{ color: effectiveGrowth > 0 ? "#1D9E75" : "#E24B4A", fontWeight: 600 }}>{effectiveGrowth.toFixed(2)}%/mo</span>.
+            <div className="flex flex-col gap-1">
+              <p className="text-[11px] text-foreground/70 leading-relaxed m-0">
+                At {inputs.growthRate}% growth and {inputs.churnRate}% churn, net effective growth is{" "}
+                <span className="font-semibold" style={{ color: effectiveGrowth > 0 ? C_SUCCESS : C_ERROR }}>
+                  {effectiveGrowth.toFixed(2)}%/mo
+                </span>.
               </p>
-              <p style={{ fontSize: "11px", color: "#aaa", lineHeight: 1.5, margin: 0 }}>
-                Projected to reach <span style={{ color: "#C9A84C", fontWeight: 600 }}>{formatCurrency(arr)} ARR</span> by Month {inputs.forecastMonths}.
+              <p className="text-[11px] text-foreground/70 leading-relaxed m-0">
+                Projected to reach <span className="text-primary font-semibold">{formatCurrency(arr)} ARR</span> by Month {inputs.forecastMonths}.
               </p>
-              <p style={{ fontSize: "11px", color: "#aaa", lineHeight: 1.5, margin: 0 }}>
+              <p className="text-[11px] text-foreground/70 leading-relaxed m-0">
                 {breakeven !== null
-                  ? <>Break-even occurs in <span style={{ color: "#1D9E75", fontWeight: 600 }}>Month {breakeven}</span>.</>
-                  : <span style={{ color: "#E24B4A" }}>Break-even not reached in this window.</span>}
+                  ? <>Break-even occurs in <span className="font-semibold" style={{ color: C_SUCCESS }}>Month {breakeven}</span>.</>
+                  : <span style={{ color: C_ERROR }}>Break-even not reached in this window.</span>}
               </p>
             </div>
           </div>
 
           {/* Section 3: Recommended Next Steps */}
-          <div style={{ padding: "10px 12px", borderTop: "1px solid #1a1a24" }}>
-            <div style={{ fontSize: "9px", fontWeight: 700, color: "#444", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "7px" }}>
+          <div className="px-3 py-2.5 border-t border-border">
+            <div className="text-[9px] font-bold text-muted-foreground/70 tracking-[0.1em] uppercase mb-[7px]">
               Recommended Next Steps
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <div className="flex flex-col gap-1">
               {recs.map((r, i) => (
-                <p key={i} style={{ fontSize: "11px", color: "#888", lineHeight: 1.5, margin: 0 }}>
-                  <span style={{ color: "#C9A84C", marginRight: "5px" }}>→</span>{r}
+                <p key={i} className="text-[11px] text-muted-foreground leading-relaxed m-0">
+                  <span className="text-primary mr-1">→</span>{r}
                 </p>
               ))}
             </div>

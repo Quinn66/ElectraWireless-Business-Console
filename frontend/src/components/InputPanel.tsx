@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { C_SUCCESS, C_WARNING } from "@/lib/colors";
 import { useProjectionStore } from "@/store/projectionStore";
 import { ScenarioPills } from "./ScenarioPills";
 import { AIHintBlock } from "./AIHintBlock";
@@ -17,22 +18,10 @@ interface SliderRowProps {
 
 function SliderRow({ label, min, max, step, value, onChange, formatValue }: SliderRowProps) {
   return (
-    <div style={{ marginBottom: "14px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-        <span style={{ fontSize: "12px", color: "#999" }}>{label}</span>
-        <span
-          style={{
-            fontSize: "11.5px",
-            color: "#C9A84C",
-            backgroundColor: "#1e1810",
-            border: "1px solid #2e2212",
-            borderRadius: "4px",
-            padding: "2px 8px",
-            fontWeight: 600,
-            minWidth: "48px",
-            textAlign: "center",
-          }}
-        >
+    <div className="mb-3.5">
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-[11.5px] text-primary bg-primary/10 border border-primary/25 rounded px-2 py-0.5 font-semibold min-w-[48px] text-center">
           {formatValue(value)}
         </span>
       </div>
@@ -43,7 +32,7 @@ function SliderRow({ label, min, max, step, value, onChange, formatValue }: Slid
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: "100%" }}
+        className="w-full"
       />
     </div>
   );
@@ -51,17 +40,7 @@ function SliderRow({ label, min, max, step, value, onChange, formatValue }: Slid
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        fontSize: "10px",
-        letterSpacing: "0.1em",
-        color: "#555",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        marginBottom: "10px",
-        marginTop: "4px",
-      }}
-    >
+    <div className="text-[10px] tracking-[0.1em] text-muted-foreground font-semibold uppercase mb-2.5 mt-1">
       {children}
     </div>
   );
@@ -91,41 +70,15 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
   }, [toast]);
 
   return (
-    <div
-      style={{
-        width: "300px",
-        flexShrink: 0,
-        height: "100%",
-        overflowY: "auto",
-        backgroundColor: "#0d0d14",
-        borderRight: "1px solid #1a1a24",
-        padding: "20px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-      }}
-    >
+    <div className="w-[300px] flex-shrink-0 h-full overflow-y-auto bg-white/40 backdrop-blur-md border-r border-border px-4 py-5 flex flex-col gap-5">
+
       {/* Import Button */}
       <button
         onClick={() => setShowImport(true)}
-        style={{
-          width: "100%",
-          backgroundColor: "transparent",
-          border: "1px solid #C9A84C55",
-          borderRadius: "8px",
-          padding: "10px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "7px",
-          cursor: "pointer",
-          transition: "background 0.15s, border-color 0.15s",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#C9A84C11"; e.currentTarget.style.borderColor = "#C9A84C99"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = "#C9A84C55"; }}
+        className="w-full bg-transparent border border-primary/35 rounded-lg py-2.5 flex items-center justify-center gap-1.5 cursor-pointer transition-colors duration-150 hover:bg-primary/10 hover:border-primary/60"
       >
-        <span style={{ fontSize: "13px", color: "#C9A84C" }}>↑</span>
-        <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#C9A84C", letterSpacing: "0.02em" }}>
+        <span className="text-[13px] text-primary">↑</span>
+        <span className="text-[12.5px] font-semibold text-primary tracking-[0.02em]">
           Import Financial Data
         </span>
       </button>
@@ -209,26 +162,12 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
           {!savingName ? (
             <button
               onClick={() => { setSavingName(true); setScenarioName(""); }}
-              style={{
-                width: "100%",
-                backgroundColor: "transparent",
-                color: "#C9A84C",
-                border: "1px solid #C9A84C44",
-                borderRadius: "8px",
-                padding: "9px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-                letterSpacing: "0.03em",
-                transition: "background 0.15s, border-color 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#C9A84C11"; e.currentTarget.style.borderColor = "#C9A84C88"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = "#C9A84C44"; }}
+              className="w-full bg-transparent text-primary border border-primary/30 rounded-lg py-2 text-[12.5px] font-semibold cursor-pointer tracking-[0.03em] transition-colors duration-150 hover:bg-primary/10 hover:border-primary/60"
             >
               Save Scenario…
             </button>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div className="flex flex-col gap-2">
               <input
                 autoFocus
                 type="text"
@@ -243,19 +182,9 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
                   }
                   if (e.key === "Escape") setSavingName(false);
                 }}
-                style={{
-                  backgroundColor: "#12121A",
-                  border: "1px solid #C9A84C66",
-                  borderRadius: "6px",
-                  color: "#f0f0f0",
-                  fontSize: "13px",
-                  padding: "8px 10px",
-                  outline: "none",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}
+                className="bg-white/70 border border-primary/40 rounded-[6px] text-foreground text-[13px] px-2.5 py-2 outline-none w-full focus:border-primary/70"
               />
-              <div style={{ display: "flex", gap: "6px" }}>
+              <div className="flex gap-1.5">
                 <button
                   disabled={!scenarioName.trim()}
                   onClick={() => {
@@ -264,32 +193,18 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
                     setSavingName(false);
                     setActiveTab("scenarios");
                   }}
+                  className="flex-1 rounded-[6px] py-2 text-xs font-semibold cursor-pointer transition-colors duration-150 border-none"
                   style={{
-                    flex: 1,
-                    backgroundColor: scenarioName.trim() ? "#C9A84C" : "#2a2a35",
-                    color: scenarioName.trim() ? "#fff" : "#555",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "8px",
-                    fontSize: "12px",
-                    fontWeight: 600,
+                    backgroundColor: scenarioName.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))",
+                    color: scenarioName.trim() ? "#fff" : "hsl(var(--muted-foreground))",
                     cursor: scenarioName.trim() ? "pointer" : "not-allowed",
-                    transition: "background 0.15s",
                   }}
                 >
                   Save
                 </button>
                 <button
                   onClick={() => setSavingName(false)}
-                  style={{
-                    backgroundColor: "transparent",
-                    color: "#555",
-                    border: "1px solid #222",
-                    borderRadius: "6px",
-                    padding: "8px 12px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                  }}
+                  className="bg-transparent text-muted-foreground border border-border rounded-[6px] px-3 py-2 text-xs cursor-pointer hover:border-muted-foreground transition-colors"
                 >
                   Cancel
                 </button>
@@ -302,22 +217,7 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
       {/* Sensitivity Analysis Button */}
       <button
         onClick={onSensitivityClick}
-        style={{
-          width: "100%",
-          backgroundColor: "#C9A84C",
-          color: "#fff",
-          border: "none",
-          borderRadius: "8px",
-          padding: "11px",
-          fontSize: "13px",
-          fontWeight: 600,
-          cursor: "pointer",
-          letterSpacing: "0.03em",
-          transition: "opacity 0.15s",
-          marginTop: "auto",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+        className="w-full bg-primary text-primary-foreground border-none rounded-lg py-[11px] text-[13px] font-semibold cursor-pointer tracking-[0.03em] transition-opacity duration-150 hover:opacity-85 mt-auto"
       >
         Run Sensitivity Analysis
       </button>
@@ -335,47 +235,31 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
 
       {/* Toast Notification */}
       {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            zIndex: 2000,
-            backgroundColor: "#12121A",
-            border: "1px solid #1e1e2a",
-            borderRadius: "10px",
-            padding: "14px 18px",
-            minWidth: "260px",
-            maxWidth: "360px",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#f0f0f0", marginBottom: "8px" }}>
-            Import Complete
-          </div>
+        <div className="fixed bottom-6 right-6 z-[2000] bg-white/90 backdrop-blur-md border border-border rounded-[10px] px-4 py-3.5 min-w-[260px] max-w-[360px] shadow-[0_8px_32px_rgba(47,36,133,0.15)]">
+          <div className="text-xs font-bold text-foreground mb-2">Import Complete</div>
           {toast.applied.length > 0 && (
-            <div style={{ marginBottom: "6px" }}>
-              <div style={{ fontSize: "10.5px", color: "#1D9E75", fontWeight: 600, marginBottom: "3px" }}>
+            <div className="mb-1.5">
+              <div className="text-[10.5px] font-semibold mb-0.5" style={{ color: C_SUCCESS }}>
                 ✓ Applied ({toast.applied.length})
               </div>
               {toast.applied.map((f) => (
-                <div key={f} style={{ fontSize: "11px", color: "#666", paddingLeft: "10px" }}>{f}</div>
+                <div key={f} className="text-[11px] text-muted-foreground pl-2.5">{f}</div>
               ))}
             </div>
           )}
           {toast.skipped.length > 0 && (
             <div>
-              <div style={{ fontSize: "10.5px", color: "#F59E0B", fontWeight: 600, marginBottom: "3px" }}>
+              <div className="text-[10.5px] font-semibold mb-0.5" style={{ color: C_WARNING }}>
                 ⚠ Not detected ({toast.skipped.length})
               </div>
               {toast.skipped.map((f) => (
-                <div key={f} style={{ fontSize: "11px", color: "#666", paddingLeft: "10px" }}>{f}</div>
+                <div key={f} className="text-[11px] text-muted-foreground pl-2.5">{f}</div>
               ))}
             </div>
           )}
           <button
             onClick={() => setToast(null)}
-            style={{ position: "absolute", top: "10px", right: "12px", background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "13px" }}
+            className="absolute top-2.5 right-3 bg-transparent border-none text-muted-foreground/50 cursor-pointer text-[13px] hover:text-muted-foreground transition-colors"
           >
             ✕
           </button>
