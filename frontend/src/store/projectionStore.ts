@@ -52,6 +52,9 @@ export interface ProjectionState {
   forecastMonths: number;
   activeScenario: ScenarioPreset;
   activeTab: string;
+  scenarioCounts: Record<string, number>;
+  totalScenarioRuns: number;
+  recordScenarioRun: (scenario: string) => void;
   savedScenarios: SavedScenario[];
 
   // API state
@@ -92,6 +95,8 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   forecastMonths: 12,
   activeScenario: "base",
   activeTab: "projection",
+  scenarioCounts: {},
+  totalScenarioRuns: 0,
   savedScenarios: [],
   apiData: null,
   apiLoading: false,
@@ -105,12 +110,20 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   setPayroll: (v) => set({ payroll: v, activeScenario: "custom" }),
   setForecastMonths: (v) => set({ forecastMonths: v, activeScenario: "custom" }),
 
+  recordScenarioRun: (scenario: string) => {
+    set((s) => ({
+      scenarioCounts: { ...s.scenarioCounts, [scenario]: (s.scenarioCounts[scenario] ?? 0) + 1 },
+      totalScenarioRuns: s.totalScenarioRuns + 1,
+    }));
+  },
+
   setActiveScenario: (preset) => {
     if (preset === "custom") {
       set({ activeScenario: "custom" });
       return;
     }
     set({ ...SCENARIO_PRESETS[preset], activeScenario: preset });
+    get().recordScenarioRun(preset);
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -140,6 +153,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     if (!sc) return;
     const { id: _id, name: _name, ...values } = sc;
     set({ ...values, activeScenario: "custom" });
+    get().recordScenarioRun(sc.name);
   },
 
   fetchProphetForecast: async () => {

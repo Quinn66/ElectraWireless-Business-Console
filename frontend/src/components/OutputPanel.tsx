@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import {
   calcMonthlyData,
@@ -165,110 +166,672 @@ function PLForecast() {
   const inputs = useProjectionStore();
   const data = calcMonthlyData(inputs);
 
-  const totalRevenue = data.reduce((s, r) => s + r.revenue, 0);
-  const totalExpenses = data.reduce((s, r) => s + r.expenses, 0);
-  const totalProfit = data.reduce((s, r) => s + r.netProfit, 0);
-  const avgGrossMargin = data.reduce((s, r) => s + r.grossMargin, 0) / data.length;
+  if (data.length === 0) return null;
 
-  const rowStyle: React.CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "10px 0",
-    borderBottom: "1px solid #131320",
-    fontSize: "13px",
+  // Per-month computed values
+  const months = data.map((row) => {
+    const cogs = row.revenue * (inputs.cogsPercent / 100);
+    const grossProfit = row.revenue - cogs;
+    const netMarginPct = row.revenue > 0 ? (row.netProfit / row.revenue) * 100 : 0;
+    return {
+      month: row.month,
+      revenue: row.revenue,
+      cogs,
+      grossProfit,
+      grossMarginPct: row.grossMargin,
+      marketingSpend: inputs.marketingSpend,
+      payroll: inputs.payroll,
+      totalOpEx: inputs.marketingSpend + inputs.payroll,
+      ebitda: row.netProfit,
+      netProfit: row.netProfit,
+      netMarginPct,
+    };
+  });
+
+  type MonthRow = (typeof months)[0];
+  const n = months.length;
+
+  // Summary column
+  const totalRevenue     = months.reduce((s, m) => s + m.revenue, 0);
+  const totalCogs        = months.reduce((s, m) => s + m.cogs, 0);
+  const totalGrossProfit = months.reduce((s, m) => s + m.grossProfit, 0);
+  const avgGrossMargin   = months.reduce((s, m) => s + m.grossMarginPct, 0) / n;
+  const totalMarketing   = months.reduce((s, m) => s + m.marketingSpend, 0);
+  const totalPayroll     = months.reduce((s, m) => s + m.payroll, 0);
+  const totalOpEx        = months.reduce((s, m) => s + m.totalOpEx, 0);
+  const totalEbitda      = months.reduce((s, m) => s + m.ebitda, 0);
+  const totalNetProfit   = months.reduce((s, m) => s + m.netProfit, 0);
+  const avgNetMargin     = months.reduce((s, m) => s + m.netMarginPct, 0) / n;
+
+  // Formatters
+  const fd = (v: number) => {
+    const abs = Math.abs(Math.round(v));
+    const sign = v < 0 ? "−" : "";
+    return `${sign}$${abs.toLocaleString("en-US")}`;
+  };
+  const fp = (v: number) => `${v.toFixed(2)}%`;
+
+  // Color helpers
+  const profitColor = (v: number) => (v > 0 ? "#1D9E75" : v < 0 ? "#E24B4A" : "#888");
+  const marginColor = (v: number) => (v >= 0 ? "#1D9E75" : "#E24B4A");
+
+  // Style constants
+  const BG        = "#12121A";
+  const BG_SEC    = "#0d0d14";
+  const BG_TOTAL  = "#0e0e16";
+  const BORDER    = "#1a1a24";
+  const BORDER_IN = "#131320";
+
+  const baseThStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    fontSize: "10.5px",
+    fontWeight: 600,
+    color: "#555",
+    letterSpacing: "0.07em",
+    textTransform: "uppercase",
+    backgroundColor: BG_SEC,
+    borderBottom: `1px solid ${BORDER}`,
+    whiteSpace: "nowrap",
   };
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      <div
+  const baseTdStyle: React.CSSProperties = {
+    padding: "7px 12px",
+    fontSize: "12px",
+    borderBottom: `1px solid ${BORDER_IN}`,
+    whiteSpace: "nowrap",
+    backgroundColor: BG,
+  };
+
+  const secTdStyle: React.CSSProperties = {
+    padding: "6px 14px",
+    fontSize: "9.5px",
+    fontWeight: 700,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    color: "#444",
+    backgroundColor: BG_SEC,
+    borderTop: `1px solid ${BORDER}`,
+    borderBottom: `1px solid ${BORDER}`,
+    whiteSpace: "nowrap",
+  };
+
+  // ── Render helpers (called as functions, not as <Component> to avoid remount) ──
+
+  const renderSectionRow = (label: string) => (
+    <tr key={`sec-${label}`}>
+      <td style={{ ...secTdStyle, position: "sticky", left: 0, zIndex: 1 }}>{label}</td>
+      {months.map((m) => (
+        <td key={m.month} style={{ ...secTdStyle }} />
+      ))}
+      <td style={{ ...secTdStyle, backgroundColor: BG_TOTAL }} />
+    </tr>
+  );
+
+  const renderDollarRow = (
+    key: string,
+    label: string,
+    getValue: (m: MonthRow) => number,
+    total: number,
+    colorFn: (v: number) => string,
+    bold = false,
+    indent = false
+  ) => (
+    <tr key={key}>
+      <td
         style={{
-          backgroundColor: "#12121A",
-          border: "1px solid #1e1e2a",
-          borderRadius: "10px",
-          padding: "18px 20px",
+          ...baseTdStyle,
+          textAlign: "left",
+          position: "sticky",
+          left: 0,
+          zIndex: 1,
+          paddingLeft: indent ? "26px" : "14px",
+          color: bold ? "#ccc" : "#999",
+          fontWeight: bold ? 700 : 400,
         }}
       >
-        <SectionTitle>Forecast Summary — {inputs.forecastMonths} Months</SectionTitle>
-        <div style={rowStyle}>
-          <span style={{ color: "#888" }}>Total Revenue</span>
-          <span style={{ color: "#C9A84C", fontWeight: 600 }}>{formatCurrency(totalRevenue)}</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ color: "#888" }}>Total Expenses</span>
-          <span style={{ color: "#E24B4A", fontWeight: 600 }}>{formatCurrency(totalExpenses)}</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ color: "#888" }}>Avg Gross Margin</span>
-          <span style={{ color: "#f0f0f0", fontWeight: 600 }}>{avgGrossMargin.toFixed(1)}%</span>
-        </div>
-        <div style={{ ...rowStyle, borderBottom: "none" }}>
-          <span style={{ color: "#888" }}>Net Profit / Loss</span>
-          <span style={{ color: totalProfit >= 0 ? "#1D9E75" : "#E24B4A", fontWeight: 700, fontSize: "15px" }}>
-            {formatCurrency(totalProfit)}
-          </span>
-        </div>
-      </div>
-      <div>
-        <SectionTitle>Month-by-Month P&L</SectionTitle>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {data.map((row) => {
-            const profitPct = row.revenue > 0 ? (row.netProfit / row.revenue) * 100 : 0;
-            return (
-              <div
-                key={row.month}
-                style={{
-                  backgroundColor: "#12121A",
-                  border: "1px solid #1a1a24",
-                  borderRadius: "6px",
-                  padding: "8px 14px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <div style={{ fontSize: "11px", color: "#555", width: "28px", flexShrink: 0 }}>M{row.month}</div>
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      height: "4px",
-                      borderRadius: "2px",
-                      backgroundColor: "#1a1a24",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${Math.min(Math.abs(profitPct), 100)}%`,
-                        backgroundColor: row.netProfit >= 0 ? "#1D9E75" : "#E24B4A",
-                        borderRadius: "2px",
-                      }}
-                    />
-                  </div>
-                </div>
-                <div style={{ fontSize: "12px", color: "#C9A84C", width: "52px", textAlign: "right" }}>
-                  {formatCurrency(row.revenue)}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: row.netProfit >= 0 ? "#1D9E75" : "#E24B4A",
-                    width: "52px",
-                    textAlign: "right",
-                  }}
-                >
-                  {formatCurrency(row.netProfit)}
-                </div>
-              </div>
-            );
-          })}
+        {label}
+      </td>
+      {months.map((m) => {
+        const v = getValue(m);
+        return (
+          <td key={m.month} style={{ ...baseTdStyle, textAlign: "right", color: colorFn(v), fontWeight: bold ? 600 : 400 }}>
+            {fd(v)}
+          </td>
+        );
+      })}
+      <td style={{ ...baseTdStyle, textAlign: "right", color: colorFn(total), fontWeight: bold ? 700 : 600, backgroundColor: BG_TOTAL }}>
+        {fd(total)}
+      </td>
+    </tr>
+  );
+
+  const renderPctRow = (
+    key: string,
+    label: string,
+    getValue: (m: MonthRow) => number,
+    avg: number,
+    colorFn: (v: number) => string
+  ) => (
+    <tr key={key}>
+      <td
+        style={{
+          ...baseTdStyle,
+          textAlign: "left",
+          position: "sticky",
+          left: 0,
+          zIndex: 1,
+          paddingLeft: "26px",
+          color: "#666",
+          fontStyle: "italic",
+        }}
+      >
+        {label}
+      </td>
+      {months.map((m) => {
+        const v = getValue(m);
+        return (
+          <td key={m.month} style={{ ...baseTdStyle, textAlign: "right", color: colorFn(v), fontStyle: "italic" }}>
+            {fp(v)}
+          </td>
+        );
+      })}
+      <td style={{ ...baseTdStyle, textAlign: "right", color: colorFn(avg), fontStyle: "italic", backgroundColor: BG_TOTAL }}>
+        {fp(avg)} avg
+      </td>
+    </tr>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <SectionTitle>Profit & Loss Statement — {inputs.forecastMonths}-Month Forecast</SectionTitle>
+      <div
+        style={{
+          backgroundColor: BG,
+          border: "1px solid #1e1e2a",
+          borderRadius: "10px",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "100%",
+              minWidth: `${160 + (months.length + 1) * 88}px`,
+            }}
+          >
+            <colgroup>
+              <col style={{ minWidth: "160px" }} />
+              {months.map((m) => (
+                <col key={m.month} style={{ minWidth: "88px" }} />
+              ))}
+              <col style={{ minWidth: "96px" }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={{ ...baseThStyle, textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>
+                  Line Item
+                </th>
+                {months.map((m) => (
+                  <th key={m.month} style={{ ...baseThStyle, textAlign: "right" }}>
+                    M{m.month}
+                  </th>
+                ))}
+                <th style={{ ...baseThStyle, textAlign: "right", backgroundColor: BG_TOTAL }}>
+                  Total / Avg
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* ── Revenue ── */}
+              {renderSectionRow("Revenue")}
+              {renderDollarRow("rev",  "Total Revenue",         (m) => m.revenue,       totalRevenue,     () => "#C9A84C", true)}
+              {renderDollarRow("cogs", "Cost of Goods Sold",    (m) => m.cogs,           totalCogs,        () => "#E24B4A")}
+              {renderDollarRow("gp",   "Gross Profit",          (m) => m.grossProfit,    totalGrossProfit, profitColor,    true)}
+              {renderPctRow("gm%",     "Gross Margin %",        (m) => m.grossMarginPct, avgGrossMargin,   marginColor)}
+
+              {/* ── Operating Expenses ── */}
+              {renderSectionRow("Operating Expenses")}
+              {renderDollarRow("mkt",  "Marketing Spend",          (m) => m.marketingSpend, totalMarketing, () => "#888")}
+              {renderDollarRow("pay",  "Payroll / Fixed Costs",    (m) => m.payroll,         totalPayroll,   () => "#888")}
+              {renderDollarRow("opex", "Total Operating Expenses", (m) => m.totalOpEx,       totalOpEx,      () => "#888", true)}
+
+              {/* ── Earnings ── */}
+              {renderSectionRow("Earnings")}
+              {renderDollarRow("ebitda", "EBITDA",           (m) => m.ebitda,     totalEbitda,    profitColor, true)}
+              {renderDollarRow("np",     "Net Profit / Loss",(m) => m.netProfit,  totalNetProfit, profitColor, true)}
+              {renderPctRow("nm%",       "Net Margin %",     (m) => m.netMarginPct, avgNetMargin, marginColor)}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 }
+
+// ── Scenario Stats + Checklist ────────────────────────────────────────────────
+
+function ScenarioStats() {
+  const { activeScenario, scenarioCounts, totalScenarioRuns } = useProjectionStore();
+
+  const mostUsed = Object.entries(scenarioCounts).length > 0
+    ? Object.entries(scenarioCounts).sort((a, b) => b[1] - a[1])[0][0]
+    : "—";
+
+  const LABEL: Record<string, string> = { bear: "Bear", base: "Base", bull: "Bull", custom: "Custom" };
+  const COLOR: Record<string, string> = { bear: "#E24B4A", base: "#C9A84C", bull: "#1D9E75", custom: "#888" };
+
+  const stats = [
+    { label: "Scenarios Run", value: String(totalScenarioRuns), color: "#f0f0f0" },
+    { label: "Most Used", value: LABEL[mostUsed] ?? mostUsed, color: COLOR[mostUsed] ?? "#888" },
+    { label: "Active Now", value: LABEL[activeScenario] ?? activeScenario, color: COLOR[activeScenario] ?? "#888" },
+  ];
+
+  return (
+    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+      {stats.map(s => (
+        <div key={s.label} style={{ backgroundColor: "#12121A", border: "1px solid #1e1e2a", borderRadius: "8px", padding: "10px 16px", flex: "1 1 100px" }}>
+          <div style={{ fontSize: "9.5px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>{s.label}</div>
+          <div style={{ fontSize: "17px", fontWeight: 700, color: s.color }}>{s.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProjectionChecklist() {
+  const [open, setOpen] = useState(true);
+  const inputs = useProjectionStore();
+  const data = calcMonthlyData(inputs);
+  const breakeven = calcBreakeven(inputs);
+  const finalMonth = data[data.length - 1];
+
+  const hasCriticalAlert =
+    inputs.churnRate > inputs.growthRate ||
+    (finalMonth != null && finalMonth.netProfit < 0 && breakeven === null) ||
+    inputs.cogsPercent > 50;
+
+  const items: { label: string; pass: boolean }[] = [
+    { label: "Starting MRR above $1,000",                    pass: inputs.startingMRR > 1000 },
+    { label: "Forecast period at least 6 months",            pass: inputs.forecastMonths >= 6 },
+    { label: "Growth rate in realistic range (1–25%)",       pass: inputs.growthRate >= 1 && inputs.growthRate <= 25 },
+    { label: "Churn rate below 10%",                         pass: inputs.churnRate < 10 },
+    { label: "COGS below 70% of revenue",                    pass: inputs.cogsPercent < 70 },
+    { label: "Break-even reached in forecast window",        pass: breakeven !== null },
+    { label: "At least one custom scenario saved",           pass: inputs.savedScenarios.length > 0 },
+    { label: "No critical anomaly alerts active",            pass: !hasCriticalAlert },
+  ];
+
+  const score = Math.round((items.filter(i => i.pass).length / items.length) * 100);
+
+  return (
+    <div style={{ backgroundColor: "#12121A", border: "1px solid #1e1e2a", borderRadius: "10px", overflow: "hidden" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#f0f0f0" }}>Projection Readiness Checklist</span>
+          <span style={{
+            fontSize: "10px", fontWeight: 700,
+            color: score >= 80 ? "#1D9E75" : score >= 50 ? "#F59E0B" : "#E24B4A",
+            backgroundColor: score >= 80 ? "#1D9E751a" : score >= 50 ? "#F59E0B1a" : "#E24B4A1a",
+            border: `1px solid ${score >= 80 ? "#1D9E7530" : score >= 50 ? "#F59E0B30" : "#E24B4A30"}`,
+            borderRadius: "4px", padding: "1px 8px",
+          }}>
+            {score}% ready
+          </span>
+        </div>
+        <span style={{ fontSize: "10px", color: "#444" }}>{open ? "▲" : "▼"}</span>
+      </div>
+      {open && (
+        <div style={{ borderTop: "1px solid #1a1a24" }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", borderBottom: i < items.length - 1 ? "1px solid #131320" : "none" }}>
+              <span style={{ fontSize: "13px", color: item.pass ? "#1D9E75" : "#E24B4A", flexShrink: 0 }}>
+                {item.pass ? "✓" : "✗"}
+              </span>
+              <span style={{ fontSize: "12px", color: item.pass ? "#888" : "#aaa" }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Valuation Tab ─────────────────────────────────────────────────────────────
+
+function ValuationTab() {
+  const inputs = useProjectionStore();
+  const [discountRate, setDiscountRate]     = useState(10);  // annual %
+  const [ebitdaMultiple, setEbitdaMultiple] = useState(6);
+  const [revenueMultiple, setRevenueMultiple] = useState(3);
+
+  const data = calcMonthlyData(inputs);
+  if (data.length === 0) return null;
+
+  const finalMonth = data[data.length - 1];
+  const arr = calcARR(inputs);
+
+  // DCF
+  const monthlyR = discountRate / 100 / 12;
+  let totalDCF = 0;
+  const dcfRows = data.map((row) => {
+    const pv = monthlyR === 0 ? row.netProfit : row.netProfit / Math.pow(1 + monthlyR, row.month);
+    totalDCF += pv;
+    return {
+      month: row.month,
+      cashFlow: row.netProfit,
+      factor: monthlyR === 0 ? 1 : 1 / Math.pow(1 + monthlyR, row.month),
+      pv,
+    };
+  });
+
+  // EBITDA Multiple
+  const annualisedEBITDA = finalMonth.netProfit * 12;
+  const ebitdaValuation  = annualisedEBITDA * ebitdaMultiple;
+
+  // Revenue Multiple
+  const revenueValuation = arr * revenueMultiple;
+
+  const fc = formatCurrency;
+  const fd = (v: number) => {
+    const abs = Math.abs(Math.round(v));
+    return `${v < 0 ? "−" : ""}$${abs.toLocaleString("en-US")}`;
+  };
+  const profitColor = (v: number) => (v > 0 ? "#1D9E75" : v < 0 ? "#E24B4A" : "#888");
+
+  const CARD: React.CSSProperties = {
+    backgroundColor: "#12121A",
+    border: "1px solid #1e1e2a",
+    borderRadius: "10px",
+    padding: "18px 20px",
+    flex: "1 1 200px",
+    minWidth: "180px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  };
+
+  const SLIDER_WRAP: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  };
+
+  const NOTE: React.CSSProperties = {
+    fontSize: "11px",
+    color: "#555",
+    lineHeight: 1.55,
+    borderTop: "1px solid #1a1a24",
+    paddingTop: "10px",
+    marginTop: "2px",
+  };
+
+  const BG_SEC = "#0d0d14";
+  const BORDER = "#1a1a24";
+  const BORDER_IN = "#131320";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <SectionTitle>Business Valuation — {inputs.forecastMonths}-Month Forecast</SectionTitle>
+
+      {/* ── Three headline cards ── */}
+      <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
+
+        {/* DCF Card */}
+        <div style={CARD}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            DCF Valuation
+          </div>
+          <div style={{ fontSize: "26px", fontWeight: 700, color: profitColor(totalDCF), lineHeight: 1 }}>
+            {fc(totalDCF)}
+          </div>
+          <div style={SLIDER_WRAP}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "11px", color: "#888" }}>Discount Rate</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#C9A84C", backgroundColor: "#1e1810", border: "1px solid #2e2212", borderRadius: "4px", padding: "1px 7px" }}>
+                {discountRate}% annual
+              </span>
+            </div>
+            <input type="range" min={5} max={30} step={1} value={discountRate}
+              onChange={(e) => setDiscountRate(Number(e.target.value))} style={{ width: "100%" }} />
+          </div>
+          <p style={NOTE}>
+            Present value of all projected cash flows discounted at your chosen annual rate. Best used when detailed multi-year projections are available.
+          </p>
+        </div>
+
+        {/* EBITDA Multiple Card */}
+        <div style={CARD}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            EBITDA Multiple
+          </div>
+          <div style={{ fontSize: "26px", fontWeight: 700, color: annualisedEBITDA > 0 ? "#1D9E75" : "#E24B4A", lineHeight: 1 }}>
+            {annualisedEBITDA > 0 ? fc(ebitdaValuation) : "N/A"}
+          </div>
+          <div style={{ fontSize: "11px", color: "#555" }}>
+            Ann. EBITDA: <span style={{ color: profitColor(annualisedEBITDA), fontWeight: 600 }}>{fc(annualisedEBITDA)}</span>
+          </div>
+          <div style={SLIDER_WRAP}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "11px", color: "#888" }}>Industry Multiple</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#C9A84C", backgroundColor: "#1e1810", border: "1px solid #2e2212", borderRadius: "4px", padding: "1px 7px" }}>
+                {ebitdaMultiple}×
+              </span>
+            </div>
+            <input type="range" min={1} max={20} step={0.5} value={ebitdaMultiple}
+              onChange={(e) => setEbitdaMultiple(Number(e.target.value))} style={{ width: "100%" }} />
+          </div>
+          <p style={NOTE}>
+            Annualised EBITDA multiplied by a sector-typical multiple. Common in M&amp;A transactions and private equity. Requires positive EBITDA.
+          </p>
+        </div>
+
+        {/* Revenue Multiple Card */}
+        <div style={CARD}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Revenue Multiple
+          </div>
+          <div style={{ fontSize: "26px", fontWeight: 700, color: "#C9A84C", lineHeight: 1 }}>
+            {fc(revenueValuation)}
+          </div>
+          <div style={{ fontSize: "11px", color: "#555" }}>
+            ARR: <span style={{ color: "#C9A84C", fontWeight: 600 }}>{fc(arr)}</span>
+          </div>
+          <div style={SLIDER_WRAP}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "11px", color: "#888" }}>Revenue Multiple</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#C9A84C", backgroundColor: "#1e1810", border: "1px solid #2e2212", borderRadius: "4px", padding: "1px 7px" }}>
+                {revenueMultiple}×
+              </span>
+            </div>
+            <input type="range" min={0.5} max={10} step={0.5} value={revenueMultiple}
+              onChange={(e) => setRevenueMultiple(Number(e.target.value))} style={{ width: "100%" }} />
+          </div>
+          <p style={NOTE}>
+            Projected ARR multiplied by a revenue multiple. Favoured for high-growth SaaS businesses. Appropriate even before the business reaches profitability.
+          </p>
+        </div>
+      </div>
+
+      {/* ── DCF detail table ── */}
+      <div>
+        <SectionTitle>DCF Breakdown — Monthly Discounted Cash Flows</SectionTitle>
+        <div style={{ backgroundColor: "#12121A", border: "1px solid #1e1e2a", borderRadius: "10px", overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "480px" }}>
+              <thead>
+                <tr>
+                  {["Month", "Cash Flow", "Discount Factor", "Present Value"].map((h) => (
+                    <th key={h} style={{ padding: "9px 14px", fontSize: "10.5px", fontWeight: 600, color: "#555", letterSpacing: "0.07em", textTransform: "uppercase", backgroundColor: BG_SEC, borderBottom: `1px solid ${BORDER}`, textAlign: h === "Month" ? "left" : "right", whiteSpace: "nowrap" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dcfRows.map((r) => (
+                  <tr key={r.month}>
+                    <td style={{ padding: "7px 14px", fontSize: "12px", color: "#888", borderBottom: `1px solid ${BORDER_IN}`, textAlign: "left" }}>
+                      Month {r.month}
+                    </td>
+                    <td style={{ padding: "7px 14px", fontSize: "12px", color: profitColor(r.cashFlow), borderBottom: `1px solid ${BORDER_IN}`, textAlign: "right" }}>
+                      {fd(r.cashFlow)}
+                    </td>
+                    <td style={{ padding: "7px 14px", fontSize: "12px", color: "#666", borderBottom: `1px solid ${BORDER_IN}`, textAlign: "right" }}>
+                      {r.factor.toFixed(4)}
+                    </td>
+                    <td style={{ padding: "7px 14px", fontSize: "12px", fontWeight: 600, color: profitColor(r.pv), borderBottom: `1px solid ${BORDER_IN}`, textAlign: "right" }}>
+                      {fd(r.pv)}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={3} style={{ padding: "9px 14px", fontSize: "12px", fontWeight: 700, color: "#888", backgroundColor: BG_SEC, textAlign: "right" }}>
+                    Total DCF Valuation
+                  </td>
+                  <td style={{ padding: "9px 14px", fontSize: "14px", fontWeight: 700, color: profitColor(totalDCF), backgroundColor: BG_SEC, textAlign: "right" }}>
+                    {fd(totalDCF)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Summary Tab ───────────────────────────────────────────────────────────────
+
+const NOTES_KEY = "elly-user-notes";
+const MAX_NOTES = 1000;
+
+function generateSummary(
+  inputs: ReturnType<typeof useProjectionStore.getState>,
+  data: ReturnType<typeof calcMonthlyData>,
+  breakeven: number | null,
+  arr: number
+): string {
+  if (data.length === 0) return "";
+  const finalMonth = data[data.length - 1];
+  const avgGrossMargin = data.reduce((s, r) => s + r.grossMargin, 0) / data.length;
+  const scenarioLabel = ({ bear: "Bear", base: "Base", bull: "Bull", custom: "current" } as Record<string, string>)[inputs.activeScenario] ?? "current";
+
+  const s1 = breakeven !== null
+    ? `Based on your ${scenarioLabel} scenario, the business is projected to reach break-even in Month ${breakeven} with a final ARR of ${formatCurrency(arr)}.`
+    : `Under the ${scenarioLabel} scenario, break-even is not achieved within the ${inputs.forecastMonths}-month window; the projected ARR is ${formatCurrency(arr)}.`;
+
+  const marginQuality = avgGrossMargin > 65 ? "strong" : avgGrossMargin > 45 ? "healthy" : avgGrossMargin > 25 ? "moderate" : "thin";
+  const s2 = `Gross margins are ${marginQuality} at an average of ${avgGrossMargin.toFixed(1)}%${inputs.cogsPercent > 50 ? " — consider reviewing cost of goods" : ""}.`;
+
+  let s3: string;
+  if (inputs.churnRate > inputs.growthRate) {
+    s3 = `Churn (${inputs.churnRate}%) is outpacing growth (${inputs.growthRate}%) — net MRR is declining and this is the most urgent area to address.`;
+  } else if (finalMonth.netProfit >= 0) {
+    s3 = `The business ends the forecast period in profit at Month ${inputs.forecastMonths}, with churn well-managed at ${inputs.churnRate}%.`;
+  } else {
+    s3 = `The business is still running a monthly deficit of ${formatCurrency(Math.abs(finalMonth.netProfit))} at Month ${inputs.forecastMonths}; reducing fixed costs or accelerating growth would improve the trajectory.`;
+  }
+
+  return `${s1} ${s2} ${s3}`;
+}
+
+function SummaryTab() {
+  const inputs = useProjectionStore();
+  const [notes, setNotes] = useState<string>(() => localStorage.getItem(NOTES_KEY) ?? "");
+
+  useEffect(() => {
+    localStorage.setItem(NOTES_KEY, notes);
+  }, [notes]);
+
+  const data = calcMonthlyData(inputs);
+  const breakeven = calcBreakeven(inputs);
+  const arr = calcARR(inputs);
+  const summary = generateSummary(inputs, data, breakeven, arr);
+
+  const remaining = MAX_NOTES - notes.length;
+  const nearLimit = remaining < 100;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
+      {/* AI-Generated Summary */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+          <SectionTitle>AI-Generated Summary</SectionTitle>
+          <span style={{ fontSize: "10px", color: "#3a3a48", marginBottom: "12px" }}>Auto-updates with sliders</span>
+        </div>
+        <div
+          style={{
+            backgroundColor: "#12121A",
+            border: "1px solid #1e1e2a",
+            borderRadius: "10px",
+            padding: "18px 20px",
+            fontSize: "13px",
+            color: "#aaa",
+            lineHeight: 1.7,
+          }}
+        >
+          {summary || "Adjust the sliders to generate a summary."}
+        </div>
+      </div>
+
+      {/* User Notes */}
+      <div>
+        <SectionTitle>Your Notes</SectionTitle>
+        <div
+          style={{
+            backgroundColor: "#12121A",
+            border: "1px solid #1e1e2a",
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value.slice(0, MAX_NOTES))}
+            placeholder="Add your own assumptions, context, or comments about this projection…"
+            style={{
+              width: "100%",
+              minHeight: "140px",
+              backgroundColor: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#ccc",
+              fontSize: "13px",
+              lineHeight: 1.65,
+              padding: "16px 18px",
+              resize: "vertical",
+              fontFamily: "inherit",
+              boxSizing: "border-box",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              padding: "6px 14px 10px",
+              borderTop: "1px solid #1a1a24",
+            }}
+          >
+            <span style={{ fontSize: "11px", color: nearLimit ? "#F59E0B" : "#3a3a48" }}>
+              {notes.length} / {MAX_NOTES}
+            </span>
+          </div>
+        </div>
+        <div style={{ fontSize: "11px", color: "#3a3a48", marginTop: "6px" }}>
+          Notes are saved automatically in your browser and included in exports.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function OutputPanel({ activeTab }: OutputPanelProps) {
   const inputs = useProjectionStore();
@@ -389,6 +952,8 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
 
       {activeTab === "scenarios" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          <ScenarioStats />
+          <ProjectionChecklist />
           <div>
             <SectionTitle>Built-in Scenarios</SectionTitle>
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
@@ -592,6 +1157,14 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
 
       {activeTab === "sensitivity" && (
         <SensitivityTable />
+      )}
+
+      {activeTab === "valuation" && (
+        <ValuationTab />
+      )}
+
+      {activeTab === "summary" && (
+        <SummaryTab />
       )}
     </div>
   );

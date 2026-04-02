@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import { ScenarioPills } from "./ScenarioPills";
 import { AIHintBlock } from "./AIHintBlock";
 import { formatCurrency } from "@/lib/projection";
+import { ImportModal } from "./ImportModal";
 
 interface SliderRowProps {
   label: string;
@@ -80,6 +81,14 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
 
   const [savingName, setSavingName] = useState(false);
   const [scenarioName, setScenarioName] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [toast, setToast] = useState<{ applied: string[]; skipped: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   return (
     <div
@@ -96,6 +105,31 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
         gap: "20px",
       }}
     >
+      {/* Import Button */}
+      <button
+        onClick={() => setShowImport(true)}
+        style={{
+          width: "100%",
+          backgroundColor: "transparent",
+          border: "1px solid #C9A84C55",
+          borderRadius: "8px",
+          padding: "10px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "7px",
+          cursor: "pointer",
+          transition: "background 0.15s, border-color 0.15s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#C9A84C11"; e.currentTarget.style.borderColor = "#C9A84C99"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = "#C9A84C55"; }}
+      >
+        <span style={{ fontSize: "13px", color: "#C9A84C" }}>↑</span>
+        <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#C9A84C", letterSpacing: "0.02em" }}>
+          Import Financial Data
+        </span>
+      </button>
+
       {/* Scenario Presets */}
       <div>
         <SectionLabel>Scenario Preset</SectionLabel>
@@ -287,6 +321,66 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
       >
         Run Sensitivity Analysis
       </button>
+
+      {/* Import Modal */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImport={(applied, skipped) => {
+            setShowImport(false);
+            setToast({ applied, skipped });
+          }}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            zIndex: 2000,
+            backgroundColor: "#12121A",
+            border: "1px solid #1e1e2a",
+            borderRadius: "10px",
+            padding: "14px 18px",
+            minWidth: "260px",
+            maxWidth: "360px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+          }}
+        >
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "#f0f0f0", marginBottom: "8px" }}>
+            Import Complete
+          </div>
+          {toast.applied.length > 0 && (
+            <div style={{ marginBottom: "6px" }}>
+              <div style={{ fontSize: "10.5px", color: "#1D9E75", fontWeight: 600, marginBottom: "3px" }}>
+                ✓ Applied ({toast.applied.length})
+              </div>
+              {toast.applied.map((f) => (
+                <div key={f} style={{ fontSize: "11px", color: "#666", paddingLeft: "10px" }}>{f}</div>
+              ))}
+            </div>
+          )}
+          {toast.skipped.length > 0 && (
+            <div>
+              <div style={{ fontSize: "10.5px", color: "#F59E0B", fontWeight: 600, marginBottom: "3px" }}>
+                ⚠ Not detected ({toast.skipped.length})
+              </div>
+              {toast.skipped.map((f) => (
+                <div key={f} style={{ fontSize: "11px", color: "#666", paddingLeft: "10px" }}>{f}</div>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setToast(null)}
+            style={{ position: "absolute", top: "10px", right: "12px", background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "13px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
