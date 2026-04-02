@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import type { ProfilePreset } from "@/lib/profilePresets";
+import ImportFinancialDataStep from "@/components/ImportFinancialDataStep";
+import type { ExtractedValues } from "@/lib/importUtils";
 
 // ─── Types & defaults ─────────────────────────────────────────────────────────
 
@@ -173,7 +175,7 @@ function RevenueStep({ state, patch }: RevenueStepProps) {
     <div>
       <StepHeader
         currentStep={1}
-        of={2}
+        of={3}
         title="Revenue & Growth"
         sub="Set your starting revenue and growth expectations."
       />
@@ -238,7 +240,7 @@ function CostsStep({ state, patch }: CostsStepProps) {
     <div>
       <StepHeader
         currentStep={2}
-        of={2}
+        of={3}
         title="Costs & Expenses"
         sub="Toggle anything that doesn't apply — it'll be excluded."
       />
@@ -322,7 +324,7 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
   const setForecastMonths   = useProjectionStore((s) => s.setForecastMonths);
   const saveCustomSnapshot  = useProjectionStore((s) => s.saveCustomSnapshot);
 
-  function handleComplete() {
+  function handleComplete(importedValues?: ExtractedValues) {
     setStartingMRR(state.revenue);
     setGrowthRate(state.growthRate * 100);
     setChurnRate(state.churnRate);
@@ -330,6 +332,16 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
     setMarketingSpend(state.useMarketing ? state.marketingSpend : 0);
     setPayroll(state.usePayroll ? state.payroll : 0);
     setForecastMonths(state.months);
+
+    // Imported values take precedence over slider values for any detected fields
+    if (importedValues) {
+      if (importedValues.startingMRR  !== undefined) setStartingMRR(importedValues.startingMRR);
+      if (importedValues.growthRate   !== undefined) setGrowthRate(importedValues.growthRate);
+      if (importedValues.cogsPercent  !== undefined) setCogsPercent(importedValues.cogsPercent);
+      if (importedValues.marketingSpend !== undefined) setMarketingSpend(importedValues.marketingSpend);
+      if (importedValues.payroll      !== undefined) setPayroll(importedValues.payroll);
+    }
+
     saveCustomSnapshot();
     onComplete();
   }
@@ -337,10 +349,17 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
   return (
     <div className="min-h-screen flex items-center justify-center p-8 font-sans">
       <div className="w-full max-w-lg bg-white/30 backdrop-blur-[18px] rounded-[28px] border-2 border-white/70 shadow-[0_8px_48px_rgba(120,100,180,0.10)] p-9">
-        <ProgressBar step={step} total={2} />
+        <ProgressBar step={step} total={3} />
 
         {step === 1 && <RevenueStep state={state} patch={patch} />}
         {step === 2 && <CostsStep  state={state} patch={patch} />}
+        {step === 3 && (
+          <ImportFinancialDataStep
+            onBack={() => setStep(2)}
+            onSkip={handleComplete}
+            onApply={handleComplete}
+          />
+        )}
 
         {step === 1 && (
           <NavRow
@@ -352,8 +371,8 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
         {step === 2 && (
           <NavRow
             onBack={() => setStep(1)}
-            onNext={handleComplete}
-            nextLabel="View Dashboard →"
+            onNext={() => setStep(3)}
+            nextLabel="Next →"
           />
         )}
       </div>
