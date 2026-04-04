@@ -141,11 +141,15 @@ def parse_output(text):
             continue
 
         # Detect keyword-based sections for Positives/Negatives
+        # Detect keyword-based sections
         if line.startswith("Positives:"):
             current_section = "positives"
             continue
         elif line.startswith("Negatives:"):
             current_section = "negatives"
+            continue
+        elif line.startswith("Next Steps"):
+            current_section = "next_steps"
             continue
 
         # Append content to the appropriate section
