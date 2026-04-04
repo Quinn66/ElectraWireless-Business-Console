@@ -34,8 +34,8 @@ const DEFAULT: OBState = {
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
-const formatDollars = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`);
-const formatPercent = (v: number) => `${(v * 100).toFixed(0)}%`;
+const formatDollars = (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatPercent = (v: number) => `${(v * 100).toFixed(2)}%`;
 const formatMonths  = (v: number) => `${v} mo`;
 
 // ─── Shared components ────────────────────────────────────────────────────────
@@ -83,21 +83,55 @@ interface SliderProps {
   max: number;
   step: number;
   format: (newValue: number) => string;
+  parse?: (input: string) => number;
   onChange: (newValue: number) => void;
   disabled?: boolean;
   hint?: string;
 }
 
-function Slider({ label, value, min, max, step, format, onChange, disabled, hint }: SliderProps) {
+function Slider({ label, value, min, max, step, format, parse, onChange, disabled, hint }: SliderProps) {
+  const [editing, setEditing] = useState(false);
+  const [inputText, setInputText] = useState("");
+
+  function handleFocus() {
+    setEditing(true);
+    setInputText(format(value));
+  }
+
+  function commit() {
+    setEditing(false);
+    const parsed = parse
+      ? parse(inputText)
+      : parseFloat(inputText.replace(/[^0-9.\-]/g, ""));
+    if (!isNaN(parsed)) {
+      onChange(Math.min(max, Math.max(min, parsed)));
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+    if (e.key === "Escape") setEditing(false);
+  }
+
   return (
     <div className={`mb-4 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
       {hint && <p className="text-muted-foreground text-xs mb-0.5">{hint}</p>}
       {label !== "" && (
-        <div className="flex justify-between mb-1">
+        <div className="flex justify-between items-center mb-1">
           <label className="text-muted-foreground text-sm font-semibold">{label}</label>
-          <span className={`text-sm font-bold ${disabled ? "text-muted-foreground" : "text-primary"}`}>
-            {disabled ? "—" : format(value)}
-          </span>
+          {disabled ? (
+            <span className="text-sm font-bold text-muted-foreground">—</span>
+          ) : (
+            <input
+              type="text"
+              value={editing ? inputText : format(value)}
+              onFocus={handleFocus}
+              onChange={(e) => setInputText(e.target.value)}
+              onBlur={commit}
+              onKeyDown={handleKeyDown}
+              className="text-sm font-bold text-primary bg-transparent border-b border-primary/30 focus:border-primary outline-none text-right w-28 transition-colors duration-150 font-sans"
+            />
+          )}
         </div>
       )}
       <input
@@ -166,7 +200,7 @@ function NavRow({ onBack, onNext, nextLabel }: NavRowProps) {
   );
 }
 
-// ─── Step 1: Revenue ──────────────────────────────────────────────────────────
+// ─── Step 2: Revenue ──────────────────────────────────────────────────────────
 
 interface RevenueStepProps { state: OBState; patch: (p: Partial<OBState>) => void; }
 
@@ -174,7 +208,7 @@ function RevenueStep({ state, patch }: RevenueStepProps) {
   return (
     <div>
       <StepHeader
-        currentStep={1}
+        currentStep={2}
         of={3}
         title="Revenue & Growth"
         sub="Set your starting revenue and growth expectations."
@@ -195,6 +229,7 @@ function RevenueStep({ state, patch }: RevenueStepProps) {
         max={0.3}
         step={0.005}
         format={formatPercent}
+        parse={(s) => parseFloat(s.replace(/[^0-9.\-]/g, "")) / 100}
         onChange={(v) => patch({ growthRate: v })}
       />
       <Slider
@@ -203,7 +238,7 @@ function RevenueStep({ state, patch }: RevenueStepProps) {
         min={0}
         max={20}
         step={0.5}
-        format={(v) => `${v}%`}
+        format={(v) => `${v.toFixed(2)}%`}
         onChange={(v) => patch({ churnRate: v })}
       />
       <Slider
@@ -226,7 +261,7 @@ function RevenueStep({ state, patch }: RevenueStepProps) {
   );
 }
 
-// ─── Step 2: Costs ────────────────────────────────────────────────────────────
+// ─── Step 3: Costs ────────────────────────────────────────────────────────────
 
 interface CostsStepProps { state: OBState; patch: (p: Partial<OBState>) => void; }
 
@@ -239,7 +274,7 @@ function CostsStep({ state, patch }: CostsStepProps) {
   return (
     <div>
       <StepHeader
-        currentStep={2}
+        currentStep={3}
         of={3}
         title="Costs & Expenses"
         sub="Toggle anything that doesn't apply — it'll be excluded."
@@ -259,6 +294,7 @@ function CostsStep({ state, patch }: CostsStepProps) {
         max={0.8}
         step={0.01}
         format={formatPercent}
+        parse={(s) => parseFloat(s.replace(/[^0-9.\-]/g, "")) / 100}
         onChange={(v) => patch({ cogsPercent: v })}
         disabled={!state.useCOGS}
       />
@@ -312,6 +348,7 @@ interface OnboardingFlowProps { onComplete: () => void; onBack: () => void; init
 export default function OnboardingFlow({ onComplete, onBack, initialValues }: OnboardingFlowProps) {
   const [step, setStep] = useState(1);
   const [state, setState] = useState<OBState>(initialValues ?? DEFAULT);
+  const [importedValues, setImportedValues] = useState<ExtractedValues | undefined>(undefined);
 
   const patch = (p: Partial<OBState>) => setState((prev) => ({ ...prev, ...p }));
 
@@ -321,10 +358,11 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
   const setCogsPercent      = useProjectionStore((s) => s.setCogsPercent);
   const setMarketingSpend   = useProjectionStore((s) => s.setMarketingSpend);
   const setPayroll          = useProjectionStore((s) => s.setPayroll);
-  const setForecastMonths   = useProjectionStore((s) => s.setForecastMonths);
-  const saveCustomSnapshot  = useProjectionStore((s) => s.saveCustomSnapshot);
+  const setForecastMonths      = useProjectionStore((s) => s.setForecastMonths);
+  const saveCustomSnapshot     = useProjectionStore((s) => s.saveCustomSnapshot);
+  const fetchProphetForecast   = useProjectionStore((s) => s.fetchProphetForecast);
 
-  function handleComplete(importedValues?: ExtractedValues) {
+  function handleComplete() {
     setStartingMRR(state.revenue);
     setGrowthRate(state.growthRate * 100);
     setChurnRate(state.churnRate);
@@ -335,14 +373,15 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
 
     // Imported values take precedence over slider values for any detected fields
     if (importedValues) {
-      if (importedValues.startingMRR  !== undefined) setStartingMRR(importedValues.startingMRR);
-      if (importedValues.growthRate   !== undefined) setGrowthRate(importedValues.growthRate);
-      if (importedValues.cogsPercent  !== undefined) setCogsPercent(importedValues.cogsPercent);
+      if (importedValues.startingMRR    !== undefined) setStartingMRR(importedValues.startingMRR);
+      if (importedValues.growthRate     !== undefined) setGrowthRate(importedValues.growthRate);
+      if (importedValues.cogsPercent    !== undefined) setCogsPercent(importedValues.cogsPercent);
       if (importedValues.marketingSpend !== undefined) setMarketingSpend(importedValues.marketingSpend);
-      if (importedValues.payroll      !== undefined) setPayroll(importedValues.payroll);
+      if (importedValues.payroll        !== undefined) setPayroll(importedValues.payroll);
     }
 
     saveCustomSnapshot();
+    fetchProphetForecast();
     onComplete();
   }
 
@@ -351,28 +390,38 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
       <div className="w-full max-w-lg bg-white/30 backdrop-blur-[18px] rounded-[28px] border-2 border-white/70 shadow-[0_8px_48px_rgba(120,100,180,0.10)] p-9">
         <ProgressBar step={step} total={3} />
 
-        {step === 1 && <RevenueStep state={state} patch={patch} />}
-        {step === 2 && <CostsStep  state={state} patch={patch} />}
-        {step === 3 && (
-          <ImportFinancialDataStep
-            onBack={() => setStep(2)}
-            onSkip={handleComplete}
-            onApply={handleComplete}
-          />
-        )}
-
         {step === 1 && (
-          <NavRow
+          <ImportFinancialDataStep
             onBack={onBack}
-            onNext={() => setStep(2)}
-            nextLabel="Next →"
+            onSkip={() => setStep(2)}
+            onApply={(vals) => {
+              setImportedValues(vals);
+              patch({
+                ...(vals.startingMRR    !== undefined && { revenue:       vals.startingMRR }),
+                ...(vals.growthRate     !== undefined && { growthRate:    vals.growthRate / 100 }),
+                ...(vals.cogsPercent    !== undefined && { cogsPercent:   vals.cogsPercent / 100, useCOGS: true }),
+                ...(vals.marketingSpend !== undefined && { marketingSpend: vals.marketingSpend, useMarketing: true }),
+                ...(vals.payroll        !== undefined && { payroll:        vals.payroll, usePayroll: true }),
+              });
+              setStep(2);
+            }}
           />
         )}
+        {step === 2 && <RevenueStep state={state} patch={patch} />}
+        {step === 3 && <CostsStep   state={state} patch={patch} />}
+
         {step === 2 && (
           <NavRow
             onBack={() => setStep(1)}
             onNext={() => setStep(3)}
             nextLabel="Next →"
+          />
+        )}
+        {step === 3 && (
+          <NavRow
+            onBack={() => setStep(2)}
+            onNext={handleComplete}
+            nextLabel="Finish →"
           />
         )}
       </div>

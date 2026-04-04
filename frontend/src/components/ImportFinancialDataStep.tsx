@@ -104,7 +104,7 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
   const nextLabel =
     wizardStep === "standard" ? "Continue →" :
     wizardStep === "upload"   ? "Extract Data →" :
-    "View Dashboard →";
+    "Apply & Continue →";
 
   const wizardStepIndex = WIZARD_STEP_ORDER.indexOf(wizardStep);
 
@@ -114,10 +114,10 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1.5">
           <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-extrabold text-xs flex items-center justify-center flex-shrink-0">
-            3
+            1
           </div>
           <span className="text-muted-foreground text-xs tracking-widest uppercase">
-            Step 3 of 3
+            Step 1 of 3
           </span>
         </div>
         <h2 className="text-foreground text-2xl font-extrabold tracking-tight mb-1">

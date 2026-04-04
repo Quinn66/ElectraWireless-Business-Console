@@ -41,6 +41,7 @@ export interface ProphetApiData {
   historical: HistoricalPoint[];
   prophet_forecast: ProphetPoint[];
   slider_forecast: SliderForecastPoint[];
+  available_entities: string[];
 }
 
 export interface CustomSnapshot {

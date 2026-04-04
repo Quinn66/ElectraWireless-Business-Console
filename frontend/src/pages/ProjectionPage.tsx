@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import { InputPanel } from "@/components/InputPanel";
 import { OutputPanel } from "@/components/OutputPanel";
@@ -6,7 +6,7 @@ import { FinancialSummaryBar } from "@/components/FinancialSummaryBar";
 import { SectorScreens, SECTOR_LIST, type SectorId } from "@/components/SectorScreens";
 import { useProphetSync } from "@/hooks/useProphetSync";
 
-const TABS = [
+const ALL_TABS = [
   { key: "projection", label: "Projection" },
   { key: "pl",         label: "P&L Forecast" },
   { key: "scenarios",  label: "Scenarios" },
@@ -16,12 +16,48 @@ const TABS = [
   { key: "summary",    label: "Summary" },
 ];
 
+// Tabs hidden by default for user accounts
+const USER_RESTRICTED_TABS = new Set(["scenarios", "sensitivity", "valuation"]);
+
 export function ProjectionPage() {
-  const { activeTab, setActiveTab } = useProjectionStore();
+  const { activeTab, setActiveTab, accountType } = useProjectionStore();
   useProphetSync();
 
   const [activeSector, setActiveSector] = useState<SectorId | null>(null);
   const [showSectorMenu, setShowSectorMenu] = useState(false);
+  const [addedTabs, setAddedTabs] = useState<Set<string>>(new Set());
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close add-menu when clicking outside
+  useEffect(() => {
+    if (!showAddMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showAddMenu]);
+
+  const isUserAccount = accountType === "user";
+
+  // Tabs visible in the nav row
+  const visibleTabs = isUserAccount
+    ? ALL_TABS.filter((t) => !USER_RESTRICTED_TABS.has(t.key) || addedTabs.has(t.key))
+    : ALL_TABS;
+
+  // Tabs available to add via the '+' button
+  const addableTabs = ALL_TABS.filter(
+    (t) => USER_RESTRICTED_TABS.has(t.key) && !addedTabs.has(t.key)
+  );
+
+  function handleAddTab(key: string) {
+    setAddedTabs((prev) => new Set([...prev, key]));
+    setShowAddMenu(false);
+    setActiveTab(key);
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -82,8 +118,8 @@ export function ProjectionPage() {
         </div>
 
         {/* Tab Row */}
-        <div className="flex gap-0">
-          {TABS.map((tab) => {
+        <div className="flex gap-0 items-center">
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
@@ -100,6 +136,47 @@ export function ProjectionPage() {
               </button>
             );
           })}
+
+          {/* Add tool button — only shown for user accounts with remaining addable tabs */}
+          {isUserAccount && addableTabs.length > 0 && (
+            <div className="relative ml-1" ref={addMenuRef}>
+              <button
+                onClick={() => setShowAddMenu((v) => !v)}
+                title="Add tool"
+                className={[
+                  "flex items-center justify-center w-6 h-6 rounded-full cursor-pointer transition-all duration-150 border",
+                  showAddMenu
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:border-primary/60 hover:text-primary",
+                ].join(" ")}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <line x1="5" y1="1" x2="5" y2="9" />
+                  <line x1="1" y1="5" x2="9" y2="5" />
+                </svg>
+              </button>
+
+              {showAddMenu && (
+                <div className="absolute top-[calc(100%+6px)] left-0 bg-white/95 backdrop-blur-md border border-border rounded-[8px] overflow-hidden z-[200] min-w-[160px] shadow-[0_8px_24px_rgba(47,36,133,0.12)]">
+                  <p className="text-[10px] text-muted-foreground font-semibold tracking-widest uppercase px-3.5 pt-2.5 pb-1">
+                    Add tool
+                  </p>
+                  {addableTabs.map((tab, i) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => handleAddTab(tab.key)}
+                      className={[
+                        "block w-full text-left text-xs px-3.5 py-2 cursor-pointer transition-colors duration-100 text-muted-foreground hover:bg-primary/5 hover:text-foreground",
+                        i < addableTabs.length - 1 ? "border-b border-border/50" : "pb-2.5",
+                      ].join(" ")}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
