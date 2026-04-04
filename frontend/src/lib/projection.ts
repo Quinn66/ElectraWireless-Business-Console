@@ -51,10 +51,23 @@ export function calcBreakeven(inputs: ProjectionInputs): number | null {
   return found ? found.month : null;
 }
 
+const MONTHS_PER_YEAR = 12;
+
 export function calcARR(inputs: ProjectionInputs): number {
   const rows = calcMonthlyData(inputs);
   if (rows.length === 0) return 0;
-  return rows[rows.length - 1].revenue * 12;
+  return rows[rows.length - 1].revenue * MONTHS_PER_YEAR;
+}
+
+/**
+ * Formats a dollar value with full precision and comma separators.
+ * Uses a unicode minus for negative values. e.g. −$12,345
+ * Use this for tables where exact figures matter; use formatCurrency for axis labels.
+ */
+export function formatDollar(v: number): string {
+  const abs = Math.abs(Math.round(v));
+  const sign = v < 0 ? "−" : "";
+  return `${sign}$${abs.toLocaleString("en-US")}`;
 }
 
 export function formatCurrency(n: number): string {

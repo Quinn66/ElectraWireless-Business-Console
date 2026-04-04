@@ -5,15 +5,21 @@ import {
   calcBreakeven,
   calcARR,
   formatCurrency,
+  formatDollar,
 } from "@/lib/projection";
 import { MetricCard } from "./MetricCard";
 import { BreakevenBar } from "./BreakevenBar";
 import { ProjectionChart } from "./ProjectionChart";
 import { MonthlyTable } from "./MonthlyTable";
+import { C_SUCCESS, C_ERROR, C_WARNING, C_BORDER, C_BORDER_IN } from "@/lib/colors";
 
 interface OutputPanelProps {
   activeTab: string;
 }
+
+const BG       = "rgba(255,255,255,0.50)";
+const BG_SEC   = "rgba(255,255,255,0.80)";
+const BG_TOTAL = "rgba(245,242,255,0.80)";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -23,7 +29,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
         fontWeight: 600,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        color: "#555",
+        color: "hsl(245 16% 49%)",
         marginBottom: "12px",
       }}
     >
@@ -38,20 +44,23 @@ function SensitivityTable() {
   const churnRates = [Math.max(0, inputs.churnRate - 2), Math.max(0, inputs.churnRate - 1), inputs.churnRate, inputs.churnRate + 1, inputs.churnRate + 2];
 
   const thStyle: React.CSSProperties = {
-    fontSize: "11px", color: "#555", fontWeight: 500,
-    padding: "8px 12px", borderBottom: "1px solid #1a1a24",
-    textAlign: "center", letterSpacing: "0.04em",
+    fontSize: "10.5px", color: "hsl(245 16% 49%)", fontWeight: 600,
+    padding: "8px 12px", borderBottom: `1px solid ${C_BORDER}`,
+    textAlign: "center", letterSpacing: "0.07em", textTransform: "uppercase",
+    whiteSpace: "nowrap", backgroundColor: "rgb(239, 237, 252)",
   };
   const tdStyle: React.CSSProperties = {
-    fontSize: "12px", padding: "8px 12px", textAlign: "center", borderBottom: "1px solid #131320",
+    fontSize: "12px", padding: "7px 12px", textAlign: "center", borderBottom: `1px solid ${C_BORDER_IN}`,
+    backgroundColor: BG, whiteSpace: "nowrap",
   };
 
   return (
     <div>
       <SectionTitle>ARR Sensitivity — Growth Rate vs Churn Rate</SectionTitle>
-      <div style={{ fontSize: "11px", color: "#555", marginBottom: "12px" }}>
+      <div style={{ fontSize: "11px", color: "hsl(245 16% 49%)", marginBottom: "12px" }}>
         Each cell shows projected ARR at the end of the forecast period.
       </div>
+      <div style={{ backgroundColor: BG, border: `1px solid ${C_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
@@ -64,8 +73,12 @@ function SensitivityTable() {
           </thead>
           <tbody>
             {growthRates.map((g) => (
-              <tr key={g}>
-                <td style={{ ...tdStyle, color: "#888", textAlign: "left", fontWeight: 500 }}>{g}% growth</td>
+              <tr
+                key={g}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+              >
+                <td style={{ ...tdStyle, color: "hsl(245 16% 49%)", textAlign: "left", fontWeight: 500 }}>{g}% growth</td>
                 {churnRates.map((c) => {
                   const arr = calcARR({ ...inputs, growthRate: g, churnRate: Math.max(0, c) });
                   const baseArr = calcARR(inputs);
@@ -76,11 +89,11 @@ function SensitivityTable() {
                       style={{
                         ...tdStyle,
                         color: g === inputs.growthRate && c === inputs.churnRate
-                          ? "#C9A84C"
-                          : delta > 0 ? "#1D9E75" : delta < 0 ? "#E24B4A" : "#888",
+                          ? "hsl(var(--primary))"
+                          : delta > 0 ? C_SUCCESS : delta < 0 ? C_ERROR : "hsl(245 16% 49%)",
                         fontWeight: g === inputs.growthRate && c === inputs.churnRate ? 700 : 400,
                         backgroundColor: g === inputs.growthRate && c === inputs.churnRate
-                          ? "#1e1810"
+                          ? "hsl(var(--primary) / 0.08)"
                           : "transparent",
                       }}
                     >
@@ -93,8 +106,31 @@ function SensitivityTable() {
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   );
+}
+
+/** Returns an rgba background colour for a heatmap card at 60% opacity.
+ *  Intensity is normalised against the max absolute value across all rows
+ *  so the most extreme value is fully saturated and near-zero values are
+ *  nearly white.
+ */
+function getHeatmapBg(value: number, maxAbs: number): string {
+  const t = maxAbs === 0 ? 0 : Math.min(Math.abs(value) / maxAbs, 1);
+  if (value >= 0) {
+    // Interpolate white → green: rgb(255,255,255) → rgb(34,197,94)
+    const r = Math.round(255 + t * (34  - 255));
+    const g = Math.round(255 + t * (197 - 255));
+    const b = Math.round(255 + t * (94  - 255));
+    return `rgba(${r},${g},${b},0.50)`;
+  } else {
+    // Interpolate white → red: rgb(255,255,255) → rgb(239,68,68)
+    const r = Math.round(255 + t * (239 - 255));
+    const g = Math.round(255 + t * (68  - 255));
+    const b = Math.round(255 + t * (68  - 255));
+    return `rgba(${r},${g},${b},0.50)`;
+  }
 }
 
 function CashRunwayDetail() {
@@ -108,6 +144,8 @@ function CashRunwayDetail() {
     return { month: row.month, cumulative: cumulativeProfit };
   });
 
+  const maxAbs = Math.max(...runwayData.map((r) => Math.abs(r.cumulative)), 1);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       <div>
@@ -117,16 +155,16 @@ function CashRunwayDetail() {
             <div
               key={row.month}
               style={{
-                backgroundColor: "#12121A",
-                border: `1px solid ${row.cumulative >= 0 ? "#1D9E75" : "#E24B4A"}22`,
+                backgroundColor: getHeatmapBg(row.cumulative, maxAbs),
+                border: `1px solid ${row.cumulative >= 0 ? C_SUCCESS : C_ERROR}33`,
                 borderRadius: "8px",
                 padding: "10px 14px",
                 minWidth: "80px",
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "10px", color: "#555", marginBottom: "4px" }}>M{row.month}</div>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: row.cumulative >= 0 ? "#1D9E75" : "#E24B4A" }}>
+              <div style={{ fontSize: "10px", color: "hsl(245 16% 49%)", marginBottom: "4px" }}>M{row.month}</div>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: row.cumulative >= 0 ? C_SUCCESS : C_ERROR }}>
                 {formatCurrency(row.cumulative)}
               </div>
             </div>
@@ -135,24 +173,24 @@ function CashRunwayDetail() {
       </div>
       <div
         style={{
-          backgroundColor: "#12121A",
-          border: "1px solid #1e1e2a",
+          backgroundColor: BG,
+          border: `1px solid ${C_BORDER}`,
           borderRadius: "10px",
           padding: "16px 18px",
         }}
       >
-        <div style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>Break-even Analysis</div>
+        <div style={{ fontSize: "13px", color: "hsl(245 16% 49%)", marginBottom: "8px" }}>Break-even Analysis</div>
         {breakeven !== null ? (
           <div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#1D9E75" }}>Month {breakeven}</div>
-            <div style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: C_SUCCESS }}>Month {breakeven}</div>
+            <div style={{ fontSize: "12px", color: "hsl(245 16% 49%)", marginTop: "4px" }}>
               You reach break-even {breakeven <= 3 ? "very early" : breakeven <= 6 ? "early" : "within"} in your forecast window.
             </div>
           </div>
         ) : (
           <div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#E24B4A" }}>&gt; {inputs.forecastMonths} mo</div>
-            <div style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: C_ERROR }}>&gt; {inputs.forecastMonths} mo</div>
+            <div style={{ fontSize: "12px", color: "hsl(245 16% 49%)", marginTop: "4px" }}>
               Break-even is not reached within the forecast horizon.
             </div>
           </div>
@@ -195,49 +233,43 @@ function PLForecast() {
   const totalRevenue     = months.reduce((s, m) => s + m.revenue, 0);
   const totalCogs        = months.reduce((s, m) => s + m.cogs, 0);
   const totalGrossProfit = months.reduce((s, m) => s + m.grossProfit, 0);
-  const avgGrossMargin   = months.reduce((s, m) => s + m.grossMarginPct, 0) / n;
+  const avgGrossMargin   = n > 0 ? months.reduce((s, m) => s + m.grossMarginPct, 0) / n : 0;
   const totalMarketing   = months.reduce((s, m) => s + m.marketingSpend, 0);
   const totalPayroll     = months.reduce((s, m) => s + m.payroll, 0);
   const totalOpEx        = months.reduce((s, m) => s + m.totalOpEx, 0);
   const totalEbitda      = months.reduce((s, m) => s + m.ebitda, 0);
   const totalNetProfit   = months.reduce((s, m) => s + m.netProfit, 0);
-  const avgNetMargin     = months.reduce((s, m) => s + m.netMarginPct, 0) / n;
+  const avgNetMargin     = n > 0 ? months.reduce((s, m) => s + m.netMarginPct, 0) / n : 0;
 
   // Formatters
-  const fd = (v: number) => {
-    const abs = Math.abs(Math.round(v));
-    const sign = v < 0 ? "−" : "";
-    return `${sign}$${abs.toLocaleString("en-US")}`;
-  };
   const fp = (v: number) => `${v.toFixed(2)}%`;
 
   // Color helpers
-  const profitColor = (v: number) => (v > 0 ? "#1D9E75" : v < 0 ? "#E24B4A" : "#888");
-  const marginColor = (v: number) => (v >= 0 ? "#1D9E75" : "#E24B4A");
+  const profitColor = (v: number) => (v > 0 ? C_SUCCESS : v < 0 ? C_ERROR : "hsl(245 16% 49%)");
+  const marginColor = (v: number) => (v >= 0 ? C_SUCCESS : C_ERROR);
 
-  // Style constants
-  const BG        = "#12121A";
-  const BG_SEC    = "#0d0d14";
-  const BG_TOTAL  = "#0e0e16";
-  const BORDER    = "#1a1a24";
-  const BORDER_IN = "#131320";
+  // Style constants — use module-level BG / BG_SEC / BG_TOTAL / BORDER / BORDER_IN
+
+  // Solid background for sticky left-column cells — prevents body content
+  // bleeding through when scrolling horizontally.
+  const stickyBg = "rgb(239, 237, 252)";
 
   const baseThStyle: React.CSSProperties = {
     padding: "8px 12px",
     fontSize: "10.5px",
     fontWeight: 600,
-    color: "#555",
+    color: "hsl(245 16% 49%)",
     letterSpacing: "0.07em",
     textTransform: "uppercase",
-    backgroundColor: BG_SEC,
-    borderBottom: `1px solid ${BORDER}`,
+    backgroundColor: stickyBg,
+    borderBottom: `1px solid ${C_BORDER}`,
     whiteSpace: "nowrap",
   };
 
   const baseTdStyle: React.CSSProperties = {
     padding: "7px 12px",
     fontSize: "12px",
-    borderBottom: `1px solid ${BORDER_IN}`,
+    borderBottom: `1px solid ${C_BORDER_IN}`,
     whiteSpace: "nowrap",
     backgroundColor: BG,
   };
@@ -248,10 +280,10 @@ function PLForecast() {
     fontWeight: 700,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
-    color: "#444",
+    color: "hsl(245 16% 55%)",
     backgroundColor: BG_SEC,
-    borderTop: `1px solid ${BORDER}`,
-    borderBottom: `1px solid ${BORDER}`,
+    borderTop: `1px solid ${C_BORDER}`,
+    borderBottom: `1px solid ${C_BORDER}`,
     whiteSpace: "nowrap",
   };
 
@@ -259,7 +291,7 @@ function PLForecast() {
 
   const renderSectionRow = (label: string) => (
     <tr key={`sec-${label}`}>
-      <td style={{ ...secTdStyle, position: "sticky", left: 0, zIndex: 1 }}>{label}</td>
+      <td style={{ ...secTdStyle, position: "sticky", left: 0, zIndex: 1, backgroundColor: stickyBg }}>{label}</td>
       {months.map((m) => (
         <td key={m.month} style={{ ...secTdStyle }} />
       ))}
@@ -276,7 +308,11 @@ function PLForecast() {
     bold = false,
     indent = false
   ) => (
-    <tr key={key}>
+    <tr
+      key={key}
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
+      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+    >
       <td
         style={{
           ...baseTdStyle,
@@ -285,8 +321,9 @@ function PLForecast() {
           left: 0,
           zIndex: 1,
           paddingLeft: indent ? "26px" : "14px",
-          color: bold ? "#ccc" : "#999",
+          color: bold ? "hsl(242 44% 30%)" : "hsl(245 16% 49%)",
           fontWeight: bold ? 700 : 400,
+          backgroundColor: stickyBg,
         }}
       >
         {label}
@@ -295,12 +332,12 @@ function PLForecast() {
         const v = getValue(m);
         return (
           <td key={m.month} style={{ ...baseTdStyle, textAlign: "right", color: colorFn(v), fontWeight: bold ? 600 : 400 }}>
-            {fd(v)}
+            {formatDollar(v)}
           </td>
         );
       })}
       <td style={{ ...baseTdStyle, textAlign: "right", color: colorFn(total), fontWeight: bold ? 700 : 600, backgroundColor: BG_TOTAL }}>
-        {fd(total)}
+        {formatDollar(total)}
       </td>
     </tr>
   );
@@ -312,7 +349,11 @@ function PLForecast() {
     avg: number,
     colorFn: (v: number) => string
   ) => (
-    <tr key={key}>
+    <tr
+      key={key}
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
+      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+    >
       <td
         style={{
           ...baseTdStyle,
@@ -321,8 +362,9 @@ function PLForecast() {
           left: 0,
           zIndex: 1,
           paddingLeft: "26px",
-          color: "#666",
+          color: "hsl(245 16% 55%)",
           fontStyle: "italic",
+          backgroundColor: stickyBg,
         }}
       >
         {label}
@@ -347,7 +389,7 @@ function PLForecast() {
       <div
         style={{
           backgroundColor: BG,
-          border: "1px solid #1e1e2a",
+          border: `1px solid ${C_BORDER}`,
           borderRadius: "10px",
           overflow: "hidden",
         }}
@@ -385,8 +427,8 @@ function PLForecast() {
             <tbody>
               {/* ── Revenue ── */}
               {renderSectionRow("Revenue")}
-              {renderDollarRow("rev",  "Total Revenue",         (m) => m.revenue,       totalRevenue,     () => "#C9A84C", true)}
-              {renderDollarRow("cogs", "Cost of Goods Sold",    (m) => m.cogs,           totalCogs,        () => "#E24B4A")}
+              {renderDollarRow("rev",  "Total Revenue",         (m) => m.revenue,       totalRevenue,     () => "hsl(247 57% 33%)", true)}
+              {renderDollarRow("cogs", "Cost of Goods Sold",    (m) => m.cogs,           totalCogs,        () => C_ERROR)}
               {renderDollarRow("gp",   "Gross Profit",          (m) => m.grossProfit,    totalGrossProfit, profitColor,    true)}
               {renderPctRow("gm%",     "Gross Margin %",        (m) => m.grossMarginPct, avgGrossMargin,   marginColor)}
 
@@ -419,10 +461,10 @@ function ScenarioStats() {
     : "—";
 
   const LABEL: Record<string, string> = { bear: "Bear", base: "Base", bull: "Bull", custom: "Custom" };
-  const COLOR: Record<string, string> = { bear: "#E24B4A", base: "#C9A84C", bull: "#1D9E75", custom: "#888" };
+  const COLOR: Record<string, string> = { bear: C_ERROR, base: "hsl(247 57% 33%)", bull: C_SUCCESS, custom: "hsl(245 16% 49%)" };
 
   const stats = [
-    { label: "Scenarios Run", value: String(totalScenarioRuns), color: "#f0f0f0" },
+    { label: "Scenarios Run", value: String(totalScenarioRuns), color: "hsl(242 44% 30%)" },
     { label: "Most Used", value: LABEL[mostUsed] ?? mostUsed, color: COLOR[mostUsed] ?? "#888" },
     { label: "Active Now", value: LABEL[activeScenario] ?? activeScenario, color: COLOR[activeScenario] ?? "#888" },
   ];
@@ -430,8 +472,8 @@ function ScenarioStats() {
   return (
     <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
       {stats.map(s => (
-        <div key={s.label} style={{ backgroundColor: "#12121A", border: "1px solid #1e1e2a", borderRadius: "8px", padding: "10px 16px", flex: "1 1 100px" }}>
-          <div style={{ fontSize: "9.5px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>{s.label}</div>
+        <div key={s.label} style={{ backgroundColor: BG, border: `1px solid ${C_BORDER}`, borderRadius: "8px", padding: "10px 16px", flex: "1 1 100px" }}>
+          <div style={{ fontSize: "9.5px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>{s.label}</div>
           <div style={{ fontSize: "17px", fontWeight: 700, color: s.color }}>{s.value}</div>
         </div>
       ))}
@@ -465,33 +507,33 @@ function ProjectionChecklist() {
   const score = Math.round((items.filter(i => i.pass).length / items.length) * 100);
 
   return (
-    <div style={{ backgroundColor: "#12121A", border: "1px solid #1e1e2a", borderRadius: "10px", overflow: "hidden" }}>
+    <div style={{ backgroundColor: BG, border: `1px solid ${C_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
       <div
         onClick={() => setOpen(o => !o)}
         style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#f0f0f0" }}>Projection Readiness Checklist</span>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "hsl(242 44% 30%)" }}>Projection Readiness Checklist</span>
           <span style={{
             fontSize: "10px", fontWeight: 700,
-            color: score >= 80 ? "#1D9E75" : score >= 50 ? "#F59E0B" : "#E24B4A",
-            backgroundColor: score >= 80 ? "#1D9E751a" : score >= 50 ? "#F59E0B1a" : "#E24B4A1a",
-            border: `1px solid ${score >= 80 ? "#1D9E7530" : score >= 50 ? "#F59E0B30" : "#E24B4A30"}`,
+            color: score >= 80 ? C_SUCCESS : score >= 50 ? C_WARNING : C_ERROR,
+            backgroundColor: score >= 80 ? `${C_SUCCESS}1a` : score >= 50 ? `${C_WARNING}1a` : `${C_ERROR}1a`,
+            border: `1px solid ${score >= 80 ? `${C_SUCCESS}30` : score >= 50 ? `${C_WARNING}30` : `${C_ERROR}30`}`,
             borderRadius: "4px", padding: "1px 8px",
           }}>
             {score}% ready
           </span>
         </div>
-        <span style={{ fontSize: "10px", color: "#444" }}>{open ? "▲" : "▼"}</span>
+        <span style={{ fontSize: "10px", color: "hsl(245 16% 60%)" }}>{open ? "▲" : "▼"}</span>
       </div>
       {open && (
-        <div style={{ borderTop: "1px solid #1a1a24" }}>
+        <div style={{ borderTop: `1px solid ${C_BORDER}` }}>
           {items.map((item, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", borderBottom: i < items.length - 1 ? "1px solid #131320" : "none" }}>
-              <span style={{ fontSize: "13px", color: item.pass ? "#1D9E75" : "#E24B4A", flexShrink: 0 }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", borderBottom: i < items.length - 1 ? `1px solid ${C_BORDER_IN}` : "none" }}>
+              <span style={{ fontSize: "13px", color: item.pass ? C_SUCCESS : C_ERROR, flexShrink: 0 }}>
                 {item.pass ? "✓" : "✗"}
               </span>
-              <span style={{ fontSize: "12px", color: item.pass ? "#888" : "#aaa" }}>{item.label}</span>
+              <span style={{ fontSize: "12px", color: item.pass ? "hsl(245 16% 55%)" : "hsl(242 44% 40%)" }}>{item.label}</span>
             </div>
           ))}
         </div>
@@ -535,16 +577,11 @@ function ValuationTab() {
   // Revenue Multiple
   const revenueValuation = arr * revenueMultiple;
 
-  const fc = formatCurrency;
-  const fd = (v: number) => {
-    const abs = Math.abs(Math.round(v));
-    return `${v < 0 ? "−" : ""}$${abs.toLocaleString("en-US")}`;
-  };
-  const profitColor = (v: number) => (v > 0 ? "#1D9E75" : v < 0 ? "#E24B4A" : "#888");
+  const profitColor = (v: number) => (v > 0 ? C_SUCCESS : v < 0 ? C_ERROR : "hsl(245 16% 55%)");
 
   const CARD: React.CSSProperties = {
-    backgroundColor: "#12121A",
-    border: "1px solid #1e1e2a",
+    backgroundColor: BG,
+    border: `1px solid ${C_BORDER}`,
     borderRadius: "10px",
     padding: "18px 20px",
     flex: "1 1 200px",
@@ -562,16 +599,12 @@ function ValuationTab() {
 
   const NOTE: React.CSSProperties = {
     fontSize: "11px",
-    color: "#555",
+    color: "hsl(245 16% 49%)",
     lineHeight: 1.55,
-    borderTop: "1px solid #1a1a24",
+    borderTop: `1px solid ${C_BORDER}`,
     paddingTop: "10px",
     marginTop: "2px",
   };
-
-  const BG_SEC = "#0d0d14";
-  const BORDER = "#1a1a24";
-  const BORDER_IN = "#131320";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -582,16 +615,16 @@ function ValuationTab() {
 
         {/* DCF Card */}
         <div style={CARD}>
-          <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             DCF Valuation
           </div>
           <div style={{ fontSize: "26px", fontWeight: 700, color: profitColor(totalDCF), lineHeight: 1 }}>
-            {fc(totalDCF)}
+            {formatCurrency(totalDCF)}
           </div>
           <div style={SLIDER_WRAP}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "11px", color: "#888" }}>Discount Rate</span>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#C9A84C", backgroundColor: "#1e1810", border: "1px solid #2e2212", borderRadius: "4px", padding: "1px 7px" }}>
+              <span style={{ fontSize: "11px", color: "hsl(245 16% 49%)" }}>Discount Rate</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "hsl(247 57% 33%)", backgroundColor: "rgba(47,36,133,0.08)", border: "1px solid rgba(47,36,133,0.2)", borderRadius: "4px", padding: "1px 7px" }}>
                 {discountRate}% annual
               </span>
             </div>
@@ -605,19 +638,19 @@ function ValuationTab() {
 
         {/* EBITDA Multiple Card */}
         <div style={CARD}>
-          <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             EBITDA Multiple
           </div>
-          <div style={{ fontSize: "26px", fontWeight: 700, color: annualisedEBITDA > 0 ? "#1D9E75" : "#E24B4A", lineHeight: 1 }}>
-            {annualisedEBITDA > 0 ? fc(ebitdaValuation) : "N/A"}
+          <div style={{ fontSize: "26px", fontWeight: 700, color: annualisedEBITDA > 0 ? C_SUCCESS : C_ERROR, lineHeight: 1 }}>
+            {annualisedEBITDA > 0 ? formatCurrency(ebitdaValuation) : "N/A"}
           </div>
-          <div style={{ fontSize: "11px", color: "#555" }}>
-            Ann. EBITDA: <span style={{ color: profitColor(annualisedEBITDA), fontWeight: 600 }}>{fc(annualisedEBITDA)}</span>
+          <div style={{ fontSize: "11px", color: "hsl(245 16% 49%)" }}>
+            Ann. EBITDA: <span style={{ color: profitColor(annualisedEBITDA), fontWeight: 600 }}>{formatCurrency(annualisedEBITDA)}</span>
           </div>
           <div style={SLIDER_WRAP}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "11px", color: "#888" }}>Industry Multiple</span>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#C9A84C", backgroundColor: "#1e1810", border: "1px solid #2e2212", borderRadius: "4px", padding: "1px 7px" }}>
+              <span style={{ fontSize: "11px", color: "hsl(245 16% 49%)" }}>Industry Multiple</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "hsl(247 57% 33%)", backgroundColor: "rgba(47,36,133,0.08)", border: "1px solid rgba(47,36,133,0.2)", borderRadius: "4px", padding: "1px 7px" }}>
                 {ebitdaMultiple}×
               </span>
             </div>
@@ -631,19 +664,19 @@ function ValuationTab() {
 
         {/* Revenue Multiple Card */}
         <div style={CARD}>
-          <div style={{ fontSize: "10px", fontWeight: 600, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Revenue Multiple
           </div>
-          <div style={{ fontSize: "26px", fontWeight: 700, color: "#C9A84C", lineHeight: 1 }}>
-            {fc(revenueValuation)}
+          <div style={{ fontSize: "26px", fontWeight: 700, color: "hsl(247 57% 33%)", lineHeight: 1 }}>
+            {formatCurrency(revenueValuation)}
           </div>
-          <div style={{ fontSize: "11px", color: "#555" }}>
-            ARR: <span style={{ color: "#C9A84C", fontWeight: 600 }}>{fc(arr)}</span>
+          <div style={{ fontSize: "11px", color: "hsl(245 16% 49%)" }}>
+            ARR: <span style={{ color: "hsl(247 57% 33%)", fontWeight: 600 }}>{formatCurrency(arr)}</span>
           </div>
           <div style={SLIDER_WRAP}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "11px", color: "#888" }}>Revenue Multiple</span>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#C9A84C", backgroundColor: "#1e1810", border: "1px solid #2e2212", borderRadius: "4px", padding: "1px 7px" }}>
+              <span style={{ fontSize: "11px", color: "hsl(245 16% 49%)" }}>Revenue Multiple</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "hsl(247 57% 33%)", backgroundColor: "rgba(47,36,133,0.08)", border: "1px solid rgba(47,36,133,0.2)", borderRadius: "4px", padding: "1px 7px" }}>
                 {revenueMultiple}×
               </span>
             </div>
@@ -659,13 +692,13 @@ function ValuationTab() {
       {/* ── DCF detail table ── */}
       <div>
         <SectionTitle>DCF Breakdown — Monthly Discounted Cash Flows</SectionTitle>
-        <div style={{ backgroundColor: "#12121A", border: "1px solid #1e1e2a", borderRadius: "10px", overflow: "hidden" }}>
+        <div style={{ backgroundColor: BG, border: `1px solid ${C_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "480px" }}>
               <thead>
                 <tr>
                   {["Month", "Cash Flow", "Discount Factor", "Present Value"].map((h) => (
-                    <th key={h} style={{ padding: "9px 14px", fontSize: "10.5px", fontWeight: 600, color: "#555", letterSpacing: "0.07em", textTransform: "uppercase", backgroundColor: BG_SEC, borderBottom: `1px solid ${BORDER}`, textAlign: h === "Month" ? "left" : "right", whiteSpace: "nowrap" }}>
+                    <th key={h} style={{ padding: "8px 12px", fontSize: "10.5px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.07em", textTransform: "uppercase", backgroundColor: "rgb(239, 237, 252)", borderBottom: `1px solid ${C_BORDER}`, textAlign: h === "Month" ? "left" : "right", whiteSpace: "nowrap" }}>
                       {h}
                     </th>
                   ))}
@@ -673,27 +706,31 @@ function ValuationTab() {
               </thead>
               <tbody>
                 {dcfRows.map((r) => (
-                  <tr key={r.month}>
-                    <td style={{ padding: "7px 14px", fontSize: "12px", color: "#888", borderBottom: `1px solid ${BORDER_IN}`, textAlign: "left" }}>
+                  <tr
+                    key={r.month}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
+                  >
+                    <td style={{ padding: "7px 12px", fontSize: "12px", color: "hsl(245 16% 49%)", borderBottom: `1px solid ${C_BORDER_IN}`, textAlign: "left", backgroundColor: BG }}>
                       Month {r.month}
                     </td>
-                    <td style={{ padding: "7px 14px", fontSize: "12px", color: profitColor(r.cashFlow), borderBottom: `1px solid ${BORDER_IN}`, textAlign: "right" }}>
-                      {fd(r.cashFlow)}
+                    <td style={{ padding: "7px 12px", fontSize: "12px", color: profitColor(r.cashFlow), borderBottom: `1px solid ${C_BORDER_IN}`, textAlign: "right", backgroundColor: BG }}>
+                      {formatDollar(r.cashFlow)}
                     </td>
-                    <td style={{ padding: "7px 14px", fontSize: "12px", color: "#666", borderBottom: `1px solid ${BORDER_IN}`, textAlign: "right" }}>
+                    <td style={{ padding: "7px 12px", fontSize: "12px", color: "hsl(245 16% 55%)", borderBottom: `1px solid ${C_BORDER_IN}`, textAlign: "right", backgroundColor: BG }}>
                       {r.factor.toFixed(4)}
                     </td>
-                    <td style={{ padding: "7px 14px", fontSize: "12px", fontWeight: 600, color: profitColor(r.pv), borderBottom: `1px solid ${BORDER_IN}`, textAlign: "right" }}>
-                      {fd(r.pv)}
+                    <td style={{ padding: "7px 12px", fontSize: "12px", fontWeight: 600, color: profitColor(r.pv), borderBottom: `1px solid ${C_BORDER_IN}`, textAlign: "right", backgroundColor: BG }}>
+                      {formatDollar(r.pv)}
                     </td>
                   </tr>
                 ))}
                 <tr>
-                  <td colSpan={3} style={{ padding: "9px 14px", fontSize: "12px", fontWeight: 700, color: "#888", backgroundColor: BG_SEC, textAlign: "right" }}>
+                  <td colSpan={3} style={{ padding: "9px 12px", fontSize: "12px", fontWeight: 700, color: "hsl(245 16% 49%)", backgroundColor: "rgb(239, 237, 252)", textAlign: "right" }}>
                     Total DCF Valuation
                   </td>
-                  <td style={{ padding: "9px 14px", fontSize: "14px", fontWeight: 700, color: profitColor(totalDCF), backgroundColor: BG_SEC, textAlign: "right" }}>
-                    {fd(totalDCF)}
+                  <td style={{ padding: "9px 12px", fontSize: "14px", fontWeight: 700, color: profitColor(totalDCF), backgroundColor: "rgb(239, 237, 252)", textAlign: "right" }}>
+                    {formatDollar(totalDCF)}
                   </td>
                 </tr>
               </tbody>
@@ -763,16 +800,16 @@ function SummaryTab() {
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
           <SectionTitle>AI-Generated Summary</SectionTitle>
-          <span style={{ fontSize: "10px", color: "#3a3a48", marginBottom: "12px" }}>Auto-updates with sliders</span>
+          <span style={{ fontSize: "10px", color: "hsl(245 16% 60%)", marginBottom: "12px" }}>Auto-updates with sliders</span>
         </div>
         <div
           style={{
-            backgroundColor: "#12121A",
-            border: "1px solid #1e1e2a",
+            backgroundColor: BG,
+            border: `1px solid ${C_BORDER}`,
             borderRadius: "10px",
             padding: "18px 20px",
             fontSize: "13px",
-            color: "#aaa",
+            color: "hsl(242 44% 40%)",
             lineHeight: 1.7,
           }}
         >
@@ -785,8 +822,8 @@ function SummaryTab() {
         <SectionTitle>Your Notes</SectionTitle>
         <div
           style={{
-            backgroundColor: "#12121A",
-            border: "1px solid #1e1e2a",
+            backgroundColor: BG,
+            border: `1px solid ${C_BORDER}`,
             borderRadius: "10px",
             overflow: "hidden",
           }}
@@ -801,7 +838,7 @@ function SummaryTab() {
               backgroundColor: "transparent",
               border: "none",
               outline: "none",
-              color: "#ccc",
+              color: "hsl(242 44% 30%)",
               fontSize: "13px",
               lineHeight: 1.65,
               padding: "16px 18px",
@@ -815,15 +852,15 @@ function SummaryTab() {
               display: "flex",
               justifyContent: "flex-end",
               padding: "6px 14px 10px",
-              borderTop: "1px solid #1a1a24",
+              borderTop: `1px solid ${C_BORDER}`,
             }}
           >
-            <span style={{ fontSize: "11px", color: nearLimit ? "#F59E0B" : "#3a3a48" }}>
+            <span style={{ fontSize: "11px", color: nearLimit ? C_WARNING : "hsl(245 16% 60%)" }}>
               {notes.length} / {MAX_NOTES}
             </span>
           </div>
         </div>
-        <div style={{ fontSize: "11px", color: "#3a3a48", marginTop: "6px" }}>
+        <div style={{ fontSize: "11px", color: "hsl(245 16% 60%)", marginTop: "6px" }}>
           Notes are saved automatically in your browser and included in exports.
         </div>
       </div>
@@ -852,7 +889,7 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
     ? "Early break-even"
     : "Within forecast";
 
-  const netProfitColor = finalMonth?.netProfit >= 0 ? "#1D9E75" : "#E24B4A";
+  const netProfitColor = finalMonth?.netProfit >= 0 ? C_SUCCESS : C_ERROR;
   const netProfitSubtext = finalMonth?.netProfit >= 0 ? "Profitable" : "Loss";
 
   return (
@@ -886,15 +923,15 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
               label="Break-even Month"
               value={breakevenLabel}
               subtext={breakevenSubtext}
-              valueColor={breakeven !== null ? "#C9A84C" : "#E24B4A"}
+              valueColor={breakeven !== null ? "hsl(247 57% 33%)" : C_ERROR}
             />
           </div>
 
           {/* Cash Runway Bar */}
           <div
             style={{
-              backgroundColor: "#12121A",
-              border: "1px solid #1e1e2a",
+              backgroundColor: BG,
+              border: `1px solid ${C_BORDER}`,
               borderRadius: "10px",
               padding: "16px 18px",
             }}
@@ -905,18 +942,18 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
           {/* Chart */}
           <div
             style={{
-              backgroundColor: "#12121A",
-              border: "1px solid #1e1e2a",
+              backgroundColor: BG,
+              border: `1px solid ${C_BORDER}`,
               borderRadius: "10px",
               padding: "16px 18px",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>
+              <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(245 16% 49%)" }}>
                 {apiData ? "Historical + Prophet Baseline + Your Forecast" : "Revenue vs Expenses vs Net Profit"}
               </div>
               {apiLoading && (
-                <div style={{ fontSize: "10px", color: "#444", letterSpacing: "0.05em" }}>updating…</div>
+                <div style={{ fontSize: "10px", color: "hsl(245 16% 60%)", letterSpacing: "0.05em" }}>updating…</div>
               )}
             </div>
             <ProjectionChart
@@ -930,13 +967,13 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
           {/* Monthly Table */}
           <div
             style={{
-              backgroundColor: "#12121A",
-              border: "1px solid #1e1e2a",
+              backgroundColor: BG,
+              border: `1px solid ${C_BORDER}`,
               borderRadius: "10px",
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "14px 18px 0", fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>
+            <div style={{ padding: "14px 18px 0", fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(245 16% 49%)" }}>
               Monthly Breakdown
             </div>
             <div style={{ padding: "0 0 0 0" }}>
@@ -968,13 +1005,13 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                 const scenarioBreakeven = calcBreakeven(scenarioInputs);
                 const scenarioData = calcMonthlyData(scenarioInputs);
                 const finalMonthData = scenarioData[scenarioData.length - 1];
-                const colors = { bear: "#E24B4A", base: "#C9A84C", bull: "#1D9E75" };
+                const colors = { bear: C_ERROR, base: "hsl(247 57% 33%)", bull: C_SUCCESS };
                 const color = colors[scenario];
                 return (
                   <div
                     key={scenario}
                     style={{
-                      backgroundColor: "#12121A",
+                      backgroundColor: BG,
                       border: `1px solid ${color}22`,
                       borderRadius: "10px",
                       padding: "18px 20px",
@@ -987,24 +1024,24 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                        <span style={{ color: "#666" }}>Projected ARR</span>
-                        <span style={{ color: "#f0f0f0", fontWeight: 600 }}>{formatCurrency(scenarioARR)}</span>
+                        <span style={{ color: "hsl(245 16% 55%)" }}>Projected ARR</span>
+                        <span style={{ color: "hsl(242 44% 30%)", fontWeight: 600 }}>{formatCurrency(scenarioARR)}</span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                        <span style={{ color: "#666" }}>Break-even</span>
+                        <span style={{ color: "hsl(245 16% 55%)" }}>Break-even</span>
                         <span style={{ color, fontWeight: 600 }}>
                           {scenarioBreakeven !== null ? `Month ${scenarioBreakeven}` : `> ${inputs.forecastMonths} mo`}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                        <span style={{ color: "#666" }}>Final Net Profit</span>
-                        <span style={{ color: finalMonthData.netProfit >= 0 ? "#1D9E75" : "#E24B4A", fontWeight: 600 }}>
+                        <span style={{ color: "hsl(245 16% 55%)" }}>Final Net Profit</span>
+                        <span style={{ color: finalMonthData.netProfit >= 0 ? C_SUCCESS : C_ERROR, fontWeight: 600 }}>
                           {formatCurrency(finalMonthData.netProfit)}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                        <span style={{ color: "#666" }}>Growth / Churn</span>
-                        <span style={{ color: "#888" }}>{preset.growthRate}% / {preset.churnRate}%</span>
+                        <span style={{ color: "hsl(245 16% 55%)" }}>Growth / Churn</span>
+                        <span style={{ color: "hsl(245 16% 49%)" }}>{preset.growthRate}% / {preset.churnRate}%</span>
                       </div>
                     </div>
                   </div>
@@ -1018,7 +1055,7 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
             <SectionTitle>
               Saved Custom Scenarios
               {inputs.savedScenarios.length > 0 && (
-                <span style={{ color: "#C9A84C", marginLeft: "8px", fontWeight: 700 }}>
+                <span style={{ color: "hsl(247 57% 33%)", marginLeft: "8px", fontWeight: 700 }}>
                   {inputs.savedScenarios.length}
                 </span>
               )}
@@ -1026,16 +1063,16 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
             {inputs.savedScenarios.length === 0 ? (
               <div
                 style={{
-                  backgroundColor: "#12121A",
-                  border: "1px dashed #1e1e2a",
+                  backgroundColor: BG,
+                  border: `1px dashed ${C_BORDER}`,
                   borderRadius: "10px",
                   padding: "28px 20px",
                   textAlign: "center",
-                  color: "#3a3a48",
+                  color: "hsl(245 16% 60%)",
                   fontSize: "12px",
                 }}
               >
-                No saved scenarios yet. Adjust the sliders to create a custom scenario, then click <span style={{ color: "#C9A84C" }}>Save Scenario…</span> in the left panel.
+                No saved scenarios yet. Adjust the sliders to create a custom scenario, then click <span style={{ color: "hsl(247 57% 33%)" }}>Save Scenario…</span> in the left panel.
               </div>
             ) : (
               <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
@@ -1057,9 +1094,9 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                     <div
                       key={sc.id}
                       style={{
-                        backgroundColor: "#12121A",
-                        border: "1px solid #C9A84C22",
-                        borderTop: "3px solid #C9A84C",
+                        backgroundColor: BG,
+                        border: "1px solid hsl(247 57% 33% / 0.13)",
+                        borderTop: "3px solid hsl(247 57% 33%)",
                         borderRadius: "10px",
                         padding: "16px 18px",
                         flex: "1 1 220px",
@@ -1070,7 +1107,7 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                     >
                       {/* Header row */}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#C9A84C", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "hsl(247 57% 33%)", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {sc.name}
                         </div>
                         <button
@@ -1079,14 +1116,14 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#3a3a48",
+                            color: "hsl(245 16% 60%)",
                             cursor: "pointer",
                             fontSize: "14px",
                             padding: "0 2px",
                             lineHeight: 1,
                             transition: "color 0.15s",
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = "#E24B4A")}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = C_ERROR)}
                           onMouseLeave={(e) => (e.currentTarget.style.color = "#3a3a48")}
                         >
                           ✕
@@ -1096,28 +1133,28 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                       {/* Metrics */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                          <span style={{ color: "#666" }}>Projected ARR</span>
-                          <span style={{ color: "#f0f0f0", fontWeight: 600 }}>{formatCurrency(scARR)}</span>
+                          <span style={{ color: "hsl(245 16% 55%)" }}>Projected ARR</span>
+                          <span style={{ color: "hsl(242 44% 30%)", fontWeight: 600 }}>{formatCurrency(scARR)}</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                          <span style={{ color: "#666" }}>Break-even</span>
-                          <span style={{ color: "#C9A84C", fontWeight: 600 }}>
+                          <span style={{ color: "hsl(245 16% 55%)" }}>Break-even</span>
+                          <span style={{ color: "hsl(247 57% 33%)", fontWeight: 600 }}>
                             {scBreakeven !== null ? `Month ${scBreakeven}` : `> ${sc.forecastMonths} mo`}
                           </span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                          <span style={{ color: "#666" }}>Final Net Profit</span>
-                          <span style={{ color: scFinal.netProfit >= 0 ? "#1D9E75" : "#E24B4A", fontWeight: 600 }}>
+                          <span style={{ color: "hsl(245 16% 55%)" }}>Final Net Profit</span>
+                          <span style={{ color: scFinal.netProfit >= 0 ? C_SUCCESS : C_ERROR, fontWeight: 600 }}>
                             {formatCurrency(scFinal.netProfit)}
                           </span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                          <span style={{ color: "#666" }}>Growth / Churn</span>
-                          <span style={{ color: "#888" }}>{sc.growthRate}% / {sc.churnRate}%</span>
+                          <span style={{ color: "hsl(245 16% 55%)" }}>Growth / Churn</span>
+                          <span style={{ color: "hsl(245 16% 49%)" }}>{sc.growthRate}% / {sc.churnRate}%</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                          <span style={{ color: "#666" }}>Horizon</span>
-                          <span style={{ color: "#888" }}>{sc.forecastMonths} mo</span>
+                          <span style={{ color: "hsl(245 16% 55%)" }}>Horizon</span>
+                          <span style={{ color: "hsl(245 16% 49%)" }}>{sc.forecastMonths} mo</span>
                         </div>
                       </div>
 
@@ -1127,9 +1164,9 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                         style={{
                           marginTop: "2px",
                           backgroundColor: "transparent",
-                          border: "1px solid #C9A84C44",
+                          border: "1px solid hsl(247 57% 33% / 0.27)",
                           borderRadius: "6px",
-                          color: "#C9A84C",
+                          color: "hsl(247 57% 33%)",
                           fontSize: "11.5px",
                           fontWeight: 600,
                           padding: "6px",
@@ -1137,7 +1174,7 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                           transition: "background 0.15s",
                           letterSpacing: "0.04em",
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#C9A84C15")}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.08)")}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                       >
                         Load into sliders
