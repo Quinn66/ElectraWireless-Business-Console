@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Tuple, List, Dict
 import warnings
+import json
 warnings.filterwarnings('ignore')
 
 # Darts and Prophet imports
@@ -19,7 +20,7 @@ except ImportError:
     DARTS_AVAILABLE = False
 
 # Define the path to the financial dataset
-FINANCIAL_DATA_PATH = Path(__file__).parent / "financial_dataset.csv"
+FINANCIAL_DATA_PATH = Path(__file__).parent / "Sample_data/financial_dataset.csv"
 
 def load_and_preprocess_data(file_path: str = None, company_id: str = "CMP_001") -> pd.DataFrame:
     """
@@ -347,6 +348,72 @@ def plot_results(train_target: TimeSeries, test_target: TimeSeries,
 
     plt.show()
 
+
+def save_predictions_to_json(train_df, test_df, forecast, company_id, filename="predictions.json"):
+    # Convert forecast to DataFrame
+    forecast_df = forecast.pd_dataframe().reset_index()
+    forecast_df.columns = ['ds', 'revenue']
+
+    # Simulate bounds (since Darts Prophet doesn't give easily)
+    forecast_df['yhat_lower'] = forecast_df['revenue'] * 0.9
+    forecast_df['yhat_upper'] = forecast_df['revenue'] * 1.1
+
+    # Combine historical data
+    full_df = pd.concat([train_df, test_df]).reset_index(drop=True)
+
+    historical = []
+    for _, row in full_df.iterrows():
+        revenue = row['Revenue']
+        expenses = revenue * 0.7
+        profit = revenue - expenses
+
+        historical.append({
+            "ds": row['ds'].strftime("%Y-%m-%d"),
+            "revenue": round(float(revenue), 2),
+            "expenses": round(float(expenses), 2),
+            "profit": round(float(profit), 2),
+        })
+
+    # Prophet forecast
+    prophet_forecast = []
+    for _, row in forecast_df.iterrows():
+        prophet_forecast.append({
+            "ds": row['ds'].strftime("%Y-%m-%d"),
+            "revenue": round(float(row['revenue']), 2),
+            "yhat_lower": round(float(row['yhat_lower']), 2),
+            "yhat_upper": round(float(row['yhat_upper']), 2),
+        })
+
+    # Slider forecast (simple logic)
+    slider_forecast = []
+    for _, row in forecast_df.iterrows():
+        revenue = row['revenue']
+        expenses = revenue * 0.7
+        gross_margin = revenue * 0.6
+        net_profit = revenue - expenses
+
+        slider_forecast.append({
+            "ds": row['ds'].strftime("%Y-%m-%d"),
+            "revenue": round(float(revenue), 2),
+            "expenses": round(float(expenses), 2),
+            "gross_margin": round(float(gross_margin), 2),
+            "net_profit": round(float(net_profit), 2),
+        })
+
+    # Final JSON structure
+    output = {
+        "historical": historical,
+        "prophet_forecast": prophet_forecast,
+        "slider_forecast": slider_forecast,
+        "available_entities": [company_id]
+    }
+
+    # Save to file
+    with open(filename, "w") as f:
+        json.dump(output, f, indent=4)
+
+    print(f"\nPredictions saved to {filename}")
+
 def main_forecasting_pipeline(company_id: str = "CMP_001", test_size: float = 0.2):
     """
     Main function to run the complete forecasting pipeline.
@@ -409,6 +476,9 @@ def main_forecasting_pipeline(company_id: str = "CMP_001", test_size: float = 0.
         # Step 9: Plot results
         print("\n9. Plotting results...")
         plot_results(train_target, test_target, forecast)
+
+        print("\n10. Saving predictions to JSON...")
+        save_predictions_to_json(train_df, test_df, forecast, company_id)
 
         print("\n" + "="*60)
         print("PIPELINE COMPLETED SUCCESSFULLY!")
