@@ -7,6 +7,7 @@ interface Profile {
   id: string;
   label: string;
   description: string;
+  highlights?: string[];
   Icon: () => React.ReactElement;
 }
 
@@ -147,25 +148,40 @@ const PROFILES: ProfileMap = {
     {
       id: "personal-finance",
       label: "Personal Finance",
-      description: "Track income, expenses, and savings goals for individuals.",
+      description: "For individuals who want to forecast personal income, savings, and living expenses to project their financial future.",
+      highlights: [
+        "Monthly Income: $6,000.00",
+        "Monthly Growth Rate: 1.50%",
+        "Forecast Period: 12 months",
+      ],
       Icon: IconPersonalFinance,
     },
     {
       id: "small-business",
       label: "Small Business",
-      description: "Monitor cash flow and projections for small local businesses.",
+      description: "For local or established businesses to model your cash flow, operating costs, and profit margins over time.",
+      highlights: [
+        "Monthly Revenue: $20,000.00",
+        "Monthly Growth Rate: 4.00%",
+        "Monthly Payroll: $8,000.00",
+      ],
       Icon: IconSmallBusiness,
     },
     {
       id: "freelancer",
       label: "Freelancer",
-      description: "Manage contracts, invoicing, and variable income streams.",
+      description: "For handling project-based income to forecast future finance decisions, great for planning payment gaps and annual earning potential.",
+      highlights: [
+        "Monthly Revenue: $3,500.00",
+        "Monthly Growth Rate: 5.00%",
+        "Forecast Period: 12 months",
+      ],
       Icon: IconFreelancer,
     },
     {
       id: "startup-founder",
-      label: "Startup Founder",
-      description: "Model runway, growth scenarios, and investor readiness.",
+      label: "Not Sure? Start Here",
+      description: "Not sure which profile fits you – or want to explore how financial forecasting works?\nStart with a blank profile and set your own figures.",
       Icon: IconStartup,
     },
   ],
@@ -269,7 +285,7 @@ export default function ProfileSelector({ accountType, onSelect, onBack }: Props
 
         {/* Profile cards */}
         <div className="grid grid-cols-2 gap-4 w-full max-w-[640px]">
-          {profiles.map(({ id, label, description, Icon }) => {
+          {profiles.map(({ id, label, description, highlights, Icon }) => {
             const isSelected = selected === id;
             return (
               <button
@@ -284,27 +300,39 @@ export default function ProfileSelector({ accountType, onSelect, onBack }: Props
                     : "bg-white/30 border-white/80 hover:bg-[rgba(230,225,250,0.30)]",
                 ].join(" ")}
               >
-                {/* Icon */}
-                <span
-                  className={[
-                    "transition-[color,opacity] duration-200",
-                    isSelected
-                      ? "text-primary opacity-100"
-                      : "text-[#5a5878] opacity-60 group-hover:text-primary group-hover:opacity-100",
-                  ].join(" ")}
-                >
-                  <Icon />
-                </span>
-
-                {/* Label */}
-                <span className="text-[17px] font-bold text-foreground leading-snug">
-                  {label}
-                </span>
+                {/* Icon + Label */}
+                <div className="flex items-center gap-3">
+                  <span
+                    className={[
+                      "transition-[color,opacity] duration-200 flex-shrink-0",
+                      isSelected
+                        ? "text-primary opacity-100"
+                        : "text-[#5a5878] opacity-60 group-hover:text-primary group-hover:opacity-100",
+                    ].join(" ")}
+                  >
+                    <Icon />
+                  </span>
+                  <span className="text-[17px] font-bold text-foreground leading-snug">
+                    {label}
+                  </span>
+                </div>
 
                 {/* Description */}
-                <span className="text-[13px] text-muted-foreground leading-relaxed">
+                <span className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">
                   {description}
                 </span>
+
+                {/* Highlights */}
+                {highlights && (
+                  <ul className="mt-1 flex flex-col gap-1">
+                    {highlights.map((point) => (
+                      <li key={point} className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                        <span className="w-1 h-1 rounded-full bg-primary/50 flex-shrink-0" />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </button>
             );
           })}
