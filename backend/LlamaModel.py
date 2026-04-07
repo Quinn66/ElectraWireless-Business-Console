@@ -1,6 +1,7 @@
-import ollama
+import os
 import json
 import re
+from groq import Groq
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -98,15 +99,14 @@ def get_analysis(user_question):
     End the response after the "Next Steps" section make sure to include the next steps section aswell; do not add any additional generic conclusions.
     """
 
-    response = ollama.chat(
-        model="llama3.2",
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        options={
-            "num_predict": 1500  # increase output length
-        }
+        max_tokens=1500,
     )
 
-    return response.message.content
+    return response.choices[0].message.content
 
 # output parse
 # =========================

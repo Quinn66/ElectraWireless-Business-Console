@@ -25,6 +25,8 @@ try:
 except ImportError:
     print("Warning: Darts library not available. Please install with: pip install darts")
     DARTS_AVAILABLE = False
+    TimeSeries = None
+    DartsProphet = None
 
 # Define the path to the financial dataset
 FINANCIAL_DATA_PATH = Path(__file__).parent / "Sample_data/financial_dataset.csv"
