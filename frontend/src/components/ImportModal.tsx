@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { SpreadsheetGrid } from "@/components/SpreadsheetGrid";
 import { C_SUCCESS, C_ERROR, C_WARNING, C_PRIMARY, C_BORDER } from "@/lib/colors";
 import { useProjectionStore } from "@/store/projectionStore";
 import {
@@ -36,8 +37,10 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [mapping, setMapping] = useState<ColumnMapping>({ date: "", revenue: "", cogs: "", marketing: "", payroll: "" });
   const [extracted, setExtracted] = useState<ExtractedValues | null>(null);
+  const [editableData, setEditableData] = useState<ParsedData | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridDataRef = useRef<(() => ParsedData) | null>(null);
 
   const handleFile = useCallback(async (f: File) => {
     setFile(f);
@@ -46,6 +49,7 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
     try {
       const data = await parseFile(f);
       setParsedData(data);
+      setEditableData({ headers: [...data.headers], rows: data.rows.map(r => [...r]) });
     } catch (err) {
       setParseError((err as Error).message);
     } finally {
@@ -61,12 +65,13 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
   }, [handleFile]);
 
   const handleContinueFromUpload = () => {
-    if (!parsedData || !standard) return;
+    if (!editableData || !standard) return;
+    const currentData = gridDataRef.current ? gridDataRef.current() : editableData;
     let values: ExtractedValues = {};
-    if (standard === "standard-csv") values = extractStandardCSV(parsedData);
-    else if (standard === "pl-statement") values = extractPLStatement(parsedData);
-    else if (standard === "superstore") values = extractSuperstore(parsedData);
-    else if (standard === "custom") values = extractCustom(parsedData, mapping);
+    if (standard === "standard-csv") values = extractStandardCSV(currentData);
+    else if (standard === "pl-statement") values = extractPLStatement(currentData);
+    else if (standard === "superstore") values = extractSuperstore(currentData);
+    else if (standard === "custom") values = extractCustom(currentData, mapping);
     setExtracted(values);
     setStep("confirm");
   };
@@ -293,47 +298,25 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                 </div>
               )}
 
-              {/* Preview table */}
-              {parsedData && !parseError && (
-                <div>
-                  <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>
-                    File Preview (first 5 rows)
-                  </div>
-                  <div style={{ border: `1px solid ${C_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "max-content" }}>
-                      <thead>
-                        <tr>
-                          {parsedData.headers.map((h, i) => (
-                            <th key={i} style={{ padding: "8px 12px", fontSize: "10.5px", color: "hsl(245 16% 49%)", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", textAlign: "left", backgroundColor: "rgb(239, 237, 252)", borderBottom: `1px solid ${C_BORDER}`, whiteSpace: "nowrap" }}>
-                              {h || `Col ${i + 1}`}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parsedData.rows.slice(0, 5).map((row, ri) => (
-                          <tr
-                            key={ri}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
-                          >
-                            {parsedData.headers.map((_, ci) => (
-                              <td key={ci} style={{ padding: "7px 12px", fontSize: "12px", color: "hsl(242 44% 40%)", borderBottom: `1px solid ${C_BORDER}`, whiteSpace: "nowrap", backgroundColor: "rgba(255,255,255,0.60)" }}>
-                                {String(row[ci] ?? "")}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  </div>
-                </div>
+              {/* Spreadsheet grid */}
+              {editableData && !parseError && (
+                <SpreadsheetGrid
+                  data={editableData}
+                  onHeaderChange={(i, value) =>
+                    setEditableData((prev) => {
+                      if (!prev) return prev;
+                      const headers = [...prev.headers];
+                      headers[i] = value;
+                      return { ...prev, headers };
+                    })
+                  }
+                  gridRef={gridDataRef}
+                  fileKey={file?.name ?? "grid"}
+                />
               )}
 
               {/* Custom column mapping */}
-              {standard === "custom" && parsedData && (
+              {standard === "custom" && editableData && (
                 <div>
                   <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
                     Column Mapping
@@ -359,7 +342,7 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                             }}
                           >
                             <option value="">— Skip —</option>
-                            {parsedData.headers.map((h, i) => (
+                            {editableData.headers.map((h, i) => (
                               <option key={i} value={h}>{h || `Column ${i + 1}`}</option>
                             ))}
                           </select>
@@ -433,7 +416,7 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
                 style={btnGhost}
                 onClick={() => {
                   if (step === "confirm") setStep("upload");
-                  else if (step === "upload") { setStep("standard"); setFile(null); setParsedData(null); setParseError(null); }
+                  else if (step === "upload") { setStep("standard"); setFile(null); setParsedData(null); setEditableData(null); setParseError(null); }
                 }}
               >
                 ← Back
@@ -453,8 +436,8 @@ export function ImportModal({ onClose, onImport }: ImportModalProps) {
             )}
             {step === "upload" && (
               <button
-                style={{ ...btnPrimary, opacity: (parsedData && !parseError) ? 1 : 0.4, cursor: (parsedData && !parseError) ? "pointer" : "not-allowed" }}
-                disabled={!parsedData || !!parseError}
+                style={{ ...btnPrimary, opacity: (editableData && !parseError) ? 1 : 0.4, cursor: (editableData && !parseError) ? "pointer" : "not-allowed" }}
+                disabled={!editableData || !!parseError}
                 onClick={handleContinueFromUpload}
               >
                 Extract Data →

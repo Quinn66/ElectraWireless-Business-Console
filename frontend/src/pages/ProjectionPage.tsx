@@ -14,6 +14,7 @@ const ALL_TABS = [
   { key: "sensitivity",label: "Sensitivity" },
   { key: "valuation",  label: "Valuation" },
   { key: "summary",    label: "Summary" },
+  { key: "documents",  label: "Documents" },
 ];
 
 // Tabs hidden by default for user accounts

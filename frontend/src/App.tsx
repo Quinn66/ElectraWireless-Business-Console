@@ -3,6 +3,7 @@ import { ProjectionPage } from "@/pages/ProjectionPage";
 import OnboardingFlow from "./OnboardingFlow";
 import LoginScreen from "./LoginScreen";
 import ProfileSelector from "./ProfileSelector";
+import ToolSelector from "./ToolSelector";
 import { useProjectionStore } from "@/store/projectionStore";
 import type { AccountType } from "@/store/projectionStore";
 import { PROFILE_PRESETS, DEFAULT_PRESET } from "@/lib/profilePresets";
@@ -23,6 +24,7 @@ export default function App() {
   const setAccountType = useProjectionStore((s) => s.setAccountType);
   const accountType = useProjectionStore((s) => s.accountType);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [toolSelected, setToolSelected] = useState(false);
   const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
   const [onboarded, setOnboarded] = useState(false);
 
@@ -40,6 +42,19 @@ export default function App() {
     );
   }
 
+  // "User" accounts see the tool picker before the profile selector
+  if (accountType === "user" && !toolSelected) {
+    return (
+      <>
+        <GradientBg />
+        <ToolSelector
+          onSelect={() => setToolSelected(true)}
+          onBack={() => setLoggedIn(false)}
+        />
+      </>
+    );
+  }
+
   if (!profilePreset) {
     return (
       <>
@@ -47,7 +62,10 @@ export default function App() {
         <ProfileSelector
           accountType={accountType!}
           onSelect={(profileId) => setProfilePreset(PROFILE_PRESETS[profileId] ?? DEFAULT_PRESET)}
-          onBack={() => setLoggedIn(false)}
+          onBack={() => {
+            if (accountType === "user") setToolSelected(false);
+            else setLoggedIn(false);
+          }}
         />
       </>
     );

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { C_SUCCESS, C_ERROR, C_WARNING, C_PRIMARY, C_BORDER } from "@/lib/colors";
+import { SpreadsheetGrid } from "@/components/SpreadsheetGrid";
 import {
   STANDARDS,
   FIELD_LABELS,
@@ -43,8 +44,10 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
   const [isLoading, setIsLoading]     = useState(false);
   const [mapping, setMapping]         = useState<ColumnMapping>({ date: "", revenue: "", cogs: "", marketing: "", payroll: "" });
   const [extracted, setExtracted]     = useState<ExtractedValues | null>(null);
+  const [editableData, setEditableData] = useState<ParsedData | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridDataRef = useRef<(() => ParsedData) | null>(null);
 
   const handleFile = useCallback(async (f: File) => {
     setFile(f);
@@ -53,6 +56,7 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
     try {
       const data = await parseFile(f);
       setParsedData(data);
+      setEditableData({ headers: [...data.headers], rows: data.rows.map(r => [...r]) });
     } catch (err) {
       setParseError((err as Error).message);
     } finally {
@@ -74,6 +78,7 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
       setWizardStep("standard");
       setFile(null);
       setParsedData(null);
+      setEditableData(null);
       setParseError(null);
     } else {
       setWizardStep("upload");
@@ -83,12 +88,13 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
   const handleNext = () => {
     if (wizardStep === "standard" && standard) {
       setWizardStep("upload");
-    } else if (wizardStep === "upload" && parsedData && !parseError) {
+    } else if (wizardStep === "upload" && editableData && !parseError) {
+      const currentData = gridDataRef.current ? gridDataRef.current() : editableData;
       let values: ExtractedValues = {};
-      if (standard === "standard-csv") values = extractStandardCSV(parsedData);
-      else if (standard === "pl-statement") values = extractPLStatement(parsedData);
-      else if (standard === "superstore") values = extractSuperstore(parsedData);
-      else if (standard === "custom") values = extractCustom(parsedData, mapping);
+      if (standard === "standard-csv") values = extractStandardCSV(currentData);
+      else if (standard === "pl-statement") values = extractPLStatement(currentData);
+      else if (standard === "superstore") values = extractSuperstore(currentData);
+      else if (standard === "custom") values = extractCustom(currentData, mapping);
       setExtracted(values);
       setWizardStep("confirm");
     } else if (wizardStep === "confirm" && extracted) {
@@ -98,7 +104,7 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
 
   const canProceed =
     wizardStep === "standard" ? standard !== null :
-    wizardStep === "upload"   ? parsedData !== null && !parseError :
+    wizardStep === "upload"   ? editableData !== null && !parseError :
     extracted !== null;
 
   const nextLabel =
@@ -204,6 +210,40 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
       {/* ── Wizard content: Upload + Preview ── */}
       {wizardStep === "upload" && (
         <div className="flex flex-col gap-4">
+          {/* How the Workflow Works */}
+          <div
+            className="rounded-xl px-4 py-3.5"
+            style={{ backgroundColor: "rgba(47,36,133,0.05)", border: "1px solid rgba(47,36,133,0.12)" }}
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: "hsl(245 16% 49%)" }}>
+              How the Workflow Works
+            </p>
+            <p className="text-xs text-muted-foreground mb-2.5">
+              Implementing this usually follows a four-step process:
+            </p>
+            <ol className="flex flex-col gap-1.5">
+              {[
+                { step: "Upload", desc: "Select an Excel or CSV file from your device." },
+                { step: "Parse", desc: "The file is read locally in your browser using SheetJS — no server upload required." },
+                { step: "Display & Edit", desc: "Data loads into an editable grid. Change values, add rows, or fix headers directly." },
+                { step: "Analyze", desc: "Once ready, the updated data is extracted and passed to the analytics engine." },
+              ].map(({ step, desc }, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs">
+                  <span
+                    className="mt-0.5 flex-shrink-0 rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold"
+                    style={{ backgroundColor: "rgba(47,36,133,0.15)", color: "hsl(245 57% 33%)" }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span>
+                    <span className="font-semibold" style={{ color: "hsl(245 57% 33%)" }}>{step}:</span>{" "}
+                    <span className="text-muted-foreground">{desc}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
           {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -260,71 +300,25 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
             </div>
           )}
 
-          {/* Preview table */}
-          {parsedData && !parseError && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-                File Preview (first 5 rows)
-              </p>
-              <div className="border border-border rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "max-content" }}>
-                    <thead>
-                      <tr>
-                        {parsedData.headers.map((h, i) => (
-                          <th
-                            key={i}
-                            style={{
-                              padding: "7px 12px",
-                              fontSize: "10.5px",
-                              color: "hsl(245 16% 49%)",
-                              fontWeight: 600,
-                              letterSpacing: "0.07em",
-                              textTransform: "uppercase",
-                              textAlign: "left",
-                              backgroundColor: "rgb(239, 237, 252)",
-                              borderBottom: `1px solid ${C_BORDER}`,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {h || `Col ${i + 1}`}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedData.rows.slice(0, 5).map((row, ri) => (
-                        <tr
-                          key={ri}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(247 57% 33% / 0.04)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "")}
-                        >
-                          {parsedData.headers.map((_, ci) => (
-                            <td
-                              key={ci}
-                              style={{
-                                padding: "6px 12px",
-                                fontSize: "12px",
-                                color: "hsl(242 44% 40%)",
-                                borderBottom: `1px solid ${C_BORDER}`,
-                                whiteSpace: "nowrap",
-                                backgroundColor: "rgba(255,255,255,0.60)",
-                              }}
-                            >
-                              {String(row[ci] ?? "")}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+          {/* Spreadsheet grid */}
+          {editableData && !parseError && (
+            <SpreadsheetGrid
+              data={editableData}
+              onHeaderChange={(i, value) =>
+                setEditableData((prev) => {
+                  if (!prev) return prev;
+                  const headers = [...prev.headers];
+                  headers[i] = value;
+                  return { ...prev, headers };
+                })
+              }
+              gridRef={gridDataRef}
+              fileKey={file?.name ?? "grid"}
+            />
           )}
 
           {/* Custom column mapping */}
-          {standard === "custom" && parsedData && (
+          {standard === "custom" && editableData && (
             <div>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">
                 Column Mapping
@@ -349,7 +343,7 @@ export default function ImportFinancialDataStep({ onBack, onSkip, onApply }: Imp
                         className="flex-1 bg-white/70 border border-border rounded-md text-xs text-foreground px-2.5 py-1.5 cursor-pointer"
                       >
                         <option value="">— Skip —</option>
-                        {parsedData.headers.map((h, i) => (
+                        {editableData.headers.map((h, i) => (
                           <option key={i} value={h}>{h || `Column ${i + 1}`}</option>
                         ))}
                       </select>
