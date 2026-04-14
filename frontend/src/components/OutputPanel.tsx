@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
+import { DocumentsTab } from "@/components/DocumentsTab";
 import {
   calcMonthlyData,
   calcBreakeven,
@@ -892,6 +893,15 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
 
   const netProfitColor = finalMonth?.netProfit >= 0 ? C_SUCCESS : C_ERROR;
   const netProfitSubtext = finalMonth?.netProfit >= 0 ? "Profitable" : "Loss";
+
+  // Documents tab gets a raw full-height container with no padding/scroll
+  if (activeTab === "documents") {
+    return (
+      <div style={{ flex: 1, height: "100%", overflow: "hidden", display: "flex" }}>
+        <DocumentsTab />
+      </div>
+    );
+  }
 
   return (
     <div
