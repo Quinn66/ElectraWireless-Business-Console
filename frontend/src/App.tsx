@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { ProjectionPage } from "@/pages/ProjectionPage";
+import { PersonalFinancePage } from "@/pages/PersonalFinancePage";
 import OnboardingFlow from "./OnboardingFlow";
 import LoginScreen from "./LoginScreen";
 import ProfileSelector from "./ProfileSelector";
 import ToolSelector from "./ToolSelector";
+import type { ToolKey } from "./ToolSelector";
 import { useProjectionStore } from "@/store/projectionStore";
 import type { AccountType } from "@/store/projectionStore";
 import { PROFILE_PRESETS, DEFAULT_PRESET } from "@/lib/profilePresets";
@@ -24,7 +26,7 @@ export default function App() {
   const setAccountType = useProjectionStore((s) => s.setAccountType);
   const accountType = useProjectionStore((s) => s.accountType);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [toolSelected, setToolSelected] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<ToolKey | null>(null);
   const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(null);
   const [onboarded, setOnboarded] = useState(false);
 
@@ -43,14 +45,24 @@ export default function App() {
   }
 
   // "User" accounts see the tool picker before the profile selector
-  if (accountType === "user" && !toolSelected) {
+  if (accountType === "user" && !selectedTool) {
     return (
       <>
         <GradientBg />
         <ToolSelector
-          onSelect={() => setToolSelected(true)}
+          onSelect={(tool) => setSelectedTool(tool)}
           onBack={() => setLoggedIn(false)}
         />
+      </>
+    );
+  }
+
+  // Feature 2 has its own data ingestion — skip the projection onboarding entirely
+  if (selectedTool === "personal") {
+    return (
+      <>
+        <GradientBg />
+        <PersonalFinancePage />
       </>
     );
   }
@@ -63,7 +75,7 @@ export default function App() {
           accountType={accountType!}
           onSelect={(profileId) => setProfilePreset(PROFILE_PRESETS[profileId] ?? DEFAULT_PRESET)}
           onBack={() => {
-            if (accountType === "user") setToolSelected(false);
+            if (accountType === "user") setSelectedTool(null);
             else setLoggedIn(false);
           }}
         />

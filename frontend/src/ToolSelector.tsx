@@ -1,5 +1,7 @@
+export type ToolKey = "projection" | "personal";
+
 interface Props {
-  onSelect: () => void;
+  onSelect: (tool: ToolKey) => void;
   onBack: () => void;
 }
 
@@ -42,7 +44,7 @@ const TOOLS = [
     label: "Personal Financial Intelligence",
     description: "Track, analyse, and optimise your personal finances with ELLY.",
     Icon: IconPersonalFinance,
-    available: false,
+    available: true,
   },
   {
     key: "investment",
@@ -76,7 +78,7 @@ export default function ToolSelector({ onSelect, onBack }: Props) {
           {TOOLS.map(({ key, label, description, Icon, available }) => (
             <button
               key={key}
-              onClick={available ? onSelect : undefined}
+              onClick={available ? () => onSelect(key as ToolKey) : undefined}
               disabled={!available}
               className={[
                 "group border-2 rounded-2xl p-7 flex flex-col items-center text-center gap-4",
