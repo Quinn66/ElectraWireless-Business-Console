@@ -8,6 +8,7 @@ from forecast import (
     run_prophet_forecast,
     run_slider_forecast,
 )
+from LlamaModel import get_analysis, parse_output
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
@@ -80,6 +81,17 @@ def prophet_forecast(req: ProphetForecastRequest):
         months=req.months,
     )
     return {"historical": historical, "prophet_forecast": prophet, "slider_forecast": slider}
+
+
+class AnalyzeRequest(BaseModel):
+    question: str
+
+
+@app.post("/analyze")
+def analyze(req: AnalyzeRequest):
+    """Run an AI what-if analysis via the local Llama model."""
+    analysis = get_analysis(req.question)
+    return parse_output(analysis)
 
 
 @app.post("/forecast", response_model=ForecastResponse)

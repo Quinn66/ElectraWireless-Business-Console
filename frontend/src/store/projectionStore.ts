@@ -100,7 +100,7 @@ const SCENARIO_PRESETS = {
   bull: { growthRate: 18, startingMRR: 18000, churnRate: 1.5, cogsPercent: 18, marketingSpend: 8000, payroll: 35000 },
 };
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "https://electrawireless-business-console.onrender.com";
 
 export const useProjectionStore = create<ProjectionState>((set, get) => ({
   accountType: null,

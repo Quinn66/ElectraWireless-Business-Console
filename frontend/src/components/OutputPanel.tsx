@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
+import { DocumentsTab } from "@/components/DocumentsTab";
 import {
   calcMonthlyData,
   calcBreakeven,
@@ -11,6 +12,7 @@ import { MetricCard } from "./MetricCard";
 import { BreakevenBar } from "./BreakevenBar";
 import { ProjectionChart } from "./ProjectionChart";
 import { MonthlyTable } from "./MonthlyTable";
+import { AIPanel } from "./AIPanel";
 import { C_SUCCESS, C_ERROR, C_WARNING, C_BORDER, C_BORDER_IN } from "@/lib/colors";
 
 interface OutputPanelProps {
@@ -892,6 +894,15 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
   const netProfitColor = finalMonth?.netProfit >= 0 ? C_SUCCESS : C_ERROR;
   const netProfitSubtext = finalMonth?.netProfit >= 0 ? "Profitable" : "Loss";
 
+  // Documents tab gets a raw full-height container with no padding/scroll
+  if (activeTab === "documents") {
+    return (
+      <div style={{ flex: 1, height: "100%", overflow: "hidden", display: "flex" }}>
+        <DocumentsTab />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -906,65 +917,78 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
     >
       {activeTab === "projection" && (
         <>
-          {/* Metric Cards */}
-          <div style={{ display: "flex", gap: "14px" }}>
-            <MetricCard
-              label="Projected ARR"
-              value={formatCurrency(arr)}
-              subtext={`${arrDelta >= 0 ? "+" : ""}${formatCurrency(arrDelta)} from starting ARR`}
-            />
-            <MetricCard
-              label={`Net Profit (Month ${inputs.forecastMonths})`}
-              value={formatCurrency(finalMonth?.netProfit ?? 0)}
-              subtext={netProfitSubtext}
-              valueColor={netProfitColor}
-            />
-            <MetricCard
-              label="Break-even Month"
-              value={breakevenLabel}
-              subtext={breakevenSubtext}
-              valueColor={breakeven !== null ? "hsl(247 57% 33%)" : C_ERROR}
-            />
-          </div>
+          {/* Two-column layout: left = chart area, right = AI panel */}
+          <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
 
-          {/* Cash Runway Bar */}
-          <div
-            style={{
-              backgroundColor: BG,
-              border: `1px solid ${C_BORDER}`,
-              borderRadius: "10px",
-              padding: "16px 18px",
-            }}
-          >
-            <BreakevenBar breakevenMonth={breakeven} forecastMonths={inputs.forecastMonths} />
-          </div>
+            {/* Left column — condensed chart + metric cards */}
+            <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
 
-          {/* Chart */}
-          <div
-            style={{
-              backgroundColor: BG,
-              border: `1px solid ${C_BORDER}`,
-              borderRadius: "10px",
-              padding: "16px 18px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(245 16% 49%)" }}>
-                {apiData ? "Historical + Prophet Baseline + Your Forecast" : "Revenue vs Expenses vs Net Profit"}
+              {/* Metric Cards */}
+              <div style={{ display: "flex", gap: "10px" }}>
+                <MetricCard
+                  label="Projected ARR"
+                  value={formatCurrency(arr)}
+                  subtext={`${arrDelta >= 0 ? "+" : ""}${formatCurrency(arrDelta)} from starting ARR`}
+                />
+                <MetricCard
+                  label={`Net Profit (Month ${inputs.forecastMonths})`}
+                  value={formatCurrency(finalMonth?.netProfit ?? 0)}
+                  subtext={netProfitSubtext}
+                  valueColor={netProfitColor}
+                />
+                <MetricCard
+                  label="Break-even Month"
+                  value={breakevenLabel}
+                  subtext={breakevenSubtext}
+                  valueColor={breakeven !== null ? "hsl(247 57% 33%)" : C_ERROR}
+                />
               </div>
-              {apiLoading && (
-                <div style={{ fontSize: "10px", color: "hsl(245 16% 60%)", letterSpacing: "0.05em" }}>updating…</div>
-              )}
+
+              {/* Cash Runway Bar */}
+              <div
+                style={{
+                  backgroundColor: BG,
+                  border: `1px solid ${C_BORDER}`,
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                }}
+              >
+                <BreakevenBar breakevenMonth={breakeven} forecastMonths={inputs.forecastMonths} />
+              </div>
+
+              {/* Chart */}
+              <div
+                style={{
+                  backgroundColor: BG,
+                  border: `1px solid ${C_BORDER}`,
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "hsl(245 16% 49%)" }}>
+                    {apiData ? "Historical + Prophet Baseline + Your Forecast" : "Revenue vs Expenses vs Net Profit"}
+                  </div>
+                  {apiLoading && (
+                    <div style={{ fontSize: "10px", color: "hsl(245 16% 60%)", letterSpacing: "0.05em" }}>updating…</div>
+                  )}
+                </div>
+                <ProjectionChart
+                  data={data}
+                  historical={apiData?.historical}
+                  prophetForecast={apiData?.prophet_forecast}
+                  sliderForecast={apiData?.slider_forecast}
+                />
+              </div>
             </div>
-            <ProjectionChart
-              data={data}
-              historical={apiData?.historical}
-              prophetForecast={apiData?.prophet_forecast}
-              sliderForecast={apiData?.slider_forecast}
-            />
+
+            {/* Right column — AI Suggestions panel */}
+            <div style={{ flex: "0 0 300px", width: "300px" }}>
+              <AIPanel />
+            </div>
           </div>
 
-          {/* Monthly Table */}
+          {/* Monthly Table — full width below */}
           <div
             style={{
               backgroundColor: BG,
