@@ -2,8 +2,20 @@ import os
 import json
 import re
 from groq import Groq
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+try:
+    import requests
+    from bs4 import BeautifulSoup
+    _WEB_SEARCH_AVAILABLE = True
+except ImportError:
+    _WEB_SEARCH_AVAILABLE = False
 
 # =========================
 # FastAPI setup
@@ -52,11 +64,58 @@ def get_user_question():
         print(f"❌ Error: {e}")
         return ""
 
+# ── Web search RAG (Quinn's LlamaModelInternetSearch) ─────────────────────────
+
+def _fetch_page_text(url: str, char_limit: int = 1000) -> str:
+    if not _WEB_SEARCH_AVAILABLE:
+        return ""
+    try:
+        resp = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0"})
+        if resp.status_code != 200:
+            return ""
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for tag in soup(["script", "style"]):
+            tag.decompose()
+        return soup.get_text(separator=" ", strip=True)[:char_limit]
+    except Exception:
+        return ""
+
+
+def _search_duckduckgo(query: str, max_results: int = 3) -> list[str]:
+    if not _WEB_SEARCH_AVAILABLE:
+        return []
+    try:
+        url = f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}"
+        html = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0"}).text
+        soup = BeautifulSoup(html, "html.parser")
+        links = []
+        for a in soup.find_all("a", {"class": "result__a"}, href=True):
+            if len(links) >= max_results:
+                break
+            links.append(a["href"])
+        return links
+    except Exception:
+        return []
+
+
+def get_web_context(question: str) -> str:
+    """Search DuckDuckGo and return scraped page text as context for the LLM prompt."""
+    if not _WEB_SEARCH_AVAILABLE:
+        return ""
+    links = _search_duckduckgo(question)
+    texts = [t for link in links if (t := _fetch_page_text(link))]
+    return "\n\n".join(texts)
+
+
+# ── LLM analysis ──────────────────────────────────────────────────────────────
+
 # Send question directly to Ollama
-def get_analysis(user_question):
+def get_analysis(user_question, context: str = ""):
+    context_block = f"\nContext (live web search):\n{context}\n" if context else ""
+
     prompt = f"""
     You are a financial analysis assistant.
-
+{context_block}
     User question:
     "{user_question}"
 

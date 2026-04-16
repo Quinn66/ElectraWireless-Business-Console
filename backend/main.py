@@ -8,7 +8,8 @@ from forecast import (
     run_prophet_forecast,
     run_slider_forecast,
 )
-from LlamaModel import get_analysis, parse_output
+from LlamaModel import get_analysis, get_web_context, parse_output
+from CsvDetect import detect_anomalies
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
@@ -85,13 +86,32 @@ def prophet_forecast(req: ProphetForecastRequest):
 
 class AnalyzeRequest(BaseModel):
     question: str
+    use_web_context: bool = Field(False, description="Fetch live web context via DuckDuckGo before analysis")
 
 
 @app.post("/analyze")
 def analyze(req: AnalyzeRequest):
-    """Run an AI what-if analysis via the local Llama model."""
-    analysis = get_analysis(req.question)
+    """Run an AI what-if analysis via Groq. Optionally enriches the prompt with live web context (Quinn's RAG)."""
+    context = get_web_context(req.question) if req.use_web_context else ""
+    analysis = get_analysis(req.question, context=context)
     return parse_output(analysis)
+
+
+# ── Anomaly detection (Quinn's CsvDetect) ────────────────────────────────────
+
+class DetectAnomaliesRequest(BaseModel):
+    cell_map: dict = Field(..., description="Frontend cell map: cellId → {value, formula, sheetIndex, rowIndex, colIndex}")
+    sheet_index: int = Field(0, description="Which sheet to analyse (0-based)")
+
+
+@app.post("/detect-anomalies")
+def detect_anomalies_endpoint(req: DetectAnomaliesRequest):
+    """
+    Run IsolationForest anomaly detection + RandomForestRegressor prediction
+    on numeric columns of the uploaded spreadsheet.
+    Returns flagged cell IDs with original values, predicted values, and severity.
+    """
+    return detect_anomalies(req.cell_map, req.sheet_index)
 
 
 @app.post("/forecast", response_model=ForecastResponse)
