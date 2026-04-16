@@ -19,18 +19,14 @@ except ImportError:
 
 # =========================
 # FastAPI setup
-# =========================
 app = FastAPI()
 
 class QuestionRequest(BaseModel):
     question: str
 
-# =========================
 # FastAPI endpoint
-# =========================
 @app.post("/analyze")
 def analyze(request: QuestionRequest):
-    # Use your existing get_analysis() + parse_output()
     analysis = get_analysis(request.question)
     structured = parse_output(analysis)
     return structured
@@ -168,9 +164,6 @@ def get_analysis(user_question, context: str = ""):
     return response.choices[0].message.content
 
 # output parse
-# =========================
-# Output parse (robust version using hard anchor for Next Steps)
-# =========================
 def parse_output(text):
     sections = {
         "analysis_short": "",
@@ -200,7 +193,6 @@ def parse_output(text):
             continue
 
         # Detect keyword-based sections for Positives/Negatives
-        # Detect keyword-based sections
         if line.startswith("Positives:"):
             current_section = "positives"
             continue
