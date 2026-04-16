@@ -1,13 +1,11 @@
 import { useRef } from "react";
-import { HotTable } from "@handsontable/react";
-import { registerAllModules } from "handsontable/registry";
-import "handsontable/styles/handsontable.css";
-import "handsontable/styles/ht-theme-main.css";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef, GridApi } from "ag-grid-community";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 import { C_BORDER, C_PRIMARY } from "@/lib/colors";
 import * as XLSX from "xlsx";
 import type { StoredDocument } from "@/store/documentStore";
-
-registerAllModules();
 
 interface DocumentViewerProps {
   doc: StoredDocument;
@@ -18,6 +16,7 @@ const BG = "rgba(255,255,255,0.55)";
 
 export function DocumentViewer({ doc, gridRef }: DocumentViewerProps) {
   const objectUrlRef = useRef<string | null>(null);
+  const gridApiRef = useRef<GridApi | null>(null);
 
   const getObjectUrl = () => {
     if (!objectUrlRef.current) {
@@ -27,9 +26,13 @@ export function DocumentViewer({ doc, gridRef }: DocumentViewerProps) {
   };
 
   const handleExport = () => {
-    if (doc.parsedData && gridRef.current?.hotInstance) {
-      const hot = gridRef.current.hotInstance;
-      const rows = hot.getData();
+    if (doc.parsedData && gridApiRef.current) {
+      const rows: (string | number | null)[][] = [];
+      gridApiRef.current.forEachNode((node) => {
+        rows.push(
+          (doc.parsedData!.headers ?? []).map((_, ci) => node.data[`c${ci}`] ?? null)
+        );
+      });
       const ws = XLSX.utils.aoa_to_sheet([doc.parsedData.headers, ...rows]);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
@@ -41,6 +44,20 @@ export function DocumentViewer({ doc, gridRef }: DocumentViewerProps) {
       a.click();
     }
   };
+
+  const colDefs: ColDef[] = (doc.parsedData?.headers ?? []).map((h, ci) => ({
+    field: `c${ci}`,
+    headerName: h || `Col ${ci + 1}`,
+    editable: true,
+    flex: 1,
+    minWidth: 80,
+  }));
+
+  const rowData = (doc.parsedData?.rows ?? []).map((row) => {
+    const obj: Record<string, string | number | null> = {};
+    row.forEach((val, ci) => { obj[`c${ci}`] = val ?? null; });
+    return obj;
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "10px" }}>
@@ -77,23 +94,16 @@ export function DocumentViewer({ doc, gridRef }: DocumentViewerProps) {
 
         {/* Spreadsheet (xlsx / csv) */}
         {doc.parsedData && (
-          <div className="ht-theme-main" style={{ height: "100%" }}>
-            <HotTable
+          <div className="ag-theme-alpine" style={{ height: "100%" }}>
+            <AgGridReact
               key={doc.id}
-              ref={gridRef}
-              data={doc.parsedData.rows.map((r) => [...r])}
-              colHeaders={doc.parsedData.headers.map((h, i) => h || `Col ${i + 1}`)}
-              rowHeaders={true}
-              height="100%"
-              stretchH="all"
-              contextMenu={true}
-              manualColumnResize={true}
-              manualRowResize={true}
-              minSpareRows={1}
-              fillHandle={true}
-              undo={true}
-              outsideClickDeselects={false}
-              licenseKey="non-commercial-and-evaluation"
+              rowData={rowData}
+              columnDefs={colDefs}
+              onGridReady={(params) => {
+                gridApiRef.current = params.api;
+                gridRef.current = params.api;
+              }}
+              domLayout="normal"
             />
           </div>
         )}
