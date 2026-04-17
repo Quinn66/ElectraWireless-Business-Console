@@ -111,7 +111,7 @@ def get_analysis(user_question, context: str = ""):
 
     prompt = f"""
     You are a financial analysis assistant.
-{context_block}
+    {context_block}
     User question:
     "{user_question}"
 
