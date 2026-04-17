@@ -9,6 +9,21 @@ export type WizardStep = "standard" | "upload" | "confirm";
 export interface ParsedData {
   headers: string[];
   rows: (string | number | null)[][];
+  /** Formula strings (with leading =) for each cell, parallel to rows. Undefined for non-XLSX or cells with no formula. */
+  formulas?: (string | null)[][];
+}
+
+/** One sheet inside a workbook — all rows preserved (row 0 is typically the header row) */
+export interface SheetData {
+  name: string;
+  rows: (string | number | null)[][];
+  formulas: (string | null)[][];
+}
+
+/** Full workbook returned by parseWorkbook */
+export interface WorkbookData {
+  fileName: string;
+  sheets: SheetData[];
 }
 
 export interface ExtractedValues {
@@ -107,18 +122,36 @@ export function parseFile(file: File): Promise<ParsedData> {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const wb = XLSX.read(e.target!.result as string, { type: "binary" });
+          const wb = XLSX.read(e.target!.result as ArrayBuffer, { type: "array" });
           const ws = wb.Sheets[wb.SheetNames[0]];
-          const raw = XLSX.utils.sheet_to_json<(string | number | null)[]>(ws, { header: 1 });
-          if (raw.length < 2) { reject(new Error("Spreadsheet appears empty.")); return; }
-          const headers = raw[0].map((h) => String(h ?? "").trim());
-          resolve({ headers, rows: raw.slice(1) as (string | number | null)[][] });
+          const ref = ws["!ref"];
+          if (!ref) { reject(new Error("Spreadsheet appears empty.")); return; }
+
+          const range = XLSX.utils.decode_range(ref);
+          const allRows: (string | number | null)[][] = [];
+          const allFormulas: (string | null)[][] = [];
+
+          for (let r = range.s.r; r <= range.e.r; r++) {
+            const row: (string | number | null)[] = [];
+            const formulaRow: (string | null)[] = [];
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cell = ws[XLSX.utils.encode_cell({ r, c })];
+              row.push(cell ? (cell.v ?? null) : null);
+              formulaRow.push(cell?.f ? `=${cell.f}` : null);
+            }
+            allRows.push(row);
+            allFormulas.push(formulaRow);
+          }
+
+          if (allRows.length < 2) { reject(new Error("Spreadsheet appears empty.")); return; }
+          const headers = allRows[0].map((h) => String(h ?? "").trim());
+          resolve({ headers, rows: allRows.slice(1), formulas: allFormulas.slice(1) });
         } catch (err) {
           reject(err);
         }
       };
       reader.onerror = () => reject(new Error("Failed to read file."));
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     } else {
       reject(new Error("Unsupported file type. Please upload a .csv or .xlsx file."));
     }
@@ -283,6 +316,71 @@ export function extractCustom(data: ParsedData, mapping: ColumnMapping): Extract
   }
 
   return result;
+}
+
+// ── Workbook parser (all sheets) ──────────────────────────────────────────────
+
+export function parseWorkbook(file: File): Promise<WorkbookData> {
+  return new Promise((resolve, reject) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    if (ext === "csv") {
+      Papa.parse(file, {
+        header: false,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const raw = results.data as (string | number | null)[][];
+          if (raw.length === 0) { reject(new Error("File appears empty.")); return; }
+          resolve({
+            fileName: file.name,
+            sheets: [{
+              name: "Sheet1",
+              rows: raw,
+              formulas: raw.map(r => r.map(() => null)),
+            }],
+          });
+        },
+        error: (err: Error) => reject(err),
+      });
+
+    } else if (ext === "xlsx" || ext === "xls") {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(e.target!.result as ArrayBuffer, { type: "array" });
+          const sheets: SheetData[] = wb.SheetNames.map((name) => {
+            const ws = wb.Sheets[name];
+            const ref = ws["!ref"];
+            if (!ref) return { name, rows: [], formulas: [] };
+            const range = XLSX.utils.decode_range(ref);
+            const rows: (string | number | null)[][] = [];
+            const formulas: (string | null)[][] = [];
+            for (let r = range.s.r; r <= range.e.r; r++) {
+              const row: (string | number | null)[] = [];
+              const fRow: (string | null)[] = [];
+              for (let c = range.s.c; c <= range.e.c; c++) {
+                const cell = ws[XLSX.utils.encode_cell({ r, c })];
+                row.push(cell ? (cell.v ?? null) : null);
+                fRow.push(cell?.f ? `=${cell.f}` : null);
+              }
+              rows.push(row);
+              formulas.push(fRow);
+            }
+            return { name, rows, formulas };
+          });
+          resolve({ fileName: file.name, sheets });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file."));
+      reader.readAsArrayBuffer(file);
+
+    } else {
+      reject(new Error("Unsupported file type. Please upload a .csv or .xlsx file."));
+    }
+  });
 }
 
 export function fmtImportValue(key: keyof ExtractedValues, v: number): string {
