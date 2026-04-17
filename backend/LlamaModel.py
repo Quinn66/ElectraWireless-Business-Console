@@ -24,12 +24,12 @@ app = FastAPI()
 class QuestionRequest(BaseModel):
     question: str
 
-# FastAPI endpoint
-@app.post("/analyze")
-def analyze(request: QuestionRequest):
-    analysis = get_analysis(request.question)
-    structured = parse_output(analysis)
-    return structured
+# FastAPI endpoint — commented out for testing (contextLlamaTest.py has the active version with forecast context)
+# @app.post("/analyze")
+# def analyze(request: QuestionRequest):
+#     analysis = get_analysis(request.question)
+#     structured = parse_output(analysis)
+#     return structured
 
 # Get user question
 def get_user_question():

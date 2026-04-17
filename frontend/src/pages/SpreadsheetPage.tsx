@@ -4,7 +4,6 @@ import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import type { ColDef, GridApi, CellFocusedEvent, CellValueChangedEvent, ICellRendererParams } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import * as formulajs from "formulajs";
 import { useSpreadsheetStore } from "@/store/spreadsheetStore";
 import { useProjectionStore } from "@/store/projectionStore";
 import { colIndexToLetter, colLetterToIndex, toCellId } from "@/lib/cellMap";
@@ -39,7 +38,7 @@ const SEVERITY_COLOR = {
   low:    { bg: "rgba(234,179,8,0.10)",   border: "#eab308", badge: "#ca8a04",  label: "LOW"  },
 };
 
-// ── Formula evaluator ─────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function toNum(v: string | number | null): number | null {
   if (v == null) return null;
@@ -47,44 +46,11 @@ function toNum(v: string | number | null): number | null {
   return isNaN(n) ? null : n;
 }
 
-function evaluateFormula(formula: string, rows: (string | number | null)[][]): string | number | null {
-  const expr = formula.startsWith("=") ? formula.slice(1) : formula;
-  const parseRef = (ref: string) => {
-    const m = ref.match(/^([A-Z]+)(\d+)$/i);
-    if (!m) return null;
-    return toNum(rows[parseInt(m[2]) - 1]?.[colLetterToIndex(m[1])]);
-  };
-  const parseRange = (range: string): number[] => {
-    const [s, e] = range.split(":");
-    const sm = s.match(/^([A-Z]+)(\d+)$/i), em = e?.match(/^([A-Z]+)(\d+)$/i);
-    if (!sm || !em) return [];
-    const vals: number[] = [];
-    for (let r = parseInt(sm[2]) - 1; r <= parseInt(em[2]) - 1; r++)
-      for (let c = colLetterToIndex(sm[1]); c <= colLetterToIndex(em[1]); c++) {
-        const v = toNum(rows[r]?.[c]); if (v !== null) vals.push(v);
-      }
-    return vals;
-  };
-  try {
-    const s = expr.match(/^SUM\(([A-Z]+\d+:[A-Z]+\d+)\)$/i);   if (s) return (formulajs as any).SUM(parseRange(s[1]));
-    const a = expr.match(/^AVERAGE\(([A-Z]+\d+:[A-Z]+\d+)\)$/i); if (a) return (formulajs as any).AVERAGE(parseRange(a[1]));
-    const mx = expr.match(/^MAX\(([A-Z]+\d+:[A-Z]+\d+)\)$/i);   if (mx) return (formulajs as any).MAX(parseRange(mx[1]));
-    const mn = expr.match(/^MIN\(([A-Z]+\d+:[A-Z]+\d+)\)$/i);   if (mn) return (formulajs as any).MIN(parseRange(mn[1]));
-    const cnt = expr.match(/^COUNT\(([A-Z]+\d+:[A-Z]+\d+)\)$/i); if (cnt) return parseRange(cnt[1]).length;
-    const ref = expr.match(/^([A-Z]+\d+)$/i); if (ref) return parseRef(ref[1]);
-    const w = expr.replace(/([A-Z]+\d+)/gi, r => String(parseRef(r) ?? 0));
-    if (/^[\d\s+\-*/().]+$/.test(w)) return Function('"use strict";return(' + w + ')')() as number;
-    return null;
-  } catch { return null; }
-}
-
-function sheetToRowObjects(rows: (string | number | null)[][], formulas: (string | null)[][]) {
-  return rows.map((row, ri) => {
+// rows already hold HyperFormula-computed values — just map to AG Grid objects
+function sheetToRowObjects(rows: (string | number | null)[][]) {
+  return rows.map(row => {
     const obj: Record<string, string | number | null> = {};
-    row.forEach((val, ci) => {
-      const f = formulas[ri]?.[ci];
-      obj[`c${ci}`] = f ? (evaluateFormula(f, rows) ?? val) : (val ?? null);
-    });
+    row.forEach((val, ci) => { obj[`c${ci}`] = val ?? null; });
     return obj;
   });
 }
@@ -163,11 +129,12 @@ interface EllySidebarProps {
   dismissed: Set<string>;
   loading: boolean;
   onDismiss: (cellId: string) => void;
+  onAccept: (anomaly: Anomaly) => void;
   onFocus: (anomaly: Anomaly) => void;
   onClose: () => void;
 }
 
-function EllySidebar({ anomalies, dismissed, loading, onDismiss, onFocus, onClose }: EllySidebarProps) {
+function EllySidebar({ anomalies, dismissed, loading, onDismiss, onAccept, onFocus, onClose }: EllySidebarProps) {
   const visible = anomalies.filter(a => !dismissed.has(a.cellId));
 
   return (
@@ -223,7 +190,7 @@ function EllySidebar({ anomalies, dismissed, loading, onDismiss, onFocus, onClos
                       <>
                         <span style={{ color: "hsl(245 16% 50%)" }}>Was </span>
                         <span style={{ fontWeight: 600 }}>{a.originalValue!.toLocaleString()}</span>
-                        <span style={{ color: "hsl(245 16% 50%)" }}> — expected </span>
+                        <span style={{ color: "hsl(245 16% 50%)" }}> — suggested </span>
                         <span style={{ fontWeight: 600, color: s.badge }}>{a.predictedValue!.toLocaleString()}</span>
                       </>
                     )}
@@ -233,12 +200,22 @@ function EllySidebar({ anomalies, dismissed, loading, onDismiss, onFocus, onClos
                       Δ {a.difference!.toLocaleString()} ({Math.round(Math.abs(a.originalValue! - a.predictedValue!) / Math.abs(a.predictedValue! || 1) * 100)}%)
                     </div>
                   )}
-                  <button
-                    onClick={e => { e.stopPropagation(); onDismiss(a.cellId); }}
-                    style={{ marginTop: "8px", fontSize: "10.5px", color: "hsl(245 16% 55%)", background: "none", border: `1px solid ${C_BORDER}`, borderRadius: "5px", padding: "2px 10px", cursor: "pointer" }}
-                  >
-                    Dismiss
-                  </button>
+                  <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
+                    {a.predictedValue !== null && (
+                      <button
+                        onClick={e => { e.stopPropagation(); onAccept(a); }}
+                        style={{ fontSize: "10.5px", fontWeight: 600, color: "#fff", backgroundColor: s.badge, border: "none", borderRadius: "5px", padding: "2px 10px", cursor: "pointer" }}
+                      >
+                        Accept
+                      </button>
+                    )}
+                    <button
+                      onClick={e => { e.stopPropagation(); onDismiss(a.cellId); }}
+                      style={{ fontSize: "10.5px", color: "hsl(245 16% 55%)", background: "none", border: `1px solid ${C_BORDER}`, borderRadius: "5px", padding: "2px 10px", cursor: "pointer" }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -256,7 +233,12 @@ export function SpreadsheetPage() {
     useSpreadsheetStore();
 
   const gridApiRef = useRef<GridApi | null>(null);
+  const formulaInputRef = useRef<HTMLInputElement>(null);
+  /** True while the formula bar input has focus — used to detect formula-entry mode. */
+  const formulaBarActiveRef = useRef(false);
+
   const [formulaBarValue, setFormulaBarValue] = useState("");
+  const [formulaRefCell, setFormulaRefCell] = useState<{ rowIndex: number; colIndex: number } | null>(null);
   const [showApply, setShowApply] = useState(false);
   const [ellyOpen, setEllyOpen] = useState(true);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
@@ -288,6 +270,11 @@ export function SpreadsheetPage() {
     return m;
   }, [anomalies]);
 
+  // Repaint cells after formulaRefCell changes so the old highlight clears
+  useEffect(() => {
+    gridApiRef.current?.refreshCells({ force: true });
+  }, [formulaRefCell]);
+
   // Sync formula bar
   useEffect(() => {
     if (!selectedCell || !activeSheet) { setFormulaBarValue(""); return; }
@@ -298,7 +285,7 @@ export function SpreadsheetPage() {
 
   const rowData = useMemo(() => {
     if (!activeSheet) return [];
-    return sheetToRowObjects(activeSheet.rows, activeSheet.formulas);
+    return sheetToRowObjects(activeSheet.rows);
   }, [activeSheet]);
 
   const numCols = useMemo(() => {
@@ -319,15 +306,19 @@ export function SpreadsheetPage() {
       editable: true,
       flex: 1,
       minWidth: 90,
-      cellStyle: (params: any) => {
+      cellStyle: (params: any): { [key: string]: any } | undefined => {
         const ri = params.node.rowIndex ?? 0;
+        // Highlight cell being pointed at during formula entry
+        if (formulaRefCell && formulaRefCell.rowIndex === ri && formulaRefCell.colIndex === ci) {
+          return { backgroundColor: "rgba(47,36,133,0.12)", outline: `2px solid ${C_PRIMARY}`, outlineOffset: "-2px" };
+        }
         const cellId = toCellId(activeSheetIndex, ri, ci);
         const anomaly = anomalyMap[cellId];
         if (anomaly && !dismissed.has(cellId)) {
           const s = SEVERITY_COLOR[anomaly.severity];
           return { backgroundColor: s.bg, borderLeft: `3px solid ${s.border}` };
         }
-        return null;
+        return undefined;
       },
       cellRenderer: (params: ICellRendererParams) => {
         const ri = params.node.rowIndex ?? 0;
@@ -340,15 +331,60 @@ export function SpreadsheetPage() {
     }));
 
     return [rowNumCol, ...dataCols];
-  }, [numCols, activeSheet, activeSheetIndex, anomalyMap, dismissed]);
+  }, [numCols, activeSheet, activeSheetIndex, anomalyMap, dismissed, formulaRefCell]);
 
   const handleCellFocused = useCallback((e: CellFocusedEvent) => {
     if (e.rowIndex == null || !e.column) return;
     const colId = (e.column as any).getColId?.() as string;
     const ci = colId?.startsWith("c") ? parseInt(colId.slice(1)) : -1;
     if (ci < 0) return;
+    // Suppress navigation when formula bar is active — mousedown handler takes over
+    if (formulaBarActiveRef.current) return;
     setSelectedCell({ rowIndex: e.rowIndex, colIndex: ci });
   }, [setSelectedCell]);
+
+  /** Insert a cell address into the formula bar at the current cursor position. */
+  const insertCellRef = useCallback((rowIndex: number, colIndex: number) => {
+    const ref = `${colIndexToLetter(colIndex)}${rowIndex + 1}`;
+    const input = formulaInputRef.current;
+    if (!input) return;
+    const start = input.selectionStart ?? formulaBarValue.length;
+    const end   = input.selectionEnd   ?? formulaBarValue.length;
+
+    // If the cursor is sitting right after a cell reference (letters then digits),
+    // replace that reference instead of appending — mirrors Excel's "point" mode.
+    let insertAt = start;
+    if (start === end) {
+      const before = formulaBarValue.slice(0, start);
+      const existingRef = before.match(/[A-Za-z]+[0-9]+$/);
+      if (existingRef) insertAt = start - existingRef[0].length;
+    }
+
+    const next = formulaBarValue.slice(0, insertAt) + ref + formulaBarValue.slice(end);
+    setFormulaBarValue(next);
+    setFormulaRefCell({ rowIndex, colIndex });
+    requestAnimationFrame(() => {
+      input.setSelectionRange(start + ref.length, start + ref.length);
+    });
+  }, [formulaBarValue]);
+
+  /**
+   * Intercept grid clicks while the formula bar is active and a formula is being typed.
+   * Calling preventDefault keeps focus on the formula bar so no blur/commit fires.
+   * We then read col-id / row-index from AG Grid's DOM to identify the clicked cell.
+   */
+  const handleGridAreaMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!formulaBarActiveRef.current || !formulaBarValue.startsWith("=")) return;
+    const cellEl = (e.target as HTMLElement).closest<HTMLElement>("[col-id]");
+    const rowEl  = (e.target as HTMLElement).closest<HTMLElement>("[row-index]");
+    if (!cellEl || !rowEl) return;
+    const colId    = cellEl.getAttribute("col-id") ?? "";
+    const rowIndex = parseInt(rowEl.getAttribute("row-index") ?? "-1");
+    const ci       = colId.startsWith("c") ? parseInt(colId.slice(1)) : -1;
+    if (ci < 0 || rowIndex < 0) return;
+    e.preventDefault(); // keep formula bar focused
+    insertCellRef(rowIndex, ci);
+  }, [formulaBarValue, insertCellRef]);
 
   const handleCellValueChanged = useCallback((e: CellValueChangedEvent) => {
     const ri = e.node.rowIndex ?? 0;
@@ -357,31 +393,37 @@ export function SpreadsheetPage() {
     if (ci < 0) return;
     const raw = String(e.newValue ?? "");
     if (raw.startsWith("=")) {
-      const computed = evaluateFormula(raw, activeSheet?.rows ?? []);
-      updateCell(activeSheetIndex, ri, ci, computed ?? e.newValue, raw);
+      updateCell(activeSheetIndex, ri, ci, null, raw);
     } else {
-      updateCell(activeSheetIndex, ri, ci, e.newValue, null);
+      const num = parseFloat(raw);
+      updateCell(activeSheetIndex, ri, ci, isNaN(num) ? raw || null : num, null);
     }
-  }, [activeSheet, activeSheetIndex, updateCell]);
+  }, [activeSheetIndex, updateCell]);
 
   const handleFormulaBarCommit = useCallback(() => {
     if (!selectedCell) return;
     const raw = formulaBarValue;
     if (raw.startsWith("=")) {
-      const computed = evaluateFormula(raw, activeSheet?.rows ?? []);
-      updateCell(activeSheetIndex, selectedCell.rowIndex, selectedCell.colIndex, computed ?? null, raw);
+      updateCell(activeSheetIndex, selectedCell.rowIndex, selectedCell.colIndex, null, raw);
     } else {
       const num = parseFloat(raw);
       updateCell(activeSheetIndex, selectedCell.rowIndex, selectedCell.colIndex, isNaN(num) ? raw || null : num, null);
     }
     gridApiRef.current?.refreshCells({ force: true });
-  }, [formulaBarValue, selectedCell, activeSheet, activeSheetIndex, updateCell]);
+  }, [formulaBarValue, selectedCell, activeSheetIndex, updateCell]);
 
   const handleFocusAnomaly = useCallback((a: Anomaly) => {
     if (!gridApiRef.current) return;
     gridApiRef.current.ensureIndexVisible(a.rowIndex, "middle");
     gridApiRef.current.setFocusedCell(a.rowIndex, `c${a.colIndex}`);
   }, []);
+
+  const handleAcceptAnomaly = useCallback((a: Anomaly) => {
+    if (a.predictedValue === null) return;
+    updateCell(activeSheetIndex, a.rowIndex, a.colIndex, a.predictedValue, null);
+    setDismissed(prev => new Set([...prev, a.cellId]));
+    gridApiRef.current?.refreshCells({ force: true });
+  }, [activeSheetIndex, updateCell]);
 
   const cellAddress = useMemo(() => {
     if (!selectedCell) return "";
@@ -418,10 +460,22 @@ export function SpreadsheetPage() {
         <div style={{ width: 72, flexShrink: 0, textAlign: "center", fontSize: "12px", fontWeight: 600, color: "hsl(242 44% 40%)", borderRight: `1px solid ${C_BORDER}`, height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>{cellAddress || "—"}</div>
         <div style={{ width: 36, flexShrink: 0, textAlign: "center", fontSize: "13px", color: "hsl(245 16% 55%)", borderRight: `1px solid ${C_BORDER}`, height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>fx</div>
         <input
+          ref={formulaInputRef}
           value={formulaBarValue}
-          onChange={e => setFormulaBarValue(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") handleFormulaBarCommit(); }}
-          onBlur={handleFormulaBarCommit}
+          onChange={e => {
+            setFormulaBarValue(e.target.value);
+            if (!e.target.value.startsWith("=")) setFormulaRefCell(null);
+          }}
+          onFocus={() => { formulaBarActiveRef.current = true; }}
+          onBlur={() => {
+            formulaBarActiveRef.current = false;
+            setFormulaRefCell(null);
+            handleFormulaBarCommit();
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter") { setFormulaRefCell(null); handleFormulaBarCommit(); }
+            if (e.key === "Escape") { setFormulaRefCell(null); }
+          }}
           placeholder="Select a cell to edit…"
           style={{ flex: 1, height: "100%", border: "none", outline: "none", padding: "0 12px", fontSize: "12.5px", fontFamily: "monospace", color: formulaBarValue.startsWith("=") ? C_PRIMARY : "hsl(242 44% 25%)", backgroundColor: "transparent" }}
         />
@@ -429,7 +483,7 @@ export function SpreadsheetPage() {
 
       {/* ── Grid + ELLY sidebar ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}>
-        <div className="ag-theme-alpine" style={{ flex: 1, minWidth: 0 }}>
+        <div className="ag-theme-alpine" style={{ flex: 1, minWidth: 0 }} onMouseDown={handleGridAreaMouseDown}>
           <AgGridReact
             key={`${activeSheetIndex}-${fileName}`}
             rowData={rowData}
@@ -449,6 +503,7 @@ export function SpreadsheetPage() {
             dismissed={dismissed}
             loading={loadingAnomalies}
             onDismiss={id => setDismissed(prev => new Set([...prev, id]))}
+            onAccept={handleAcceptAnomaly}
             onFocus={handleFocusAnomaly}
             onClose={() => setEllyOpen(false)}
           />

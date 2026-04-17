@@ -102,8 +102,12 @@ const SCENARIO_PRESETS = {
 
 const API_BASE = "https://electrawireless-business-console.onrender.com";
 
+const _readNav = (): Record<string, unknown> => {
+  try { return JSON.parse(localStorage.getItem("ew-nav") ?? "{}"); } catch { return {}; }
+};
+
 export const useProjectionStore = create<ProjectionState>((set, get) => ({
-  accountType: null,
+  accountType: (_readNav().accountType as AccountType | null) ?? null,
   setAccountType: (type) => set({ accountType: type }),
 
   growthRate: 8,

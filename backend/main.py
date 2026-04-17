@@ -8,7 +8,8 @@ from forecast import (
     run_prophet_forecast,
     run_slider_forecast,
 )
-from LlamaModel import get_analysis, get_web_context, parse_output
+from LlamaModel import get_web_context, parse_output
+from contextLlamaTest import get_analysis
 from CsvDetect import detect_anomalies
 
 app = FastAPI(title="ElectraWireless Business Console API")
@@ -87,13 +88,31 @@ def prophet_forecast(req: ProphetForecastRequest):
 class AnalyzeRequest(BaseModel):
     question: str
     use_web_context: bool = Field(False, description="Fetch live web context via DuckDuckGo before analysis")
+    # User's current dashboard slider values — used to fetch real forecast context for ELLY
+    starting_mrr:    float = Field(18000.0, description="Starting MRR ($)")
+    growth_rate:     float = Field(8.0,     description="Monthly revenue growth rate (%)")
+    churn_rate:      float = Field(3.0,     description="Monthly churn rate (%)")
+    cogs_percent:    float = Field(22.0,    description="COGS as % of revenue")
+    marketing_spend: float = Field(4000.0,  description="Monthly marketing spend ($)")
+    payroll:         float = Field(35000.0, description="Monthly payroll ($)")
+    months:          int   = Field(12,      description="Forecast horizon (months)")
 
 
 @app.post("/analyze")
 def analyze(req: AnalyzeRequest):
-    """Run an AI what-if analysis via Groq. Optionally enriches the prompt with live web context (Quinn's RAG)."""
-    context = get_web_context(req.question) if req.use_web_context else ""
-    analysis = get_analysis(req.question, context=context)
+    """Run an AI what-if analysis via Groq, grounded in the user's real forecast data."""
+    historical       = load_prophet_historical()
+    prophet_forecast = run_prophet_forecast(req.months)
+    slider_forecast  = run_slider_forecast(
+        starting_mrr=req.starting_mrr,
+        growth_rate=req.growth_rate,
+        churn_rate=req.churn_rate,
+        cogs_percent=req.cogs_percent,
+        marketing_spend=req.marketing_spend,
+        payroll=req.payroll,
+        months=req.months,
+    )
+    analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast)
     return parse_output(analysis)
 
 
