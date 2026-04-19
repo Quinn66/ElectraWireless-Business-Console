@@ -3,7 +3,7 @@ import { useProjectionStore } from "@/store/projectionStore";
 import { InputPanel } from "@/components/InputPanel";
 import { OutputPanel } from "@/components/OutputPanel";
 import { FinancialSummaryBar } from "@/components/FinancialSummaryBar";
-import { SectorScreens, SECTOR_LIST, type SectorId } from "@/components/SectorScreens";
+import { SectorScreens, type SectorId } from "@/components/SectorScreens";
 import { useProphetSync } from "@/hooks/useProphetSync";
 
 const ALL_TABS = [
@@ -25,7 +25,6 @@ export function ProjectionPage() {
   useProphetSync();
 
   const [activeSector, setActiveSector] = useState<SectorId | null>(null);
-  const [showSectorMenu, setShowSectorMenu] = useState(false);
   const [addedTabs, setAddedTabs] = useState<Set<string>>(new Set());
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
@@ -61,64 +60,11 @@ export function ProjectionPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-3.5 border-b border-border bg-white/40 backdrop-blur-md flex-shrink-0 relative z-50">
+      <div className="px-4 border-b border-border bg-white/40 backdrop-blur-md flex-shrink-0 relative z-50">
 
-        {/* Breadcrumb */}
-        <div className="text-[11px] text-muted-foreground mb-3.5 tracking-[0.04em] flex items-center">
-          <span className="text-primary font-bold">ELLY</span>
-          <span className="mx-1.5">—</span>
-          <span>Business Console</span>
-          <span className="mx-1.5 text-muted-foreground/50">›</span>
-          <span>Finance</span>
-          <span className="mx-1.5 text-muted-foreground/50">›</span>
-          <span className="text-muted-foreground/70">
-            {activeSector
-              ? `Sectors › ${SECTOR_LIST.find(s => s.id === activeSector)?.label}`
-              : "Financial Projection Engine"}
-          </span>
-
-          {/* Sectors dropdown */}
-          <div className="ml-auto relative">
-            <button
-              onClick={() => setShowSectorMenu(m => !m)}
-              className={[
-                "bg-transparent rounded-[6px] text-[11px] font-semibold px-3 py-1 cursor-pointer tracking-[0.03em] transition-all duration-150 border",
-                activeSector
-                  ? "border-primary/40 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary",
-              ].join(" ")}
-            >
-              Financial Sectors {showSectorMenu ? "▲" : "▼"}
-            </button>
-
-            {showSectorMenu && (
-              <div
-                className="absolute top-[calc(100%+6px)] right-0 bg-white/90 backdrop-blur-md border border-border rounded-[8px] overflow-hidden z-[200] min-w-[180px] shadow-[0_8px_24px_rgba(47,36,133,0.12)]"
-                onMouseLeave={() => setShowSectorMenu(false)}
-              >
-                {SECTOR_LIST.map((s, i) => (
-                  <button
-                    key={s.id}
-                    onClick={() => { setActiveSector(s.id); setShowSectorMenu(false); }}
-                    className={[
-                      "block w-full text-left text-xs px-4 py-2.5 cursor-pointer transition-colors duration-100",
-                      i < SECTOR_LIST.length - 1 ? "border-b border-border/50" : "",
-                      activeSector === s.id
-                        ? "bg-primary/10 text-primary font-semibold"
-                        : "text-muted-foreground hover:bg-primary/5 hover:text-foreground font-normal",
-                    ].join(" ")}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tab Row */}
+        {/* Tab Row + Sectors dropdown in one line */}
         <div className="flex gap-0 items-center">
           {visibleTabs.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -127,7 +73,7 @@ export function ProjectionPage() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={[
-                  "bg-transparent border-none text-[12.5px] px-[18px] py-2 cursor-pointer tracking-[0.03em] transition-all duration-150 border-b-2 -mb-px",
+                  "bg-transparent border-none text-[12.5px] px-[18px] py-2.5 cursor-pointer tracking-[0.03em] transition-all duration-150 border-b-2 -mb-px",
                   isActive
                     ? "border-primary text-primary font-semibold"
                     : "border-transparent text-muted-foreground font-normal hover:text-foreground/80",
@@ -178,12 +124,29 @@ export function ProjectionPage() {
               )}
             </div>
           )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Dashboard button — shown when a sector screen is active */}
+          {activeSector && (
+            <button
+              onClick={() => setActiveSector(null)}
+              className="flex items-center gap-1.5 ml-3 px-3.5 py-1.5 text-[12px] font-semibold text-primary bg-primary/[0.10] border border-primary/[0.35] rounded-lg cursor-pointer transition-all duration-150 hover:bg-primary/[0.18] hover:border-primary/[0.60] whitespace-nowrap flex-shrink-0"
+            >
+              ← Dashboard
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        <InputPanel onSensitivityClick={() => setActiveTab("sensitivity")} />
+        <InputPanel
+          onSensitivityClick={() => setActiveTab("sensitivity")}
+          activeSector={activeSector}
+          setActiveSector={setActiveSector}
+        />
         <div className="flex flex-col flex-1 overflow-hidden">
           <FinancialSummaryBar />
           {activeSector ? (

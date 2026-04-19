@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { API_BASE } from "@/lib/api";
 
 export type ScenarioPreset = "bear" | "base" | "bull" | "custom";
 export type AccountType = "user" | "industry" | "government";

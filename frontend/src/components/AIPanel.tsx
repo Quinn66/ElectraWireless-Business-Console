@@ -5,14 +5,6 @@ import { useProjectionStore } from "@/store/projectionStore";
 const BG     = "rgba(255,255,255,0.50)";
 const BG_SEC = "rgba(255,255,255,0.80)";
 
-interface AnalysisResult {
-  analysis_short: string;
-  analysis_detailed: string;
-  positives: string[];
-  negatives: string[];
-  next_steps: string[];
-}
-
 export function AIPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -254,11 +246,6 @@ export function AIPanel() {
         </div>
       )}
 
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

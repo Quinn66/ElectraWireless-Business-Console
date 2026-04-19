@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { Lightbulb } from "lucide-react";
 import { useProjectionStore } from "@/store/projectionStore";
 import type { ProfilePreset } from "@/lib/profilePresets";
 import ImportFinancialDataStep from "@/components/ImportFinancialDataStep";
@@ -44,7 +45,7 @@ interface ProgressBarProps { step: number; total: number; }
 
 function ProgressBar({ step, total }: ProgressBarProps) {
   return (
-    <div className="flex gap-1.5 mb-8">
+    <div className="flex gap-1.5 mb-5">
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
@@ -61,7 +62,7 @@ interface StepHeaderProps { currentStep: number; of: number; title: string; sub:
 
 function StepHeader({ currentStep: n, of: total, title, sub }: StepHeaderProps) {
   return (
-    <div className="mb-6">
+    <div className="mb-4">
       <div className="flex items-center gap-2 mb-1.5">
         <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-extrabold text-xs flex items-center justify-center flex-shrink-0">
           {n}
@@ -114,7 +115,7 @@ function Slider({ label, value, min, max, step, format, parse, onChange, disable
   }
 
   return (
-    <div className={`mb-4 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
+    <div className={`mb-3 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
       {hint && <p className="text-muted-foreground text-xs mb-0.5">{hint}</p>}
       {label !== "" && (
         <div className="flex justify-between items-center mb-1">
@@ -173,7 +174,7 @@ interface TipProps { text: string; }
 function Tip({ text }: TipProps) {
   return (
     <div className="mt-5 bg-primary/[0.07] border border-primary/20 rounded-xl px-3.5 py-3 flex gap-2">
-      <span className="text-primary text-xs flex-shrink-0 mt-0.5">💡 Tip</span>
+      <Lightbulb size={13} className="text-primary flex-shrink-0 mt-0.5" />
       <p className="text-muted-foreground text-xs leading-relaxed m-0">{text}</p>
     </div>
   );
@@ -183,7 +184,7 @@ interface NavRowProps { onBack: () => void; onNext: () => void; nextLabel: strin
 
 function NavRow({ onBack, onNext, nextLabel }: NavRowProps) {
   return (
-    <div className="flex justify-between mt-7">
+    <div className="flex justify-between mt-5">
       <button
         onClick={onBack}
         className="bg-transparent border border-border text-muted-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:border-muted-foreground hover:text-foreground transition-colors duration-150 font-sans"
@@ -386,8 +387,8 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-8 font-sans">
-      <div className="w-full max-w-lg bg-white/30 backdrop-blur-[18px] rounded-[28px] border-2 border-white/70 shadow-[0_8px_48px_rgba(120,100,180,0.10)] p-9">
+    <div className="h-full flex items-center justify-center p-6 font-sans">
+      <div className="w-full max-w-lg bg-white/30 backdrop-blur-[18px] rounded-[28px] border-2 border-white/70 shadow-[0_8px_48px_rgba(120,100,180,0.10)] p-8">
         <ProgressBar step={step} total={3} />
 
         {step === 1 && (

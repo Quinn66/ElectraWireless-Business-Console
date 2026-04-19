@@ -59,31 +59,19 @@ function LegendDot({ color, label, dashed }: { color: string; label: string; das
 interface SectorPanelProps {
   title: string;
   description: string;
-  onBack: () => void;
   chart: React.ReactNode;
   table: React.ReactNode;
   insights: React.ReactNode;
 }
 
-function SectorPanel({ title, description, onBack, chart, table, insights }: SectorPanelProps) {
+function SectorPanel({ title, description, chart, table, insights }: SectorPanelProps) {
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Left: chart + table */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 0 20px 24px", display: "flex", flexDirection: "column", gap: "18px", minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingRight: "20px" }}>
-          <div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "hsl(242 44% 30%)", marginBottom: "3px" }}>{title}</div>
-            <div style={{ fontSize: "11.5px", color: "hsl(245 16% 49%)" }}>{description}</div>
-          </div>
-          <button
-            onClick={onBack}
-            aria-label="Back to dashboard"
-            style={{ background: `${C_PRIMARY}1a`, border: `1px solid ${C_PRIMARY}59`, borderRadius: "8px", color: C_PRIMARY, fontSize: "12px", fontWeight: 600, padding: "7px 16px", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap", transition: "background 150ms, border-color 150ms" }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${C_PRIMARY}2e`; e.currentTarget.style.borderColor = `${C_PRIMARY}99`; }}
-            onMouseLeave={e => { e.currentTarget.style.background = `${C_PRIMARY}1a`; e.currentTarget.style.borderColor = `${C_PRIMARY}59`; }}
-          >
-            ← Dashboard
-          </button>
+        <div style={{ paddingRight: "20px" }}>
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "hsl(242 44% 30%)", marginBottom: "3px" }}>{title}</div>
+          <div style={{ fontSize: "11.5px", color: "hsl(245 16% 49%)" }}>{description}</div>
         </div>
         <div style={{ backgroundColor: BG, border: `1px solid ${C_BORDER}`, borderRadius: "10px", padding: "16px 18px", marginRight: "20px" }}>
           {chart}
@@ -144,7 +132,7 @@ function RevenueScreen({ onBack }: { onBack: () => void }) {
     <SectorPanel
       title="Revenue Analysis"
       description="Projected revenue trajectory, growth rate, and cumulative revenue over the forecast period."
-      onBack={onBack}
+
       chart={
         <div>
           <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
@@ -233,7 +221,7 @@ function CostScreen({ onBack }: { onBack: () => void }) {
     <SectorPanel
       title="Cost Analysis"
       description="Breakdown of COGS, marketing spend, and payroll as stacked cost components per month."
-      onBack={onBack}
+
       chart={
         <div>
           <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
@@ -326,7 +314,7 @@ function ProfitabilityScreen({ onBack }: { onBack: () => void }) {
     <SectorPanel
       title="Profitability Analysis"
       description="Gross profit and net profit trajectories with break-even point marked."
-      onBack={onBack}
+
       chart={
         <div>
           <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
@@ -418,7 +406,7 @@ function CashFlowScreen({ onBack }: { onBack: () => void }) {
     <SectorPanel
       title="Cash Flow Analysis"
       description="Monthly net cash flows with cumulative cash position showing burn rate and recovery."
-      onBack={onBack}
+
       chart={
         <div>
           <div style={{ fontSize: "10px", fontWeight: 600, color: "hsl(245 16% 49%)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>

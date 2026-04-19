@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { MOCK_TRANSACTIONS } from "@/services/personalFinanceApi";
 
 export interface Transaction {
   id: string;
@@ -38,6 +39,8 @@ interface PersonalFinanceState {
   setBudget: (category: string, limit: number) => void;
   setApiLoading: (v: boolean) => void;
   setApiError: (e: string | null) => void;
+  /** Loads all mock transactions at once and navigates to the dashboard view */
+  loadDemoData: () => void;
   reset: () => void;
 }
 
@@ -91,6 +94,13 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>((set) => ({
 
   setApiLoading: (apiLoading) => set({ apiLoading }),
   setApiError: (apiError) => set({ apiError }),
+
+  loadDemoData: () =>
+    set({
+      transactions: [...MOCK_TRANSACTIONS],
+      flowStep: "dashboard",
+      activeTab: "overview",
+    }),
 
   reset: () =>
     set({
