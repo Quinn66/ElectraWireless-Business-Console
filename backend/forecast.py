@@ -522,7 +522,7 @@ def load_sample_data() -> List[Dict]:
 
 def load_prophet_historical() -> List[Dict]:
     """Return full historical series from sample_data_prophet.csv as [{ds, revenue, expenses, profit}]."""
-    csv_path = Path(__file__).parent / "sample_data_prophet.csv"
+    csv_path = Path(__file__).parent / "Sample_data" / "sample_data_prophet.csv"
     df = pd.read_csv(csv_path)
     df['ds'] = pd.to_datetime(df['ds'])
     df = df.sort_values('ds').reset_index(drop=True)
@@ -545,7 +545,7 @@ def run_prophet_forecast(months: int, company_id: str = "CMP_001") -> List[Dict]
     Dates start the month after the last entry in the CSV so they align with run_slider_forecast.
     Falls back to a linear-trend extrapolation if Darts/Prophet is unavailable.
     """
-    csv_path = Path(__file__).parent / "sample_data_prophet.csv"
+    csv_path = Path(__file__).parent / "Sample_data" / "sample_data_prophet.csv"
     df = pd.read_csv(csv_path)
     df['ds'] = pd.to_datetime(df['ds'])
     df = df.sort_values('ds').reset_index(drop=True)
@@ -610,7 +610,7 @@ def run_slider_forecast(
     Dates start the month after the last entry in sample_data_prophet.csv so they align
     with run_prophet_forecast output.
     """
-    csv_path = Path(__file__).parent / "sample_data_prophet.csv"
+    csv_path = Path(__file__).parent / "Sample_data" / "sample_data_prophet.csv"
     df = pd.read_csv(csv_path)
     df['ds'] = pd.to_datetime(df['ds'])
     last_date = df['ds'].max()

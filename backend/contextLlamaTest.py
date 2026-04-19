@@ -2,9 +2,15 @@ import os
 import json
 import re
 from groq import Groq
-import requests 
+import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
+from pathlib import Path
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
 
 # FastAPI setup
 app = FastAPI()
@@ -80,10 +86,32 @@ def get_user_question():
         return ""
 
 # Send question directly to Ollama
-def get_analysis(user_question, historical=None, prophet_forecast=None, slider_forecast=None):
+def get_analysis(
+    user_question,
+    historical=None,
+    prophet_forecast=None,
+    slider_forecast=None,
+    current_params: dict | None = None,
+):
+    # Build a human-readable summary of current dashboard values if provided
+    params_block = ""
+    if current_params:
+        params_block = f"""
+    =========================
+    CURRENT DASHBOARD VALUES
+    =========================
+    Starting MRR:     ${current_params.get('starting_mrr', 'N/A'):,}
+    Monthly Growth Rate: {current_params.get('growth_rate', 'N/A')}%
+    Monthly Churn Rate:  {current_params.get('churn_rate', 'N/A')}%
+    COGS (% of revenue): {current_params.get('cogs_percent', 'N/A')}%
+    Monthly Marketing Spend: ${current_params.get('marketing_spend', 'N/A'):,}
+    Monthly Payroll:  ${current_params.get('payroll', 'N/A'):,}
+    Forecast Horizon: {current_params.get('months', 'N/A')} months
+"""
+
     prompt = f"""
     You are a financial analysis assistant.
-
+{params_block}
     =========================
     CONTEXT (SYSTEM DATA)
     =========================
@@ -108,9 +136,11 @@ def get_analysis(user_question, historical=None, prophet_forecast=None, slider_f
 
     Rules:
 
-    1. Only use numbers if they are explicitly given by the user.
-    2. If no numeric information is provided, describe general trends only.
-    3. Do NOT fabricate any data or estimates.
+    1. Use the CURRENT DASHBOARD VALUES above as the baseline for any what-if calculations.
+       When the user says things like "decrease by X%" or "increase by Y", apply that
+       change relative to the current dashboard value for that metric.
+    2. If a metric is not in the dashboard values and the user gives no number, describe general trends only.
+    3. Do NOT fabricate data or estimates beyond what can be derived from the provided context.
     4. Use clear, simple language (no jargon or acronyms).
     5. Do NOT ask for clarification.
 

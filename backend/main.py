@@ -112,7 +112,16 @@ def analyze(req: AnalyzeRequest):
         payroll=req.payroll,
         months=req.months,
     )
-    analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast)
+    current_params = {
+        "starting_mrr":    req.starting_mrr,
+        "growth_rate":     req.growth_rate,
+        "churn_rate":      req.churn_rate,
+        "cogs_percent":    req.cogs_percent,
+        "marketing_spend": req.marketing_spend,
+        "payroll":         req.payroll,
+        "months":          req.months,
+    }
+    analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast, current_params)
     return parse_output(analysis)
 
 
