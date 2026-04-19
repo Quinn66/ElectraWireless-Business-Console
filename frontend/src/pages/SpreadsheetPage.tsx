@@ -14,6 +14,7 @@ import {
 } from "@/lib/importUtils";
 import type { DataStandard, ExtractedValues, CellStyle } from "@/lib/importUtils";
 import { C_PRIMARY, C_BORDER, C_SUCCESS, C_WARNING } from "@/lib/colors";
+import { SpreadsheetToolbar } from "@/components/SpreadsheetToolbar";
 
 export type SpreadsheetMode = "overlay" | "embedded";
 
@@ -622,11 +623,15 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
         />
       </div>
 
+      {/* ── Formatting toolbar ── */}
+      <SpreadsheetToolbar />
+
       {/* ── Grid + ELLY sidebar ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}>
         <div className="ag-theme-alpine" style={{ flex: 1, minWidth: 0 }} onMouseDown={handleGridAreaMouseDown}>
           <AgGridReact
             key={`${activeSheetIndex}-${fileName}`}
+            theme="legacy"
             rowData={rowData}
             columnDefs={columnDefs}
             onGridReady={p => { gridApiRef.current = p.api; }}

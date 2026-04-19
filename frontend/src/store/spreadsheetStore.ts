@@ -38,6 +38,13 @@ interface SpreadsheetState {
     value: string | number | null,
     formula?: string | null
   ) => void;
+  /** Merge partial style changes into a single cell without touching its value. */
+  updateCellStyle: (
+    sheetIndex: number,
+    rowIndex: number,
+    colIndex: number,
+    partial: Partial<import("@/lib/importUtils").CellStyle>
+  ) => void;
   /** Restore all sheets to the state they were in when the file was first opened. */
   resetToOriginal: () => void;
 }
@@ -158,6 +165,26 @@ export const useSpreadsheetStore = create<SpreadsheetState>((set, get) => ({
       );
 
       return { sheets, cellMap: buildCellMap(sheets), isDirty: true };
+    }),
+
+  updateCellStyle: (sheetIndex, rowIndex, colIndex, partial) =>
+    set((state) => {
+      const sheet = state.sheets[sheetIndex];
+      if (!sheet) return state;
+
+      const styles = (sheet.styles ?? []).map((sRow, ri) => {
+        if (ri !== rowIndex) return sRow;
+        return sRow.map((cs, ci) => {
+          if (ci !== colIndex) return cs;
+          return { ...(cs ?? {}), ...partial };
+        });
+      });
+
+      const sheets = state.sheets.map((s, si) =>
+        si !== sheetIndex ? s : { ...s, styles }
+      );
+
+      return { sheets, isDirty: true };
     }),
 
   resetToOriginal: () =>
