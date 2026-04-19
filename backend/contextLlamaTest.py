@@ -15,21 +15,30 @@ class QuestionRequest(BaseModel):
 # FastAPI endpoint
 @app.post("/analyze")
 def analyze(request: QuestionRequest):
-    analysis = get_analysis(request.question)
+    historical, prophet_forecast, slider_forecast = get_forecast_context()
+    analysis = get_analysis(request.question, historical, prophet_forecast, slider_forecast)
     structured = parse_output(analysis)
     return structured
 
-def get_forecast_context():
-    url = "http://localhost:8000/prophet-forecast"
+def get_forecast_context(
+    starting_mrr: float = 18000,
+    growth_rate: float = 8.0,
+    churn_rate: float = 3.0,
+    cogs_percent: float = 22.0,
+    marketing_spend: float = 4000.0,
+    payroll: float = 35000.0,
+    months: int = 12,
+):
+    url = "https://electrawireless-business-console.onrender.com/prophet-forecast"
 
     payload = {
-        "starting_mrr": 10000,
-        "growth_rate": 0.1,
-        "churn_rate": 0.03,
-        "cogs_percent": 0.2,
-        "marketing_spend": 2000,
-        "payroll": 5000,
-        "months": 12
+        "starting_mrr": starting_mrr,
+        "growth_rate": growth_rate,
+        "churn_rate": churn_rate,
+        "cogs_percent": cogs_percent,
+        "marketing_spend": marketing_spend,
+        "payroll": payroll,
+        "months": months,
     }
 
     response = requests.post(url, json=payload)

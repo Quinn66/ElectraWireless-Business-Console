@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { C_BORDER } from "@/lib/colors";
-import { API_BASE, type AnalysisResult } from "@/lib/api";
+import { useProjectionStore } from "@/store/projectionStore";
 
 const BG     = "rgba(255,255,255,0.50)";
 const BG_SEC = "rgba(255,255,255,0.80)";
@@ -11,6 +11,14 @@ export function AIPanel() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const startingMRR    = useProjectionStore(s => s.startingMRR);
+  const growthRate     = useProjectionStore(s => s.growthRate);
+  const churnRate      = useProjectionStore(s => s.churnRate);
+  const cogsPercent    = useProjectionStore(s => s.cogsPercent);
+  const marketingSpend = useProjectionStore(s => s.marketingSpend);
+  const payroll        = useProjectionStore(s => s.payroll);
+  const forecastMonths = useProjectionStore(s => s.forecastMonths);
 
   async function handleSubmit() {
     const question = input.trim();
@@ -24,7 +32,16 @@ export function AIPanel() {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+          question,
+          starting_mrr:    startingMRR,
+          growth_rate:     growthRate,
+          churn_rate:      churnRate,
+          cogs_percent:    cogsPercent,
+          marketing_spend: marketingSpend,
+          payroll:         payroll,
+          months:          forecastMonths,
+        }),
       });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);

@@ -16,6 +16,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "formulajs": "^1.0.8",
+    "hyperformula": "^3.2.0",
     "lucide-react": "^1.7.0",
     "mammoth": "^1.12.0",
     "papaparse": "^5.5.3",

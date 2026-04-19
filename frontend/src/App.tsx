@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { BusinessConsoleDashboard } from "@/pages/BusinessConsoleDashboard";
+import { useState, useEffect } from "react";
+import { ProjectionPage } from "@/pages/ProjectionPage";
+import { PersonalFinancePage } from "@/pages/PersonalFinancePage";
 import { SpreadsheetPage } from "@/pages/SpreadsheetPage";
 import LoginScreen from "./LoginScreen";
 import { useProjectionStore } from "@/store/projectionStore";
@@ -13,7 +14,20 @@ const GradientBg = () => (
 export default function App() {
   const setAccountType = useProjectionStore((s) => s.setAccountType);
   const spreadsheetOpen = useSpreadsheetStore((s) => s.isOpen);
-  const [loggedIn, setLoggedIn] = useState(false);
+
+  const _nav = (): Record<string, unknown> => {
+    try { return JSON.parse(localStorage.getItem("ew-nav") ?? "{}"); } catch { return {}; }
+  };
+
+  const [loggedIn, setLoggedIn] = useState<boolean>(() => (_nav().loggedIn as boolean) ?? false);
+  const [selectedTool, setSelectedTool] = useState<ToolKey | null>(() => (_nav().selectedTool as ToolKey) ?? null);
+  const [profilePreset, setProfilePreset] = useState<ProfilePreset | null>(() => (_nav().profilePreset as ProfilePreset) ?? null);
+  const [onboarded, setOnboarded] = useState<boolean>(() => (_nav().onboarded as boolean) ?? false);
+
+  // Persist nav state so a page refresh lands back where the user was
+  useEffect(() => {
+    localStorage.setItem("ew-nav", JSON.stringify({ loggedIn, selectedTool, profilePreset, onboarded, accountType }));
+  }, [loggedIn, selectedTool, profilePreset, onboarded, accountType]);
 
   const currentView = () => {
     if (!loggedIn) {
