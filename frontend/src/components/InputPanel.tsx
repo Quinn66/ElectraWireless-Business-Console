@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { C_SUCCESS, C_WARNING } from "@/lib/colors";
 import { useProjectionStore } from "@/store/projectionStore";
+import { useSpreadsheetStore } from "@/store/spreadsheetStore";
 import { ScenarioPills } from "./ScenarioPills";
 import { formatCurrency } from "@/lib/projection";
 import { ImportModal } from "./ImportModal";
@@ -61,14 +62,24 @@ export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }
     marketingSpend, setMarketingSpend,
     payroll, setPayroll,
     forecastMonths, setForecastMonths,
-    activeScenario, saveCustomScenario, setActiveTab,
+    activeScenario, saveCustomScenario, setActiveTab, activeTab,
   } = useProjectionStore();
+
+  const { sheets, activeSheetIndex, setActiveSheet } = useSpreadsheetStore();
+  const hasSheets = sheets.length > 0;
 
   const [savingName, setSavingName] = useState(false);
   const [scenarioName, setScenarioName] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showSectorMenu, setShowSectorMenu] = useState(false);
   const [toast, setToast] = useState<{ applied: string[]; skipped: string[] } | null>(null);
+
+  function handleSheetClick(index: number) {
+    setActiveSheet(index);
+    setActiveTab("your-data");
+    setActiveSector(null);
+    setShowSectorMenu(false);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -85,7 +96,7 @@ export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }
           onClick={() => setShowSectorMenu((m) => !m)}
           className={[
             "w-full bg-transparent rounded-lg py-2.5 flex items-center justify-between px-3.5 cursor-pointer transition-colors duration-150 border",
-            activeSector
+            activeSector || (activeTab === "your-data" && hasSheets)
               ? "border-primary/40 text-primary hover:bg-primary/10 hover:border-primary/60"
               : "border-border text-muted-foreground hover:bg-primary/5 hover:border-primary/40 hover:text-primary",
           ].join(" ")}
@@ -93,7 +104,9 @@ export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }
           <span className="text-[12.5px] font-semibold tracking-[0.02em]">
             {activeSector
               ? SECTOR_LIST.find((s) => s.id === activeSector)?.label
-              : "Financial Sectors"}
+              : activeTab === "your-data" && hasSheets
+                ? sheets[activeSheetIndex]?.name ?? "Your Data"
+                : "Financial Sectors"}
           </span>
           <span className="text-[10px] opacity-60">{showSectorMenu ? "▲" : "▼"}</span>
         </button>
@@ -103,10 +116,14 @@ export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }
             className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white/95 backdrop-blur-md border border-border rounded-[8px] overflow-hidden z-[200] shadow-[0_8px_24px_rgba(47,36,133,0.12)]"
             onMouseLeave={() => setShowSectorMenu(false)}
           >
+            {/* Built-in analysis sectors */}
+            <p className="text-[9.5px] text-muted-foreground font-semibold tracking-widest uppercase px-3.5 pt-2.5 pb-1">
+              Analysis
+            </p>
             {SECTOR_LIST.map((s, i) => (
               <button
                 key={s.id}
-                onClick={() => { setActiveSector(s.id); setShowSectorMenu(false); }}
+                onClick={() => { setActiveSector(s.id); setActiveTab("projection"); setShowSectorMenu(false); }}
                 className={[
                   "block w-full text-left text-xs px-4 py-2.5 cursor-pointer transition-colors duration-100",
                   i < SECTOR_LIST.length - 1 ? "border-b border-border/50" : "",
@@ -118,6 +135,34 @@ export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }
                 {s.label}
               </button>
             ))}
+
+            {/* Uploaded sheet tabs — only shown when a workbook is loaded */}
+            {hasSheets && (
+              <>
+                <div className="border-t border-border/60 mt-1" />
+                <p className="text-[9.5px] text-muted-foreground font-semibold tracking-widest uppercase px-3.5 pt-2.5 pb-1">
+                  Your Data
+                </p>
+                {sheets.map((sheet, i) => {
+                  const isActive = activeTab === "your-data" && activeSheetIndex === i;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleSheetClick(i)}
+                      className={[
+                        "block w-full text-left text-xs px-4 py-2.5 cursor-pointer transition-colors duration-100",
+                        i < sheets.length - 1 ? "border-b border-border/50" : "pb-3",
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-muted-foreground hover:bg-primary/5 hover:text-foreground font-normal",
+                      ].join(" ")}
+                    >
+                      {sheet.name}
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
       </div>

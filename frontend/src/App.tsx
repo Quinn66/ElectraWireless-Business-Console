@@ -14,6 +14,7 @@ export default function App() {
   const setAccountType = useProjectionStore((s) => s.setAccountType);
   const accountType = useProjectionStore((s) => s.accountType);
   const spreadsheetOpen = useSpreadsheetStore((s) => s.isOpen);
+  const activeTab = useProjectionStore((s) => s.activeTab);
 
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
 
@@ -44,8 +45,8 @@ export default function App() {
     <>
       <GradientBg />
       {currentView()}
-      {/* SpreadsheetPage renders as a fixed overlay on top of any view */}
-      {spreadsheetOpen && <SpreadsheetPage />}
+      {/* SpreadsheetPage overlay — suppressed when user is on the embedded Your Data tab */}
+      {spreadsheetOpen && activeTab !== "your-data" && <SpreadsheetPage />}
       {loggedIn && (
         <button
           onClick={goHome}

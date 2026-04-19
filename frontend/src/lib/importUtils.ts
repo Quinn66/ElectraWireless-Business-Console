@@ -13,11 +13,39 @@ export interface ParsedData {
   formulas?: (string | null)[][];
 }
 
+/** Per-cell visual style extracted from an Excel file. All fields optional — only set when non-default. */
+export interface CellStyle {
+  bgColor?: string;    // CSS hex e.g. "#FFEB9C"
+  fontColor?: string;  // CSS hex
+  bold?: boolean;
+  italic?: boolean;
+  fontSize?: number;   // pt
+  numFmt?: string;     // Excel number format string e.g. "0.00%", "$#,##0"
+  borderTop?: boolean;
+  borderBottom?: boolean;
+  borderLeft?: boolean;
+  borderRight?: boolean;
+  hAlign?: "left" | "center" | "right";
+  wrapText?: boolean;
+}
+
+/** A merged cell range (0-indexed, relative to the sheet's used range). */
+export interface MergeRange {
+  s: { r: number; c: number };
+  e: { r: number; c: number };
+}
+
 /** One sheet inside a workbook — all rows preserved (row 0 is typically the header row) */
 export interface SheetData {
   name: string;
   rows: (string | number | null)[][];
   formulas: (string | null)[][];
+  /** Per-cell styles, parallel to rows. null means no explicit style. */
+  styles: (CellStyle | null)[][];
+  /** Merged cell regions for this sheet. */
+  merges: MergeRange[];
+  /** Column widths in Excel character units (wch). undefined = use default. */
+  colWidths: (number | undefined)[];
 }
 
 /** Full workbook returned by parseWorkbook */
@@ -318,7 +346,80 @@ export function extractCustom(data: ParsedData, mapping: ColumnMapping): Extract
   return result;
 }
 
+// ── Style helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Convert a SheetJS ARGB colour object to a CSS #RRGGBB string.
+ * SheetJS gives either 6-char (RRGGBB) or 8-char (AARRGGBB) hex strings.
+ * Theme/tint colours are skipped — too complex to resolve without the theme XML.
+ */
+function xlsxColorToCss(color: { rgb?: string; theme?: number } | undefined): string | undefined {
+  if (!color?.rgb) return undefined;
+  const rgb = color.rgb;
+  const hex = rgb.length === 8 ? rgb.slice(2) : rgb; // drop alpha prefix if present
+  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex}` : undefined;
+}
+
+/** Extract a CellStyle from a SheetJS cell's .s property. Returns null if no meaningful style. */
+function extractCellStyle(s: Record<string, any> | undefined): CellStyle | null {
+  if (!s) return null;
+  const style: CellStyle = {};
+
+  const bg = xlsxColorToCss(s.fill?.fgColor);
+  // Skip white/near-white — treated as "no fill" to avoid overriding the grid background
+  if (bg && bg.toLowerCase() !== "#ffffff" && bg.toLowerCase() !== "#000000") style.bgColor = bg;
+
+  const fc = xlsxColorToCss(s.font?.color);
+  if (fc && fc.toLowerCase() !== "#000000") style.fontColor = fc;
+
+  if (s.font?.bold)   style.bold   = true;
+  if (s.font?.italic) style.italic = true;
+  if (s.font?.sz && s.font.sz !== 11) style.fontSize = s.font.sz as number;
+
+  const numFmt = s.numFmt as string | undefined;
+  if (numFmt && numFmt !== "General" && numFmt !== "@") style.numFmt = numFmt;
+
+  if (s.border?.top?.style)    style.borderTop    = true;
+  if (s.border?.bottom?.style) style.borderBottom = true;
+  if (s.border?.left?.style)   style.borderLeft   = true;
+  if (s.border?.right?.style)  style.borderRight  = true;
+
+  const ha = s.alignment?.horizontal as string | undefined;
+  if (ha === "left" || ha === "center" || ha === "right") style.hAlign = ha;
+  if (s.alignment?.wrapText) style.wrapText = true;
+
+  return Object.keys(style).length > 0 ? style : null;
+}
+
+/**
+ * Apply a stored Excel number-format string to a numeric value for display.
+ * Only handles the most common patterns — full Excel format parsing is out of scope.
+ */
+export function applyNumFmt(value: string | number | null, numFmt: string | undefined): string {
+  if (value == null || numFmt == null) return String(value ?? "");
+  const n = typeof value === "number" ? value : parseFloat(String(value));
+  if (isNaN(n)) return String(value);
+
+  if (numFmt.includes("%")) {
+    const match = numFmt.match(/\.0+/);
+    const decimals = match ? match[0].length - 1 : 0;
+    return `${(n * (numFmt.startsWith("0") ? 1 : 100)).toFixed(decimals)}%`;
+  }
+  if (numFmt.includes("$")) return `$${n.toLocaleString("en-US", { minimumFractionDigits: numFmt.includes(".00") ? 2 : 0, maximumFractionDigits: numFmt.includes(".00") ? 2 : 0 })}`;
+  if (numFmt.includes("#,##0")) return n.toLocaleString("en-US", { minimumFractionDigits: numFmt.includes(".00") ? 2 : 0, maximumFractionDigits: numFmt.includes(".00") ? 2 : 0 });
+  if (numFmt.match(/^0+\.0+$/)) {
+    const decimals = (numFmt.split(".")[1] ?? "").length;
+    return n.toFixed(decimals);
+  }
+  return String(value);
+}
+
 // ── Workbook parser (all sheets) ──────────────────────────────────────────────
+
+/** Empty SheetData used as a fallback for sheets with no content. */
+function emptySheet(name: string): SheetData {
+  return { name, rows: [], formulas: [], styles: [], merges: [], colWidths: [] };
+}
 
 export function parseWorkbook(file: File): Promise<WorkbookData> {
   return new Promise((resolve, reject) => {
@@ -338,6 +439,9 @@ export function parseWorkbook(file: File): Promise<WorkbookData> {
               name: "Sheet1",
               rows: raw,
               formulas: raw.map(r => r.map(() => null)),
+              styles: raw.map(r => r.map(() => null)),
+              merges: [],
+              colWidths: [],
             }],
           });
         },
@@ -348,26 +452,45 @@ export function parseWorkbook(file: File): Promise<WorkbookData> {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const wb = XLSX.read(e.target!.result as ArrayBuffer, { type: "array" });
+          const wb = XLSX.read(e.target!.result as ArrayBuffer, { type: "array", cellStyles: true, cellNF: true });
           const sheets: SheetData[] = wb.SheetNames.map((name) => {
             const ws = wb.Sheets[name];
             const ref = ws["!ref"];
-            if (!ref) return { name, rows: [], formulas: [] };
+            if (!ref) return emptySheet(name);
             const range = XLSX.utils.decode_range(ref);
             const rows: (string | number | null)[][] = [];
             const formulas: (string | null)[][] = [];
+            const styles: (CellStyle | null)[][] = [];
             for (let r = range.s.r; r <= range.e.r; r++) {
               const row: (string | number | null)[] = [];
               const fRow: (string | null)[] = [];
+              const sRow: (CellStyle | null)[] = [];
               for (let c = range.s.c; c <= range.e.c; c++) {
                 const cell = ws[XLSX.utils.encode_cell({ r, c })];
                 row.push(cell ? (cell.v ?? null) : null);
                 fRow.push(cell?.f ? `=${cell.f}` : null);
+                // Merge numFmt from cell.z (cellNF) into the style object
+                const rawStyle = cell?.s ? { ...cell.s, numFmt: cell.s.numFmt ?? cell.z ?? undefined } : undefined;
+                sRow.push(extractCellStyle(rawStyle as Record<string, any> | undefined));
               }
               rows.push(row);
               formulas.push(fRow);
+              styles.push(sRow);
             }
-            return { name, rows, formulas };
+
+            // Merged cell ranges — normalise to sheet's top-left corner
+            const rawMerges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> =
+              (ws["!merges"] as typeof rawMerges | undefined) ?? [];
+            const merges: MergeRange[] = rawMerges.map((m) => ({
+              s: { r: m.s.r - range.s.r, c: m.s.c - range.s.c },
+              e: { r: m.e.r - range.s.r, c: m.e.c - range.s.c },
+            }));
+
+            // Column widths (Excel character units → pixel estimate: 1 wch ≈ 8px + 8px padding)
+            const rawCols = (ws["!cols"] as Array<{ wch?: number; wpx?: number } | null> | undefined) ?? [];
+            const colWidths: (number | undefined)[] = rawCols.map((col) => col?.wch);
+
+            return { name, rows, formulas, styles, merges, colWidths };
           });
           resolve({ fileName: file.name, sheets });
         } catch (err) {
