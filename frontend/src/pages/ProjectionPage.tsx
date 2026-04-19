@@ -5,6 +5,7 @@ import { OutputPanel } from "@/components/OutputPanel";
 import { FinancialSummaryBar } from "@/components/FinancialSummaryBar";
 import { SectorScreens, type SectorId } from "@/components/SectorScreens";
 import { useProphetSync } from "@/hooks/useProphetSync";
+import { SpreadsheetPage } from "@/pages/SpreadsheetPage";
 
 const ALL_TABS = [
   { key: "projection", label: "Projection" },
@@ -15,6 +16,7 @@ const ALL_TABS = [
   { key: "valuation",  label: "Valuation" },
   { key: "summary",    label: "Summary" },
   { key: "documents",  label: "Documents" },
+  { key: "your-data",  label: "Your Data" },
 ];
 
 // Tabs hidden by default for user accounts
@@ -142,19 +144,25 @@ export function ProjectionPage() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        <InputPanel
-          onSensitivityClick={() => setActiveTab("sensitivity")}
-          activeSector={activeSector}
-          setActiveSector={setActiveSector}
-        />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <FinancialSummaryBar />
-          {activeSector ? (
-            <SectorScreens activeSector={activeSector} onBack={() => setActiveSector(null)} />
-          ) : (
-            <OutputPanel activeTab={activeTab} />
-          )}
-        </div>
+        {activeTab === "your-data" ? (
+          <SpreadsheetPage mode="embedded" />
+        ) : (
+          <>
+            <InputPanel
+              onSensitivityClick={() => setActiveTab("sensitivity")}
+              activeSector={activeSector}
+              setActiveSector={setActiveSector}
+            />
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <FinancialSummaryBar />
+              {activeSector ? (
+                <SectorScreens activeSector={activeSector} onBack={() => setActiveSector(null)} />
+              ) : (
+                <OutputPanel activeTab={activeTab} />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

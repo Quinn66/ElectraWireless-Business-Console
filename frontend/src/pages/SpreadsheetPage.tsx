@@ -10,9 +10,12 @@ import { colIndexToLetter, colLetterToIndex, toCellId } from "@/lib/cellMap";
 import {
   extractStandardCSV, extractPLStatement, extractSuperstore,
   clamp, fmtImportValue, STANDARDS, SLIDER_RANGES, FIELD_LABELS, ORDERED_FIELDS,
+  parseWorkbook, applyNumFmt,
 } from "@/lib/importUtils";
-import type { DataStandard, ExtractedValues } from "@/lib/importUtils";
+import type { DataStandard, ExtractedValues, CellStyle } from "@/lib/importUtils";
 import { C_PRIMARY, C_BORDER, C_SUCCESS, C_WARNING } from "@/lib/colors";
+
+export type SpreadsheetMode = "overlay" | "embedded";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -228,8 +231,35 @@ function EllySidebar({ anomalies, dismissed, loading, onDismiss, onAccept, onFoc
 
 // ── Main SpreadsheetPage ──────────────────────────────────────────────────────
 
-export function SpreadsheetPage() {
-  const { isOpen, fileName, sheets, activeSheetIndex, cellMap, selectedCell, close, setActiveSheet, setSelectedCell, updateCell } =
+// ── Empty state for embedded mode (no workbook loaded yet) ───────────────────
+
+function EmbeddedEmptyState({ onFile }: { onFile: (file: File) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
+      <div style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", border: "2px solid rgba(255,255,255,0.70)", borderRadius: 24, boxShadow: "0 8px 48px rgba(120,100,180,0.12)", padding: "52px 56px", maxWidth: 520, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 0 }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(47,36,133,0.08)", border: "1.5px solid rgba(47,36,133,0.16)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C_PRIMARY} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "hsl(242 44% 28%)", marginBottom: 10 }}>No workbook uploaded yet</div>
+        <div style={{ fontSize: 13.5, color: "hsl(245 16% 49%)", lineHeight: 1.7, marginBottom: 36, maxWidth: 360 }}>
+          Upload an Excel (.xlsx) or CSV file to view your data here. All sheets, formulas, and values are preserved.
+        </div>
+        <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+        <button onClick={() => inputRef.current?.click()} style={{ background: C_PRIMARY, color: "#fff", border: "none", borderRadius: 10, padding: "13px 32px", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: "0.02em" }}>
+          Upload Spreadsheet
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }) {
+  const { isOpen, fileName, sheets, activeSheetIndex, cellMap, selectedCell, close, setActiveSheet, setSelectedCell, updateCell, openWorkbook, isDirty, resetToOriginal } =
     useSpreadsheetStore();
 
   const gridApiRef = useRef<GridApi | null>(null);
@@ -300,35 +330,102 @@ export function SpreadsheetPage() {
       cellStyle: { color: "hsl(245 16% 60%)", backgroundColor: "rgba(245,244,255,0.9)", textAlign: "center", fontSize: "11px", fontWeight: 500, borderRight: `1px solid ${C_BORDER}` },
     };
 
-    const dataCols: ColDef[] = Array.from({ length: numCols }, (_, ci) => ({
-      headerName: colIndexToLetter(ci),
-      field: `c${ci}`,
-      editable: true,
-      flex: 1,
-      minWidth: 90,
-      cellStyle: (params: any): { [key: string]: any } | undefined => {
-        const ri = params.node.rowIndex ?? 0;
-        // Highlight cell being pointed at during formula entry
-        if (formulaRefCell && formulaRefCell.rowIndex === ri && formulaRefCell.colIndex === ci) {
-          return { backgroundColor: "rgba(47,36,133,0.12)", outline: `2px solid ${C_PRIMARY}`, outlineOffset: "-2px" };
-        }
-        const cellId = toCellId(activeSheetIndex, ri, ci);
-        const anomaly = anomalyMap[cellId];
-        if (anomaly && !dismissed.has(cellId)) {
-          const s = SEVERITY_COLOR[anomaly.severity];
-          return { backgroundColor: s.bg, borderLeft: `3px solid ${s.border}` };
-        }
-        return undefined;
-      },
-      cellRenderer: (params: ICellRendererParams) => {
-        const ri = params.node.rowIndex ?? 0;
-        const formula = activeSheet?.formulas[ri]?.[ci];
-        const cellId = toCellId(activeSheetIndex, ri, ci);
-        const anomaly = anomalyMap[cellId];
-        const color = formula ? C_PRIMARY : anomaly && !dismissed.has(cellId) ? SEVERITY_COLOR[anomaly.severity].badge : undefined;
-        return <span title={formula ?? undefined} style={{ color, fontStyle: formula ? "italic" : undefined }}>{params.value ?? ""}</span>;
-      },
-    }));
+    const dataCols: ColDef[] = Array.from({ length: numCols }, (_, ci) => {
+      // Column width: convert Excel character units → pixels (1 wch ≈ 7px + 16px padding)
+      const wch = activeSheet?.colWidths?.[ci];
+      const colWidth = wch != null ? Math.max(60, Math.round(wch * 7 + 16)) : undefined;
+
+      const col: ColDef = {
+        headerName: colIndexToLetter(ci),
+        field: `c${ci}`,
+        editable: true,
+        minWidth: 60,
+        ...(colWidth != null ? { width: colWidth, suppressSizeToFit: true } : { flex: 1 }),
+
+        // ── colSpan: handle horizontally merged cells ─────────────────────────
+        colSpan: (params) => {
+          const ri = params.node?.rowIndex ?? 0;
+          const merge = activeSheet?.merges?.find(
+            (m) => m.s.r === ri && m.s.c === ci
+          );
+          return merge ? merge.e.c - merge.s.c + 1 : 1;
+        },
+
+        // ── Cell background + borders ─────────────────────────────────────────
+        cellStyle: (params: any): { [key: string]: any } | undefined => {
+          const ri = params.node.rowIndex ?? 0;
+
+          // Formula-entry point-mode highlight takes priority
+          if (formulaRefCell && formulaRefCell.rowIndex === ri && formulaRefCell.colIndex === ci) {
+            return { backgroundColor: "rgba(47,36,133,0.12)", outline: `2px solid ${C_PRIMARY}`, outlineOffset: "-2px" };
+          }
+
+          // Anomaly highlight takes next priority
+          const cellId = toCellId(activeSheetIndex, ri, ci);
+          const anomaly = anomalyMap[cellId];
+          if (anomaly && !dismissed.has(cellId)) {
+            const sev = SEVERITY_COLOR[anomaly.severity];
+            return { backgroundColor: sev.bg, borderLeft: `3px solid ${sev.border}` };
+          }
+
+          // Excel cell style
+          const cs: CellStyle | null | undefined = activeSheet?.styles?.[ri]?.[ci];
+          if (!cs) return undefined;
+
+          const css: Record<string, string> = {};
+          if (cs.bgColor)       css.backgroundColor = cs.bgColor;
+          if (cs.hAlign)        css.textAlign       = cs.hAlign;
+          if (cs.borderTop)     css.borderTop       = "1px solid #bbb";
+          if (cs.borderBottom)  css.borderBottom    = "1px solid #bbb";
+          if (cs.borderLeft)    css.borderLeft      = "1px solid #bbb";
+          if (cs.borderRight)   css.borderRight     = "1px solid #bbb";
+          if (cs.wrapText)      css.whiteSpace      = "normal";
+          return Object.keys(css).length > 0 ? css : undefined;
+        },
+
+        // ── Cell content: font style + number formatting ──────────────────────
+        cellRenderer: (params: ICellRendererParams) => {
+          const ri = params.node.rowIndex ?? 0;
+          const formula = activeSheet?.formulas[ri]?.[ci];
+          const cs: CellStyle | null | undefined = activeSheet?.styles?.[ri]?.[ci];
+          const cellId = toCellId(activeSheetIndex, ri, ci);
+          const anomaly = anomalyMap[cellId];
+
+          // Cells covered by a merge (not the top-left start cell) render empty
+          const isCovered = activeSheet?.merges?.some(
+            (m) => m.s.r === ri && m.s.c < ci && m.e.c >= ci
+          );
+          if (isCovered) return null;
+
+          // Resolve display color: formula blue > anomaly badge > Excel font color
+          const color = formula
+            ? C_PRIMARY
+            : anomaly && !dismissed.has(cellId)
+              ? SEVERITY_COLOR[anomaly.severity].badge
+              : cs?.fontColor;
+
+          const displayValue = cs?.numFmt
+            ? applyNumFmt(params.value as string | number | null, cs.numFmt)
+            : String(params.value ?? "");
+
+          return (
+            <span
+              title={formula ?? undefined}
+              style={{
+                color,
+                fontWeight:  cs?.bold   ? 700 : undefined,
+                fontStyle:   (formula || cs?.italic) ? "italic" : undefined,
+                fontSize:    cs?.fontSize ? `${cs.fontSize}pt` : undefined,
+              }}
+            >
+              {displayValue}
+            </span>
+          );
+        },
+      };
+
+      return col;
+    });
 
     return [rowNumCol, ...dataCols];
   }, [numCols, activeSheet, activeSheetIndex, anomalyMap, dismissed, formulaRefCell]);
@@ -432,14 +529,56 @@ export function SpreadsheetPage() {
 
   const visibleAnomalyCount = anomalies.filter(a => !dismissed.has(a.cellId)).length;
 
-  if (!isOpen) return null;
+  async function handleEmbeddedUpload(file: File) {
+    try {
+      const wb = await parseWorkbook(file);
+      openWorkbook(wb);
+    } catch {
+      // silent — user can retry
+    }
+  }
+
+  // Embedded mode: show upload prompt when no workbook is loaded
+  if (mode === "embedded" && !isOpen) {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "rgba(240,238,255,0.97)", fontFamily: "inherit" }}>
+        <EmbeddedEmptyState onFile={handleEmbeddedUpload} />
+      </div>
+    );
+  }
+
+  // Overlay mode: don't render when closed
+  if (mode === "overlay" && !isOpen) return null;
+
+  const wrapperStyle: React.CSSProperties = mode === "overlay"
+    ? { position: "fixed", inset: 0, zIndex: 9000, backgroundColor: "rgba(240,238,255,0.97)", display: "flex", flexDirection: "column", fontFamily: "inherit" }
+    : { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "rgba(240,238,255,0.97)", fontFamily: "inherit" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9000, backgroundColor: "rgba(240,238,255,0.97)", display: "flex", flexDirection: "column", fontFamily: "inherit" }}>
+    <div style={wrapperStyle}>
 
       {/* ── Top bar ── */}
       <div style={{ height: 48, flexShrink: 0, display: "flex", alignItems: "center", gap: "10px", padding: "0 16px", backgroundColor: "rgba(47,36,133,0.06)", borderBottom: `1px solid ${C_BORDER}` }}>
-        <div style={{ fontSize: "13px", fontWeight: 600, color: "hsl(242 44% 30%)", flex: 1 }}>{fileName}</div>
+        <div style={{ fontSize: "13px", fontWeight: 600, color: "hsl(242 44% 30%)", flex: 1 }}>
+          {fileName}
+          {isDirty && (
+            <span style={{ marginLeft: 8, fontSize: "10px", fontWeight: 600, color: "#f97316", background: "rgba(249,115,22,0.10)", border: "1px solid rgba(249,115,22,0.25)", borderRadius: 4, padding: "2px 7px", letterSpacing: "0.04em" }}>
+              EDITED
+            </span>
+          )}
+        </div>
+        {isDirty && (
+          <button
+            onClick={() => {
+              if (window.confirm("Discard all edits and restore the original file data?")) {
+                resetToOriginal();
+              }
+            }}
+            style={{ fontSize: "12px", padding: "6px 14px", borderRadius: "8px", border: "1px solid rgba(249,115,22,0.40)", backgroundColor: "rgba(249,115,22,0.08)", color: "#c2410c", cursor: "pointer", fontWeight: 600 }}
+          >
+            ↩ Restore Original
+          </button>
+        )}
         <button onClick={() => setShowApply(true)} style={{ ...btnPrimary, fontSize: "12px", padding: "6px 16px" }}>Apply to Dashboard ▸</button>
         <button
           onClick={() => setEllyOpen(o => !o)}
@@ -452,7 +591,9 @@ export function SpreadsheetPage() {
             </span>
           )}
         </button>
-        <button onClick={close} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "hsl(245 16% 55%)", lineHeight: 1, padding: "4px 8px" }} title="Close">✕</button>
+        {mode === "overlay" && (
+          <button onClick={close} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "hsl(245 16% 55%)", lineHeight: 1, padding: "4px 8px" }} title="Close">✕</button>
+        )}
       </div>
 
       {/* ── Formula bar ── */}

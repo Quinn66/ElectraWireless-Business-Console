@@ -14,6 +14,8 @@ interface SpreadsheetState {
   isOpen: boolean;
   fileName: string;
   sheets: SheetData[];
+  /** Deep copy of sheets at the moment the workbook was opened — never mutated. */
+  originalSheets: SheetData[];
   activeSheetIndex: number;
   selectedCell: SelectedCell | null;
   /** Flat lookup: cellId → CellEntry. Rebuilt on open and after every edit. */
@@ -22,6 +24,8 @@ interface SpreadsheetState {
   onApplied: ((values: ExtractedValues) => void) | null;
   /** HyperFormula instance — owns formula evaluation and dependency tracking. */
   hfEngine: HyperFormula | null;
+  /** True when the working sheets differ from originalSheets. */
+  isDirty: boolean;
 
   openWorkbook: (wb: WorkbookData, onApplied?: (values: ExtractedValues) => void) => void;
   close: () => void;
@@ -34,24 +38,39 @@ interface SpreadsheetState {
     value: string | number | null,
     formula?: string | null
   ) => void;
+  /** Restore all sheets to the state they were in when the file was first opened. */
+  resetToOriginal: () => void;
 }
 
-export const useSpreadsheetStore = create<SpreadsheetState>((set) => ({
+function deepCopySheets(sheets: SheetData[]): SheetData[] {
+  return sheets.map((s) => ({
+    ...s,
+    rows: s.rows.map((r) => [...r]),
+    formulas: s.formulas.map((r) => [...r]),
+    styles: s.styles ? s.styles.map((r) => [...r]) : [],
+    merges: s.merges ? [...s.merges] : [],
+    colWidths: s.colWidths ? [...s.colWidths] : [],
+  }));
+}
+
+export const useSpreadsheetStore = create<SpreadsheetState>((set, get) => ({
   isOpen: false,
   fileName: "",
   sheets: [],
+  originalSheets: [],
   activeSheetIndex: 0,
   selectedCell: null,
   cellMap: {},
   onApplied: null,
   hfEngine: null,
+  isDirty: false,
 
   openWorkbook: (wb, onApplied) => {
     const engine = buildEngine(wb.sheets);
 
     // Replace raw values with HyperFormula-computed values so formulas
     // render correctly the moment the file opens.
-    const sheets = wb.sheets.map((sheet, si) => {
+    const sheets = wb.sheets.map((sheet) => {
       const sheetId = engine.getSheetId(sheet.name);
       if (sheetId === undefined) return sheet;
       const cols = sheet.rows.reduce((m, r) => Math.max(m, r.length), 0);
@@ -63,11 +82,14 @@ export const useSpreadsheetStore = create<SpreadsheetState>((set) => ({
       isOpen: true,
       fileName: wb.fileName,
       sheets,
+      // Snapshot taken once — never overwritten until a new file is opened.
+      originalSheets: deepCopySheets(sheets),
       activeSheetIndex: 0,
       selectedCell: null,
       cellMap: buildCellMap(sheets),
       onApplied: onApplied ?? null,
       hfEngine: engine,
+      isDirty: false,
     });
   },
 
@@ -78,11 +100,13 @@ export const useSpreadsheetStore = create<SpreadsheetState>((set) => ({
         isOpen: false,
         fileName: "",
         sheets: [],
+        originalSheets: [],
         activeSheetIndex: 0,
         selectedCell: null,
         cellMap: {},
         onApplied: null,
         hfEngine: null,
+        isDirty: false,
       };
     }),
 
@@ -133,6 +157,24 @@ export const useSpreadsheetStore = create<SpreadsheetState>((set) => ({
         si !== sheetIndex ? s : { ...s, rows: computedRows, formulas }
       );
 
-      return { sheets, cellMap: buildCellMap(sheets) };
+      return { sheets, cellMap: buildCellMap(sheets), isDirty: true };
+    }),
+
+  resetToOriginal: () =>
+    set((state) => {
+      if (state.originalSheets.length === 0) return state;
+
+      // Destroy the old engine and rebuild from the original snapshot.
+      state.hfEngine?.destroy();
+      const restoredSheets = deepCopySheets(state.originalSheets);
+      const engine = buildEngine(restoredSheets);
+
+      return {
+        sheets: restoredSheets,
+        hfEngine: engine,
+        cellMap: buildCellMap(restoredSheets),
+        selectedCell: null,
+        isDirty: false,
+      };
     }),
 }));
