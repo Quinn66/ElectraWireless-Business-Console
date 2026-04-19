@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { C_BORDER } from "@/lib/colors";
 import { useProjectionStore } from "@/store/projectionStore";
+import type { AnalysisResult } from "@/lib/api";
 
 const BG     = "rgba(255,255,255,0.50)";
 const BG_SEC = "rgba(255,255,255,0.80)";

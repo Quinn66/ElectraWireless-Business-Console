@@ -101,8 +101,6 @@ const SCENARIO_PRESETS = {
   bull: { growthRate: 18, startingMRR: 18000, churnRate: 1.5, cogsPercent: 18, marketingSpend: 8000, payroll: 35000 },
 };
 
-const API_BASE = "https://electrawireless-business-console.onrender.com";
-
 const _readNav = (): Record<string, unknown> => {
   try { return JSON.parse(localStorage.getItem("ew-nav") ?? "{}"); } catch { return {}; }
 };
