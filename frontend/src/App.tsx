@@ -15,13 +15,8 @@ export default function App() {
   const accountType = useProjectionStore((s) => s.accountType);
   const spreadsheetOpen = useSpreadsheetStore((s) => s.isOpen);
 
-  const _nav = (): Record<string, unknown> => {
-    try { return JSON.parse(localStorage.getItem("ew-nav") ?? "{}"); } catch { return {}; }
-  };
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
 
-  const [loggedIn, setLoggedIn] = useState<boolean>(() => (_nav().loggedIn as boolean) ?? false);
-
-  // Persist nav state so a page refresh lands back where the user was
   useEffect(() => {
     localStorage.setItem("ew-nav", JSON.stringify({ loggedIn, accountType }));
   }, [loggedIn, accountType]);
