@@ -44,12 +44,56 @@ export default function App() {
     return <BusinessConsoleDashboard />;
   };
 
+  const goHome = () => {
+    setLoggedIn(false);
+    setSelectedTool(null);
+    setProfilePreset(null);
+    setOnboarded(false);
+  };
+
   return (
     <>
       <GradientBg />
       {currentView()}
       {/* SpreadsheetPage renders as a fixed overlay on top of any view */}
       {spreadsheetOpen && <SpreadsheetPage />}
+      {loggedIn && (
+        <button
+          onClick={goHome}
+          title="Go to Home"
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            left: "24px",
+            zIndex: 9999,
+            width: "48px",
+            height: "48px",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(0,0,0,0.12)",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "transform 0.15s, box-shadow 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(0,0,0,0.2)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.15)";
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+            <polyline points="9 21 9 12 15 12 15 21" />
+          </svg>
+        </button>
+      )}
     </>
   );
 }
