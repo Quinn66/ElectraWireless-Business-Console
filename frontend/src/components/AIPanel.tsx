@@ -1,16 +1,9 @@
 import { useState, useRef } from "react";
 import { C_BORDER } from "@/lib/colors";
+import { API_BASE, type AnalysisResult } from "@/lib/api";
 
 const BG     = "rgba(255,255,255,0.50)";
 const BG_SEC = "rgba(255,255,255,0.80)";
-
-interface AnalysisResult {
-  analysis_short: string;
-  analysis_detailed: string;
-  positives: string[];
-  negatives: string[];
-  next_steps: string[];
-}
 
 export function AIPanel() {
   const [input, setInput] = useState("");
@@ -28,7 +21,7 @@ export function AIPanel() {
     setResult(null);
 
     try {
-      const res = await fetch("https://electrawireless-business-console.onrender.com/analyze", {
+      const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
@@ -236,11 +229,6 @@ export function AIPanel() {
         </div>
       )}
 
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

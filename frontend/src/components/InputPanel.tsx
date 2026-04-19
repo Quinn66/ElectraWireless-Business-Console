@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { C_SUCCESS, C_WARNING } from "@/lib/colors";
 import { useProjectionStore } from "@/store/projectionStore";
 import { ScenarioPills } from "./ScenarioPills";
-import { AIHintBlock } from "./AIHintBlock";
 import { formatCurrency } from "@/lib/projection";
 import { ImportModal } from "./ImportModal";
+import { SECTOR_LIST, type SectorId } from "./SectorScreens";
 
 interface SliderRowProps {
   label: string;
@@ -46,7 +46,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => void }) {
+interface InputPanelProps {
+  onSensitivityClick: () => void;
+  activeSector: SectorId | null;
+  setActiveSector: (sector: SectorId | null) => void;
+}
+
+export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }: InputPanelProps) {
   const {
     growthRate, setGrowthRate,
     startingMRR, setStartingMRR,
@@ -61,6 +67,7 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
   const [savingName, setSavingName] = useState(false);
   const [scenarioName, setScenarioName] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showSectorMenu, setShowSectorMenu] = useState(false);
   const [toast, setToast] = useState<{ applied: string[]; skipped: string[] } | null>(null);
 
   useEffect(() => {
@@ -71,6 +78,49 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
 
   return (
     <div className="w-[300px] flex-shrink-0 h-full overflow-y-auto bg-white/40 backdrop-blur-md border-r border-border px-4 py-5 flex flex-col gap-5">
+
+      {/* Financial Sectors Dropdown */}
+      <div className="relative">
+        <button
+          onClick={() => setShowSectorMenu((m) => !m)}
+          className={[
+            "w-full bg-transparent rounded-lg py-2.5 flex items-center justify-between px-3.5 cursor-pointer transition-colors duration-150 border",
+            activeSector
+              ? "border-primary/40 text-primary hover:bg-primary/10 hover:border-primary/60"
+              : "border-border text-muted-foreground hover:bg-primary/5 hover:border-primary/40 hover:text-primary",
+          ].join(" ")}
+        >
+          <span className="text-[12.5px] font-semibold tracking-[0.02em]">
+            {activeSector
+              ? SECTOR_LIST.find((s) => s.id === activeSector)?.label
+              : "Financial Sectors"}
+          </span>
+          <span className="text-[10px] opacity-60">{showSectorMenu ? "▲" : "▼"}</span>
+        </button>
+
+        {showSectorMenu && (
+          <div
+            className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white/95 backdrop-blur-md border border-border rounded-[8px] overflow-hidden z-[200] shadow-[0_8px_24px_rgba(47,36,133,0.12)]"
+            onMouseLeave={() => setShowSectorMenu(false)}
+          >
+            {SECTOR_LIST.map((s, i) => (
+              <button
+                key={s.id}
+                onClick={() => { setActiveSector(s.id); setShowSectorMenu(false); }}
+                className={[
+                  "block w-full text-left text-xs px-4 py-2.5 cursor-pointer transition-colors duration-100",
+                  i < SECTOR_LIST.length - 1 ? "border-b border-border/50" : "",
+                  activeSector === s.id
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-primary/5 hover:text-foreground font-normal",
+                ].join(" ")}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Import Button */}
       <button
@@ -153,74 +203,74 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
         />
       </div>
 
-      {/* AI Hint */}
-      <AIHintBlock />
-
-      {/* Save Custom Scenario */}
-      {activeScenario === "custom" && (
-        <div>
-          {!savingName ? (
-            <button
-              onClick={() => { setSavingName(true); setScenarioName(""); }}
-              className="w-full bg-transparent text-primary border border-primary/30 rounded-lg py-2 text-[12.5px] font-semibold cursor-pointer tracking-[0.03em] transition-colors duration-150 hover:bg-primary/10 hover:border-primary/60"
-            >
-              Save Scenario…
-            </button>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <input
-                autoFocus
-                type="text"
-                placeholder="Scenario name"
-                value={scenarioName}
-                onChange={(e) => setScenarioName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && scenarioName.trim()) {
-                    saveCustomScenario(scenarioName.trim());
-                    setSavingName(false);
-                    setActiveTab("scenarios");
-                  }
-                  if (e.key === "Escape") setSavingName(false);
-                }}
-                className="bg-white/70 border border-primary/40 rounded-[6px] text-foreground text-[13px] px-2.5 py-2 outline-none w-full focus:border-primary/70"
-              />
-              <div className="flex gap-1.5">
-                <button
-                  disabled={!scenarioName.trim()}
-                  onClick={() => {
-                    if (!scenarioName.trim()) return;
-                    saveCustomScenario(scenarioName.trim());
-                    setSavingName(false);
-                    setActiveTab("scenarios");
+      {/* Bottom Actions */}
+      <div className="mt-auto flex flex-col gap-2">
+        {/* Save Custom Scenario */}
+        {activeScenario === "custom" && (
+          <div>
+            {!savingName ? (
+              <button
+                onClick={() => { setSavingName(true); setScenarioName(""); }}
+                className="w-full bg-transparent text-primary border border-primary/30 rounded-lg py-2 text-[12.5px] font-semibold cursor-pointer tracking-[0.03em] transition-colors duration-150 hover:bg-primary/10 hover:border-primary/60"
+              >
+                Save Scenario…
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Scenario name"
+                  value={scenarioName}
+                  onChange={(e) => setScenarioName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && scenarioName.trim()) {
+                      saveCustomScenario(scenarioName.trim());
+                      setSavingName(false);
+                      setActiveTab("scenarios");
+                    }
+                    if (e.key === "Escape") setSavingName(false);
                   }}
-                  className="flex-1 rounded-[6px] py-2 text-xs font-semibold cursor-pointer transition-colors duration-150 border-none"
-                  style={{
-                    backgroundColor: scenarioName.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))",
-                    color: scenarioName.trim() ? "#fff" : "hsl(var(--muted-foreground))",
-                    cursor: scenarioName.trim() ? "pointer" : "not-allowed",
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setSavingName(false)}
-                  className="bg-transparent text-muted-foreground border border-border rounded-[6px] px-3 py-2 text-xs cursor-pointer hover:border-muted-foreground transition-colors"
-                >
-                  Cancel
-                </button>
+                  className="bg-white/70 border border-primary/40 rounded-[6px] text-foreground text-[13px] px-2.5 py-2 outline-none w-full focus:border-primary/70"
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    disabled={!scenarioName.trim()}
+                    onClick={() => {
+                      if (!scenarioName.trim()) return;
+                      saveCustomScenario(scenarioName.trim());
+                      setSavingName(false);
+                      setActiveTab("scenarios");
+                    }}
+                    className="flex-1 rounded-[6px] py-2 text-xs font-semibold cursor-pointer transition-colors duration-150 border-none"
+                    style={{
+                      backgroundColor: scenarioName.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))",
+                      color: scenarioName.trim() ? "#fff" : "hsl(var(--muted-foreground))",
+                      cursor: scenarioName.trim() ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setSavingName(false)}
+                    className="bg-transparent text-muted-foreground border border-border rounded-[6px] px-3 py-2 text-xs cursor-pointer hover:border-muted-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {/* Sensitivity Analysis Button */}
-      <button
-        onClick={onSensitivityClick}
-        className="w-full bg-primary text-primary-foreground border-none rounded-lg py-[11px] text-[13px] font-semibold cursor-pointer tracking-[0.03em] transition-opacity duration-150 hover:opacity-85 mt-auto"
-      >
-        Run Sensitivity Analysis
-      </button>
+        {/* Sensitivity Analysis Button */}
+        <button
+          onClick={onSensitivityClick}
+          className="w-full bg-primary text-primary-foreground border-none rounded-lg py-[11px] text-[13px] font-semibold cursor-pointer tracking-[0.03em] transition-opacity duration-150 hover:opacity-85"
+        >
+          Run Sensitivity Analysis
+        </button>
+      </div>
 
       {/* Import Modal */}
       {showImport && (

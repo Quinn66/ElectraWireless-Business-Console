@@ -8,7 +8,6 @@ import { PFInsightsPanel } from "@/components/pf/PFInsightsPanel";
 import { OverviewTab } from "@/components/pf/OverviewTab";
 import { CashFlowTab } from "@/components/pf/CashFlowTab";
 import { TransactionsTab } from "@/components/pf/TransactionsTab";
-import { MOCK_TRANSACTIONS } from "@/services/personalFinanceApi";
 import { C_PRIMARY, C_BORDER } from "@/lib/colors";
 
 const TABS = [
@@ -170,24 +169,16 @@ const PERIODS = ["Last 30 days", "Last 3 months", "Last 6 months", "This year"] 
 type Period = (typeof PERIODS)[number];
 
 export function PersonalFinancePage() {
-  const flowStep       = usePersonalFinanceStore((s) => s.flowStep);
-  const activeTab      = usePersonalFinanceStore((s) => s.activeTab);
-  const setActiveTab   = usePersonalFinanceStore((s) => s.setActiveTab);
-  const addTransaction = usePersonalFinanceStore((s) => s.addTransaction);
-  const setFlowStep    = usePersonalFinanceStore((s) => s.setFlowStep);
-  const transactions   = usePersonalFinanceStore((s) => s.transactions);
-  const reset          = usePersonalFinanceStore((s) => s.reset);
+  const flowStep      = usePersonalFinanceStore((s) => s.flowStep);
+  const activeTab     = usePersonalFinanceStore((s) => s.activeTab);
+  const setActiveTab  = usePersonalFinanceStore((s) => s.setActiveTab);
+  const loadDemoData  = usePersonalFinanceStore((s) => s.loadDemoData);
+  const transactions  = usePersonalFinanceStore((s) => s.transactions);
+  const reset         = usePersonalFinanceStore((s) => s.reset);
 
-  const [showImport,    setShowImport]    = useState(false);
+  const [showImport,    setShowImport]   = useState(false);
   const [showAddManual, setShowAddManual] = useState(false);
-  const [activePeriod,  setActivePeriod]  = useState<Period>("Last 3 months");
-
-  function handleLoadDemo() {
-    for (const tx of MOCK_TRANSACTIONS) {
-      addTransaction(tx);
-    }
-    setFlowStep("dashboard");
-  }
+  const [activePeriod,  setActivePeriod] = useState<Period>("Last 3 months");
 
   function renderContent() {
     if (flowStep === "empty") {
@@ -195,7 +186,7 @@ export function PersonalFinancePage() {
         <EmptyState
           onImport={() => setShowImport(true)}
           onAddManual={() => setShowAddManual(true)}
-          onDemo={handleLoadDemo}
+          onDemo={loadDemoData}
         />
       );
     }
@@ -348,20 +339,9 @@ export function PersonalFinancePage() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-3.5 border-b border-border bg-white/40 backdrop-blur-md flex-shrink-0 relative z-50">
-        {/* Breadcrumb */}
-        <div className="text-[11px] text-muted-foreground mb-3.5 tracking-[0.04em] flex items-center">
-          <span className="text-primary font-bold">ELLY</span>
-          <span className="mx-1.5">—</span>
-          <span>Business Console</span>
-          <span className="mx-1.5 text-muted-foreground/50">›</span>
-          <span>Personal Finance</span>
-          <span className="mx-1.5 text-muted-foreground/50">›</span>
-          <span className="text-muted-foreground/70">Personal Financial Intelligence</span>
-        </div>
-
+      <div className="px-4 border-b border-border bg-white/40 backdrop-blur-md flex-shrink-0 relative z-50">
         {/* Tabs — only show when on dashboard */}
         {flowStep === "dashboard" && (
           <div className="flex gap-0 items-center">
@@ -372,7 +352,7 @@ export function PersonalFinancePage() {
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={[
-                    "bg-transparent border-none text-[12.5px] px-[18px] py-2 cursor-pointer tracking-[0.03em] transition-all duration-150 border-b-2 -mb-px",
+                    "bg-transparent border-none text-[12.5px] px-[18px] py-2.5 cursor-pointer tracking-[0.03em] transition-all duration-150 border-b-2 -mb-px",
                     isActive
                       ? "border-primary text-primary font-semibold"
                       : "border-transparent text-muted-foreground font-normal hover:text-foreground/80",
@@ -385,10 +365,15 @@ export function PersonalFinancePage() {
           </div>
         )}
 
-        {/* Review step header */}
-        {flowStep === "review" && (
-          <div className="pb-2 text-[12px] text-muted-foreground">
-            Step 2 of 2 — Review &amp; confirm your transactions
+        {/* Empty / review step minimal header */}
+        {flowStep !== "dashboard" && (
+          <div className="flex items-center py-2.5 gap-2">
+            <span className="text-[12.5px] font-semibold text-primary">Personal Finance</span>
+            {flowStep === "review" && (
+              <span className="text-[11px] text-muted-foreground">
+                — Step 2 of 2: review &amp; confirm transactions
+              </span>
+            )}
           </div>
         )}
       </div>

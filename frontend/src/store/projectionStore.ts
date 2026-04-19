@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { API_BASE } from "@/lib/api";
 
 export type ScenarioPreset = "bear" | "base" | "bull" | "custom";
 export type AccountType = "user" | "industry" | "government";
@@ -99,8 +100,6 @@ const SCENARIO_PRESETS = {
   base: { growthRate: 8, startingMRR: 18000, churnRate: 3, cogsPercent: 22, marketingSpend: 4000, payroll: 35000 },
   bull: { growthRate: 18, startingMRR: 18000, churnRate: 1.5, cogsPercent: 18, marketingSpend: 8000, payroll: 35000 },
 };
-
-const API_BASE = "https://electrawireless-business-console.onrender.com";
 
 export const useProjectionStore = create<ProjectionState>((set, get) => ({
   accountType: null,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AccountType } from "@/store/projectionStore";
+import { cn } from "@/lib/utils";
 
 // ─── Profile definitions ──────────────────────────────────────────────────────
 
@@ -263,21 +264,21 @@ export default function ProfileSelector({ accountType, onSelect, onBack }: Props
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-sans">
-      <div className="bg-white/30 backdrop-blur-[18px] rounded-[28px] border-2 border-white/70 shadow-[0_8px_48px_rgba(120,100,180,0.10)] p-[52px] w-fit max-w-[calc(100vw-48px)] flex flex-col items-center">
+    <div className="h-full flex items-center justify-center font-sans">
+      <div className="bg-white/30 backdrop-blur-[18px] rounded-[28px] border-2 border-white/70 shadow-[0_8px_48px_rgba(120,100,180,0.10)] py-8 px-[52px] w-fit max-w-[calc(100vw-48px)] flex flex-col items-center">
 
         {/* Badge */}
-        <div className="bg-primary/20 border border-primary/40 rounded-[6px] px-3.5 py-1 text-[12px] font-bold tracking-[0.1em] text-primary uppercase mb-6">
+        <div className="bg-primary/20 border border-primary/40 rounded-[6px] px-3.5 py-1 text-[12px] font-bold tracking-[0.1em] text-primary uppercase mb-4">
           ElectraWireless — Business Console
         </div>
 
         {/* Heading */}
-        <h1 className="text-[32px] font-extrabold text-foreground text-center leading-tight mb-2">
+        <h1 className="text-[26px] font-extrabold text-foreground text-center leading-tight mb-1.5">
           Select a Profile
         </h1>
 
         {/* Subtitle */}
-        <p className="text-base text-muted-foreground text-center mb-10">
+        <p className="text-sm text-muted-foreground text-center mb-6">
           Choose a profile that best describes your{" "}
           <span className="text-primary font-semibold">{ACCOUNT_LABELS[accountType]}</span>{" "}
           use case.
@@ -291,24 +292,24 @@ export default function ProfileSelector({ accountType, onSelect, onBack }: Props
               <button
                 key={id}
                 onClick={() => handleSelect(id)}
-                className={[
+                className={cn(
                   "group border-2 rounded-2xl p-5 cursor-pointer flex flex-col items-start gap-3 text-left",
                   "transition-all duration-200 outline-none",
                   "hover:border-primary/85 hover:-translate-y-[2px] hover:shadow-[0_0_24px_rgba(47,36,133,0.18)]",
                   isSelected
                     ? "bg-[rgba(200,195,235,0.30)] border-primary/85 -translate-y-[2px] shadow-[0_0_24px_rgba(47,36,133,0.18)]"
-                    : "bg-white/30 border-white/80 hover:bg-[rgba(230,225,250,0.30)]",
-                ].join(" ")}
+                    : "bg-white/30 border-white/80 hover:bg-[rgba(230,225,250,0.30)]"
+                )}
               >
                 {/* Icon + Label */}
                 <div className="flex items-center gap-3">
                   <span
-                    className={[
+                    className={cn(
                       "transition-[color,opacity] duration-200 flex-shrink-0",
                       isSelected
                         ? "text-primary opacity-100"
-                        : "text-[#5a5878] opacity-60 group-hover:text-primary group-hover:opacity-100",
-                    ].join(" ")}
+                        : "text-[#5a5878] opacity-60 group-hover:text-primary group-hover:opacity-100"
+                    )}
                   >
                     <Icon />
                   </span>
@@ -341,7 +342,7 @@ export default function ProfileSelector({ accountType, onSelect, onBack }: Props
         {/* Back link */}
         <button
           onClick={onBack}
-          className="mt-8 text-sm text-muted-foreground hover:text-primary transition-colors duration-150 underline underline-offset-2 cursor-pointer"
+          className="mt-5 text-sm text-muted-foreground hover:text-primary transition-colors duration-150 underline underline-offset-2 cursor-pointer"
         >
           ← Back to account selection
         </button>

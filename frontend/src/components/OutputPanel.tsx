@@ -12,7 +12,6 @@ import { MetricCard } from "./MetricCard";
 import { BreakevenBar } from "./BreakevenBar";
 import { ProjectionChart } from "./ProjectionChart";
 import { MonthlyTable } from "./MonthlyTable";
-import { AIPanel } from "./AIPanel";
 import { C_SUCCESS, C_ERROR, C_WARNING, C_BORDER, C_BORDER_IN } from "@/lib/colors";
 
 interface OutputPanelProps {
@@ -917,10 +916,10 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
     >
       {activeTab === "projection" && (
         <>
-          {/* Two-column layout: left = chart area, right = AI panel */}
+          {/* Full-width chart area */}
           <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
 
-            {/* Left column — condensed chart + metric cards */}
+            {/* Chart + metric cards — full width now that AI panel is in the global sidebar */}
             <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
 
               {/* Metric Cards */}
@@ -980,11 +979,6 @@ export function OutputPanel({ activeTab }: OutputPanelProps) {
                   sliderForecast={apiData?.slider_forecast}
                 />
               </div>
-            </div>
-
-            {/* Right column — AI Suggestions panel */}
-            <div style={{ flex: "0 0 300px", width: "300px" }}>
-              <AIPanel />
             </div>
           </div>
 
