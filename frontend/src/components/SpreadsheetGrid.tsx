@@ -138,6 +138,7 @@ export function SpreadsheetGrid({ data, onHeaderChange, gridRef, fileKey }: Spre
       >
         <AgGridReact
           key={fileKey}
+          theme="legacy"
           rowData={rowData}
           columnDefs={columnDefs}
           onGridReady={(params) => { gridApiRef.current = params.api; }}

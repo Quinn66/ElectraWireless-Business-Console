@@ -346,30 +346,106 @@ export function extractCustom(data: ParsedData, mapping: ColumnMapping): Extract
   return result;
 }
 
-// ── Style helpers ─────────────────────────────────────────────────────────────
+// ── Theme colour resolution ───────────────────────────────────────────────────
 
 /**
- * Convert a SheetJS ARGB colour object to a CSS #RRGGBB string.
- * SheetJS gives either 6-char (RRGGBB) or 8-char (AARRGGBB) hex strings.
- * Theme/tint colours are skipped — too complex to resolve without the theme XML.
+ * Fallback Office theme palette used when the theme XML cannot be parsed.
+ * Index matches Excel's theme colour slot (dk1, lt1, dk2, lt2, accent1–6, hlink, folHlink).
  */
-function xlsxColorToCss(color: { rgb?: string; theme?: number } | undefined): string | undefined {
-  if (!color?.rgb) return undefined;
-  const rgb = color.rgb;
-  const hex = rgb.length === 8 ? rgb.slice(2) : rgb; // drop alpha prefix if present
-  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex}` : undefined;
+const OFFICE_DEFAULT_THEME: string[] = [
+  "#000000", "#FFFFFF", "#44546A", "#E7E6E6",
+  "#4472C4", "#ED7D31", "#A9D18E", "#FFC000",
+  "#4BACC6", "#70AD47", "#0563C1", "#954F72",
+];
+
+/**
+ * Parse the clrScheme colours out of xl/theme/theme1.xml.
+ * Each colour is either a sysClr (use lastClr) or srgbClr (use val).
+ * Returns a 12-element array of #RRGGBB strings.
+ */
+function parseThemeColors(xml: string): string[] {
+  const tags = ["dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"];
+  return tags.map((tag, i) => {
+    const sysMatch  = xml.match(new RegExp(`<a:${tag}[^>]*>[^<]*<a:sysClr[^>]+lastClr="([0-9a-fA-F]{6})"`, "i"));
+    const srgbMatch = xml.match(new RegExp(`<a:${tag}[^>]*>[^<]*<a:srgbClr[^>]+val="([0-9a-fA-F]{6})"`, "i"));
+    const hex = sysMatch?.[1] ?? srgbMatch?.[1];
+    return hex ? `#${hex}` : OFFICE_DEFAULT_THEME[i];
+  });
 }
 
+/**
+ * Extract theme colours from the workbook's raw file bundle.
+ * SheetJS exposes raw files when bookFiles:true is passed to XLSX.read().
+ */
+function extractThemeColors(wb: XLSX.WorkBook): string[] {
+  try {
+    const files = (wb as Record<string, any>).Files as Record<string, Uint8Array> | undefined;
+    if (!files) return OFFICE_DEFAULT_THEME;
+    const key = Object.keys(files).find(k => /xl\/theme\/theme\d*\.xml$/i.test(k));
+    if (!key) return OFFICE_DEFAULT_THEME;
+    return parseThemeColors(new TextDecoder().decode(files[key]));
+  } catch {
+    return OFFICE_DEFAULT_THEME;
+  }
+}
+
+/**
+ * Apply an Excel tint value to a base hex colour.
+ * Positive tint → blend towards white. Negative tint → blend towards black.
+ */
+function applyTint(hex: string, tint: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+  let nr: number, ng: number, nb: number;
+  if (tint < 0) {
+    nr = r * (1 + tint); ng = g * (1 + tint); nb = b * (1 + tint);
+  } else {
+    nr = r + (255 - r) * tint; ng = g + (255 - g) * tint; nb = b + (255 - b) * tint;
+  }
+  return `#${clamp(nr).toString(16).padStart(2, "0")}${clamp(ng).toString(16).padStart(2, "0")}${clamp(nb).toString(16).padStart(2, "0")}`;
+}
+
+/**
+ * Resolve a SheetJS colour descriptor to a CSS #RRGGBB string.
+ * Handles both explicit rgb values and theme+tint references.
+ */
+function xlsxColorToCss(
+  color: { rgb?: string; theme?: number; tint?: number } | undefined,
+  themeColors: string[],
+): string | undefined {
+  if (!color) return undefined;
+
+  if (color.rgb) {
+    const rgb = color.rgb;
+    const hex = rgb.length === 8 ? rgb.slice(2) : rgb;
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) return `#${hex}`;
+  }
+
+  if (color.theme !== undefined) {
+    const base = themeColors[color.theme];
+    if (!base) return undefined;
+    return color.tint ? applyTint(base, color.tint) : base;
+  }
+
+  return undefined;
+}
+
+// ── Style extraction ──────────────────────────────────────────────────────────
+
 /** Extract a CellStyle from a SheetJS cell's .s property. Returns null if no meaningful style. */
-function extractCellStyle(s: Record<string, any> | undefined): CellStyle | null {
+function extractCellStyle(s: Record<string, any> | undefined, themeColors: string[]): CellStyle | null {
   if (!s) return null;
   const style: CellStyle = {};
 
-  const bg = xlsxColorToCss(s.fill?.fgColor);
-  // Skip white/near-white — treated as "no fill" to avoid overriding the grid background
-  if (bg && bg.toLowerCase() !== "#ffffff" && bg.toLowerCase() !== "#000000") style.bgColor = bg;
+  // SheetJS flattens fill props onto the style object directly (patternType, fgColor at top level)
+  if (s.patternType !== "none") {
+    const bg = xlsxColorToCss(s.fgColor ?? s.fill?.fgColor, themeColors);
+    if (bg && bg.toLowerCase() !== "#ffffff") style.bgColor = bg;
+  }
 
-  const fc = xlsxColorToCss(s.font?.color);
+  const fc = xlsxColorToCss(s.font?.color, themeColors);
   if (fc && fc.toLowerCase() !== "#000000") style.fontColor = fc;
 
   if (s.font?.bold)   style.bold   = true;
@@ -452,7 +528,9 @@ export function parseWorkbook(file: File): Promise<WorkbookData> {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const wb = XLSX.read(e.target!.result as ArrayBuffer, { type: "array", cellStyles: true, cellNF: true });
+          const wb = XLSX.read(e.target!.result as ArrayBuffer, { type: "array", cellStyles: true, cellNF: true, bookFiles: true });
+          const themeColors = extractThemeColors(wb);
+          console.log("[ELLY] theme colours resolved:", themeColors);
           const sheets: SheetData[] = wb.SheetNames.map((name) => {
             const ws = wb.Sheets[name];
             const ref = ws["!ref"];
@@ -461,6 +539,7 @@ export function parseWorkbook(file: File): Promise<WorkbookData> {
             const rows: (string | number | null)[][] = [];
             const formulas: (string | null)[][] = [];
             const styles: (CellStyle | null)[][] = [];
+            let debugCount = 0;
             for (let r = range.s.r; r <= range.e.r; r++) {
               const row: (string | number | null)[] = [];
               const fRow: (string | null)[] = [];
@@ -469,9 +548,13 @@ export function parseWorkbook(file: File): Promise<WorkbookData> {
                 const cell = ws[XLSX.utils.encode_cell({ r, c })];
                 row.push(cell ? (cell.v ?? null) : null);
                 fRow.push(cell?.f ? `=${cell.f}` : null);
-                // Merge numFmt from cell.z (cellNF) into the style object
                 const rawStyle = cell?.s ? { ...cell.s, numFmt: cell.s.numFmt ?? cell.z ?? undefined } : undefined;
-                sRow.push(extractCellStyle(rawStyle as Record<string, any> | undefined));
+                // Log first 5 cells that have any style so we can inspect the raw structure
+                if (rawStyle && debugCount < 5) {
+                  console.log(`[ELLY] cell ${XLSX.utils.encode_cell({ r, c })} raw style:`, JSON.parse(JSON.stringify(rawStyle)));
+                  debugCount++;
+                }
+                sRow.push(extractCellStyle(rawStyle as Record<string, any> | undefined, themeColors));
               }
               rows.push(row);
               formulas.push(fRow);
