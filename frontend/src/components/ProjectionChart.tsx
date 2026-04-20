@@ -66,23 +66,29 @@ export function ProjectionChart({
 
     const dividerName = histEntries[histEntries.length - 1]?.name ?? "";
 
-    const forecastEntries = sliderForecast.map((s, i) => ({
-      name: fmtDs(s.ds),
-      slider_revenue: s.revenue,
-      slider_expenses: s.expenses,
-      net_profit: s.net_profit,
-      prophet_revenue: prophetForecast?.[i]?.revenue ?? null,
-      type: "forecast" as const,
-    }));
+    const forecastEntries = sliderForecast.map((s) => {
+      const match = prophetForecast?.find((p) => p.ds === s.ds);
+      return {
+        name: fmtDs(s.ds),
+        slider_revenue: s.revenue,
+        slider_expenses: s.expenses,
+        net_profit: s.net_profit,
+        prophet_revenue: match?.revenue ?? null,
+        prophet_lower: match?.yhat_lower ?? null,
+        prophet_upper: match?.yhat_upper ?? null,
+        type: "forecast" as const,
+      };
+    });
 
     const chartData = [...histEntries, ...forecastEntries];
 
     const legendItems = [
-      { color: C_HIST,     label: "Historical Revenue",       dashed: false },
-      { color: C_PROPHET,  label: "Prophet Baseline",          dashed: true  },
-      { color: C_REVENUE,  label: "Your Forecast (Revenue)",   dashed: false },
-      { color: C_EXPENSES, label: "Expenses",                  dashed: false },
-      { color: C_PROFIT,   label: "Net Profit",                dashed: false },
+      { color: C_HIST,     label: "Historical Revenue",         dashed: false, band: false },
+      { color: C_PROPHET,  label: "Prophet Baseline",           dashed: true,  band: false },
+      { color: C_PROPHET,  label: "Prophet Confidence Band",    dashed: false, band: true  },
+      { color: C_REVENUE,  label: "Your Forecast (Revenue)",    dashed: false, band: false },
+      { color: C_EXPENSES, label: "Expenses",                   dashed: false, band: false },
+      { color: C_PROFIT,   label: "Net Profit",                 dashed: false, band: false },
     ];
 
     return (
@@ -114,6 +120,8 @@ export function ProjectionChart({
               />
             )}
             <Line type="monotone" dataKey="hist_revenue"    name="Historical Revenue"      stroke={C_HIST}     strokeWidth={2}   dot={false} connectNulls={false} />
+            <Area type="monotone" dataKey="prophet_upper"  name="Prophet Confidence Band"  stroke="none"       fill={C_PROPHET} fillOpacity={0.10} dot={false} connectNulls={false} legendType="none" />
+            <Area type="monotone" dataKey="prophet_lower"  name=""                         stroke="none"       fill="white"     fillOpacity={1}    dot={false} connectNulls={false} legendType="none" />
             <Line type="monotone" dataKey="prophet_revenue" name="Prophet Baseline"         stroke={C_PROPHET}  strokeWidth={1.5} strokeDasharray="5 3" dot={false} connectNulls={false} />
             <Line type="monotone" dataKey="slider_revenue"  name="Your Forecast (Revenue)"  stroke={C_REVENUE}  strokeWidth={2}   dot={false} activeDot={{ r: 4, fill: C_REVENUE }}  connectNulls={false} />
             <Line type="monotone" dataKey="slider_expenses" name="Expenses"                 stroke={C_EXPENSES} strokeWidth={2}   dot={false} activeDot={{ r: 4, fill: C_EXPENSES }} connectNulls={false} />
@@ -122,11 +130,13 @@ export function ProjectionChart({
         </ResponsiveContainer>
 
         <div className="flex flex-wrap gap-x-5 gap-y-1 pl-[55px] mt-2.5">
-          {legendItems.map(({ color, label, dashed }) => (
+          {legendItems.map(({ color, label, dashed, band }) => (
             <div key={label} className="flex items-center gap-1.5">
-              {dashed
-                ? <div style={{ width: 14, borderTop: `2px dashed ${color}`, opacity: 0.8 }} />
-                : <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />}
+              {band
+                ? <div style={{ width: 14, height: 8, borderRadius: "2px", backgroundColor: color, opacity: 0.25 }} />
+                : dashed
+                  ? <div style={{ width: 14, borderTop: `2px dashed ${color}`, opacity: 0.8 }} />
+                  : <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />}
               <span className="text-[11px] text-muted-foreground">{label}</span>
             </div>
           ))}

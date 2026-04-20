@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 from pathlib import Path
 from datetime import datetime
 from typing import Tuple, List, Dict
@@ -15,9 +19,14 @@ try:
     from darts.dataprocessing.transformers import Scaler
     from darts.metrics import mae, mape
     DARTS_AVAILABLE = True
+    # Compatibility shim: older Darts versions expose to_dataframe(), newer ones use pd_dataframe()
+    if not hasattr(TimeSeries, 'pd_dataframe') and hasattr(TimeSeries, 'to_dataframe'):
+        TimeSeries.pd_dataframe = TimeSeries.to_dataframe
 except ImportError:
     print("Warning: Darts library not available. Please install with: pip install darts")
     DARTS_AVAILABLE = False
+    TimeSeries = None
+    DartsProphet = None
 
 # Define the path to the financial dataset
 FINANCIAL_DATA_PATH = Path(__file__).parent / "Sample_data/financial_dataset.csv"
@@ -313,7 +322,7 @@ def evaluate_model(actual: TimeSeries, predicted: TimeSeries) -> Dict[str, float
 
     return metrics
 
-def plot_results(train_target: TimeSeries, test_target: TimeSeries, 
+def plot_results(train_target: TimeSeries, test_target: TimeSeries,
                 forecast: TimeSeries, save_path: str = None):
     """
     Plot actual vs predicted values.
@@ -324,6 +333,9 @@ def plot_results(train_target: TimeSeries, test_target: TimeSeries,
         forecast: Forecast time series
         save_path: Path to save the plot (optional)
     """
+    if not MATPLOTLIB_AVAILABLE:
+        print("matplotlib not available — skipping plot.")
+        return
     plt.figure(figsize=(12, 8))
 
     # Plot training data
@@ -351,7 +363,7 @@ def plot_results(train_target: TimeSeries, test_target: TimeSeries,
 
 def save_predictions_to_json(train_df, test_df, forecast, company_id, filename="predictions.json"):
     # Convert forecast to DataFrame
-    forecast_df = forecast.pd_dataframe().reset_index()
+    forecast_df = forecast.to_dataframe().reset_index()
     forecast_df.columns = ['ds', 'revenue']
 
     # Simulate bounds (since Darts Prophet doesn't give easily)
@@ -508,61 +520,146 @@ def load_sample_data() -> List[Dict]:
         print(f"Error loading sample data: {e}")
         return []
 
-def run_prophet_forecast(quarters: int, company_id: str = "CMP_001") -> List[Dict]:
+def load_prophet_historical() -> List[Dict]:
+    """Return full historical series from sample_data_prophet.csv as [{ds, revenue, expenses, profit}]."""
+    csv_path = Path(__file__).parent / "sample_data_prophet.csv"
+    df = pd.read_csv(csv_path)
+    df['ds'] = pd.to_datetime(df['ds'])
+    df = df.sort_values('ds').reset_index(drop=True)
+    results = []
+    for _, row in df.iterrows():
+        revenue = float(row['revenue'])
+        expenses = float(row['expenses'])
+        results.append({
+            "ds": row['ds'].strftime("%Y-%m-%d"),
+            "revenue": round(revenue, 2),
+            "expenses": round(expenses, 2),
+            "profit": round(revenue - expenses, 2),
+        })
+    return results
+
+
+def run_prophet_forecast(months: int, company_id: str = "CMP_001") -> List[Dict]:
     """
-    Run Prophet forecast and return results as list of dictionaries for backward compatibility.
-
-    Args:
-        quarters: Number of quarters to forecast
-        company_id: Company ID to filter data
-
-    Returns:
-        List of forecast dictionaries
+    Train Prophet on sample_data_prophet.csv and return a `months`-period ahead forecast.
+    Dates start the month after the last entry in the CSV so they align with run_slider_forecast.
+    Falls back to a linear-trend extrapolation if Darts/Prophet is unavailable.
     """
-    try:
-        if not DARTS_AVAILABLE:
-            print("Darts library not available. Please install with: pip install darts")
-            return []
+    csv_path = Path(__file__).parent / "sample_data_prophet.csv"
+    df = pd.read_csv(csv_path)
+    df['ds'] = pd.to_datetime(df['ds'])
+    df = df.sort_values('ds').reset_index(drop=True)
+    last_date = df['ds'].max()
 
-        # Load and preprocess data
-        df = load_and_preprocess_data(company_id=company_id)
-        df_features = select_features(df)
-        df_clean = handle_missing_values(df_features)
+    # Future monthly dates that match run_slider_forecast output
+    future_dates = [last_date + pd.DateOffset(months=i + 1) for i in range(months)]
 
-        # Use all data for training in this simplified version
-        covariate_cols = [col for col in df_clean.columns if col not in ['ds', 'Revenue']]
-        target_series, covariates_series = create_darts_timeseries(
-            df_clean, target_col='Revenue', covariate_cols=covariate_cols
-        )
+    if DARTS_AVAILABLE:
+        try:
+            series = TimeSeries.from_dataframe(df, time_col='ds', value_cols='revenue', freq='MS')
+            model = DartsProphet(
+                yearly_seasonality=True,
+                weekly_seasonality=False,
+                daily_seasonality=False,
+                seasonality_mode='multiplicative',
+            )
+            model.fit(series)
+            forecast = model.predict(months)
+            forecast_df = forecast.pd_dataframe().reset_index()
+            forecast_df.columns = ['ds', 'revenue']
+            results = []
+            for _, row in forecast_df.iterrows():
+                revenue_val = max(0.0, float(row['revenue']))
+                results.append({
+                    "ds": pd.Timestamp(row['ds']).strftime("%Y-%m-%d"),
+                    "revenue": round(revenue_val, 2),
+                    "yhat_lower": round(revenue_val * 0.85, 2),
+                    "yhat_upper": round(revenue_val * 1.15, 2),
+                })
+            return results
+        except Exception as e:
+            print(f"Prophet model failed, using linear fallback: {e}")
 
-        # Train model
-        model = train_prophet_model(target_series, covariates_series)
+    # Linear-trend fallback
+    x = np.arange(len(df))
+    y = df['revenue'].values
+    slope, intercept = np.polyfit(x, y, 1)
+    results = []
+    for i, ds in enumerate(future_dates):
+        revenue_val = float(max(0.0, slope * (len(df) + i) + intercept))
+        results.append({
+            "ds": ds.strftime("%Y-%m-%d"),
+            "revenue": round(revenue_val, 2),
+            "yhat_lower": round(revenue_val * 0.85, 2),
+            "yhat_upper": round(revenue_val * 1.15, 2),
+        })
+    return results
 
-        # Generate forecast
-        # For future prediction, we need to extend covariates or predict without them
-        # Since we don't have future covariates, we'll train without them for this function
-        model_simple = train_prophet_model(target_series, None)
-        forecast = generate_forecast(model_simple, quarters)
 
-        # Convert to list of dictionaries
-        forecast_df = forecast.pd_dataframe().reset_index()
-        forecast_df.columns = ['ds', 'revenue']
+def run_slider_forecast(
+    starting_mrr: float,
+    growth_rate: float,
+    churn_rate: float,
+    cogs_percent: float,
+    marketing_spend: float,
+    payroll: float,
+    months: int,
+) -> List[Dict]:
+    """
+    Generate a monthly compound-growth projection driven by the dashboard slider inputs.
+    Dates start the month after the last entry in sample_data_prophet.csv so they align
+    with run_prophet_forecast output.
+    """
+    csv_path = Path(__file__).parent / "sample_data_prophet.csv"
+    df = pd.read_csv(csv_path)
+    df['ds'] = pd.to_datetime(df['ds'])
+    last_date = df['ds'].max()
 
-        results = []
-        for _, row in forecast_df.iterrows():
-            revenue_val = max(0, row['revenue'])
-            results.append({
-                "ds": row['ds'].strftime("%Y-%m-%d"),
-                "revenue": round(revenue_val, 2),
-                "yhat_lower": round(revenue_val * 0.85, 2),
-                "yhat_upper": round(revenue_val * 1.15, 2),
-            })
+    net_monthly_growth = (growth_rate - churn_rate) / 100.0
+    mrr = starting_mrr
+    results = []
+    for i in range(months):
+        ds = last_date + pd.DateOffset(months=i + 1)
+        mrr = mrr * (1.0 + net_monthly_growth)
+        revenue = mrr
+        cogs = revenue * (cogs_percent / 100.0)
+        total_expenses = cogs + marketing_spend + payroll
+        gross_margin = revenue - cogs
+        net_profit = revenue - total_expenses
+        results.append({
+            "ds": ds.strftime("%Y-%m-%d"),
+            "revenue": round(revenue, 2),
+            "expenses": round(total_expenses, 2),
+            "gross_margin": round(gross_margin, 2),
+            "net_profit": round(net_profit, 2),
+        })
+    return results
 
-        return results
 
-    except Exception as e:
-        print(f"Error in Prophet forecast: {e}")
-        return []
+def project_forward(
+    revenue: float,
+    expenses: float,
+    growth_rate: float,
+    cost_growth_rate: float,
+    months: int,
+    what_if_annual_cost: float = 0.0,
+) -> List[Dict]:
+    """Simple compound-growth projection used by the /forecast endpoint."""
+    base_date = pd.Timestamp.now().normalize().replace(day=1)
+    monthly_extra = what_if_annual_cost / 12.0
+    results = []
+    for i in range(months):
+        ds = base_date + pd.DateOffset(months=i + 1)
+        revenue *= (1.0 + growth_rate)
+        expenses *= (1.0 + cost_growth_rate)
+        total_expenses = expenses + monthly_extra
+        results.append({
+            "ds": ds.strftime("%Y-%m-%d"),
+            "revenue": round(revenue, 2),
+            "expenses": round(total_expenses, 2),
+            "profit": round(revenue - total_expenses, 2),
+        })
+    return results
 
 if __name__ == "__main__":
     # Check if Darts is available
