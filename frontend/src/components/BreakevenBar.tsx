@@ -1,3 +1,5 @@
+import { C_ERROR } from "@/lib/colors";
+
 interface BreakevenBarProps {
   breakevenMonth: number | null;
   forecastMonths: number;
@@ -14,28 +16,19 @@ export function BreakevenBar({ breakevenMonth, forecastMonths }: BreakevenBarPro
 
   return (
     <div>
-      <div style={{ fontSize: "11px", color: "#666", marginBottom: "6px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+      <div className="text-[11px] text-muted-foreground mb-1.5 font-medium tracking-[0.05em] uppercase">
         Cash runway to break-even
       </div>
-      <div
-        style={{
-          height: "6px",
-          borderRadius: "3px",
-          backgroundColor: "#1e1e2a",
-          overflow: "hidden",
-        }}
-      >
+      <div className="h-1.5 rounded-full bg-border overflow-hidden">
         <div
+          className="h-full rounded-full transition-[width] duration-300"
           style={{
-            height: "100%",
             width: `${pct}%`,
-            backgroundColor: breakevenMonth !== null ? "#C9A84C" : "#E24B4A",
-            borderRadius: "3px",
-            transition: "width 0.3s ease",
+            backgroundColor: breakevenMonth !== null ? "hsl(var(--primary))" : C_ERROR,
           }}
         />
       </div>
-      <div style={{ fontSize: "11px", color: "#666", marginTop: "5px" }}>{label}</div>
+      <div className="text-[11px] text-muted-foreground mt-1.5">{label}</div>
     </div>
   );
 }

@@ -10,10 +10,15 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
+    "ag-grid-community": "^35.2.1",
+    "ag-grid-react": "^35.2.1",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "formulajs": "^1.0.8",
+    "hyperformula": "^3.2.0",
     "lucide-react": "^1.7.0",
+    "mammoth": "^1.12.0",
     "papaparse": "^5.5.3",
     "radix-ui": "^1.4.3",
     "react": "^18.3.1",
@@ -30,6 +35,9 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.4.5",
     "vite": "^5.3.1"
   }

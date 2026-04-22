@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { C_SUCCESS, C_WARNING } from "@/lib/colors";
 import { useProjectionStore } from "@/store/projectionStore";
+import { useSpreadsheetStore } from "@/store/spreadsheetStore";
 import { ScenarioPills } from "./ScenarioPills";
-import { AIHintBlock } from "./AIHintBlock";
 import { formatCurrency } from "@/lib/projection";
 import { ImportModal } from "./ImportModal";
+import { SECTOR_LIST, type SectorId } from "./SectorScreens";
 
 interface SliderRowProps {
   label: string;
@@ -17,22 +19,10 @@ interface SliderRowProps {
 
 function SliderRow({ label, min, max, step, value, onChange, formatValue }: SliderRowProps) {
   return (
-    <div style={{ marginBottom: "14px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-        <span style={{ fontSize: "12px", color: "#999" }}>{label}</span>
-        <span
-          style={{
-            fontSize: "11.5px",
-            color: "#C9A84C",
-            backgroundColor: "#1e1810",
-            border: "1px solid #2e2212",
-            borderRadius: "4px",
-            padding: "2px 8px",
-            fontWeight: 600,
-            minWidth: "48px",
-            textAlign: "center",
-          }}
-        >
+    <div className="mb-3.5">
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-[11.5px] text-primary bg-primary/10 border border-primary/25 rounded px-2 py-0.5 font-semibold min-w-[48px] text-center">
           {formatValue(value)}
         </span>
       </div>
@@ -43,7 +33,7 @@ function SliderRow({ label, min, max, step, value, onChange, formatValue }: Slid
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: "100%" }}
+        className="w-full"
       />
     </div>
   );
@@ -51,23 +41,19 @@ function SliderRow({ label, min, max, step, value, onChange, formatValue }: Slid
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        fontSize: "10px",
-        letterSpacing: "0.1em",
-        color: "#555",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        marginBottom: "10px",
-        marginTop: "4px",
-      }}
-    >
+    <div className="text-[10px] tracking-[0.1em] text-muted-foreground font-semibold uppercase mb-2.5 mt-1">
       {children}
     </div>
   );
 }
 
-export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => void }) {
+interface InputPanelProps {
+  onSensitivityClick: () => void;
+  activeSector: SectorId | null;
+  setActiveSector: (sector: SectorId | null) => void;
+}
+
+export function InputPanel({ onSensitivityClick, activeSector, setActiveSector }: InputPanelProps) {
   const {
     growthRate, setGrowthRate,
     startingMRR, setStartingMRR,
@@ -76,13 +62,24 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
     marketingSpend, setMarketingSpend,
     payroll, setPayroll,
     forecastMonths, setForecastMonths,
-    activeScenario, saveCustomScenario, setActiveTab,
+    activeScenario, saveCustomScenario, setActiveTab, activeTab,
   } = useProjectionStore();
+
+  const { sheets, activeSheetIndex, setActiveSheet } = useSpreadsheetStore();
+  const hasSheets = sheets.length > 0;
 
   const [savingName, setSavingName] = useState(false);
   const [scenarioName, setScenarioName] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showSectorMenu, setShowSectorMenu] = useState(false);
   const [toast, setToast] = useState<{ applied: string[]; skipped: string[] } | null>(null);
+
+  function handleSheetClick(index: number) {
+    setActiveSheet(index);
+    setActiveTab("your-data");
+    setActiveSector(null);
+    setShowSectorMenu(false);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -91,41 +88,92 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
   }, [toast]);
 
   return (
-    <div
-      style={{
-        width: "300px",
-        flexShrink: 0,
-        height: "100%",
-        overflowY: "auto",
-        backgroundColor: "#0d0d14",
-        borderRight: "1px solid #1a1a24",
-        padding: "20px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-      }}
-    >
+    <div className="w-[300px] flex-shrink-0 h-full overflow-y-auto bg-white/40 backdrop-blur-md border-r border-border px-4 py-5 flex flex-col gap-5">
+
+      {/* Financial Sectors Dropdown */}
+      <div className="relative">
+        <button
+          onClick={() => setShowSectorMenu((m) => !m)}
+          className={[
+            "w-full bg-transparent rounded-lg py-2.5 flex items-center justify-between px-3.5 cursor-pointer transition-colors duration-150 border",
+            activeSector || (activeTab === "your-data" && hasSheets)
+              ? "border-primary/40 text-primary hover:bg-primary/10 hover:border-primary/60"
+              : "border-border text-muted-foreground hover:bg-primary/5 hover:border-primary/40 hover:text-primary",
+          ].join(" ")}
+        >
+          <span className="text-[12.5px] font-semibold tracking-[0.02em]">
+            {activeSector
+              ? SECTOR_LIST.find((s) => s.id === activeSector)?.label
+              : activeTab === "your-data" && hasSheets
+                ? sheets[activeSheetIndex]?.name ?? "Your Data"
+                : "Financial Sectors"}
+          </span>
+          <span className="text-[10px] opacity-60">{showSectorMenu ? "▲" : "▼"}</span>
+        </button>
+
+        {showSectorMenu && (
+          <div
+            className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white/95 backdrop-blur-md border border-border rounded-[8px] overflow-hidden z-[200] shadow-[0_8px_24px_rgba(47,36,133,0.12)]"
+            onMouseLeave={() => setShowSectorMenu(false)}
+          >
+            {/* Built-in analysis sectors */}
+            <p className="text-[9.5px] text-muted-foreground font-semibold tracking-widest uppercase px-3.5 pt-2.5 pb-1">
+              Analysis
+            </p>
+            {SECTOR_LIST.map((s, i) => (
+              <button
+                key={s.id}
+                onClick={() => { setActiveSector(s.id); setActiveTab("projection"); setShowSectorMenu(false); }}
+                className={[
+                  "block w-full text-left text-xs px-4 py-2.5 cursor-pointer transition-colors duration-100",
+                  i < SECTOR_LIST.length - 1 ? "border-b border-border/50" : "",
+                  activeSector === s.id
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-primary/5 hover:text-foreground font-normal",
+                ].join(" ")}
+              >
+                {s.label}
+              </button>
+            ))}
+
+            {/* Uploaded sheet tabs — only shown when a workbook is loaded */}
+            {hasSheets && (
+              <>
+                <div className="border-t border-border/60 mt-1" />
+                <p className="text-[9.5px] text-muted-foreground font-semibold tracking-widest uppercase px-3.5 pt-2.5 pb-1">
+                  Your Data
+                </p>
+                {sheets.map((sheet, i) => {
+                  const isActive = activeTab === "your-data" && activeSheetIndex === i;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleSheetClick(i)}
+                      className={[
+                        "block w-full text-left text-xs px-4 py-2.5 cursor-pointer transition-colors duration-100",
+                        i < sheets.length - 1 ? "border-b border-border/50" : "pb-3",
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-muted-foreground hover:bg-primary/5 hover:text-foreground font-normal",
+                      ].join(" ")}
+                    >
+                      {sheet.name}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Import Button */}
       <button
         onClick={() => setShowImport(true)}
-        style={{
-          width: "100%",
-          backgroundColor: "transparent",
-          border: "1px solid #C9A84C55",
-          borderRadius: "8px",
-          padding: "10px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "7px",
-          cursor: "pointer",
-          transition: "background 0.15s, border-color 0.15s",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#C9A84C11"; e.currentTarget.style.borderColor = "#C9A84C99"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = "#C9A84C55"; }}
+        className="w-full bg-transparent border border-primary/35 rounded-lg py-2.5 flex items-center justify-center gap-1.5 cursor-pointer transition-colors duration-150 hover:bg-primary/10 hover:border-primary/60"
       >
-        <span style={{ fontSize: "13px", color: "#C9A84C" }}>↑</span>
-        <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#C9A84C", letterSpacing: "0.02em" }}>
+        <span className="text-[13px] text-primary">↑</span>
+        <span className="text-[12.5px] font-semibold text-primary tracking-[0.02em]">
           Import Financial Data
         </span>
       </button>
@@ -200,127 +248,74 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
         />
       </div>
 
-      {/* AI Hint */}
-      <AIHintBlock />
-
-      {/* Save Custom Scenario */}
-      {activeScenario === "custom" && (
-        <div>
-          {!savingName ? (
-            <button
-              onClick={() => { setSavingName(true); setScenarioName(""); }}
-              style={{
-                width: "100%",
-                backgroundColor: "transparent",
-                color: "#C9A84C",
-                border: "1px solid #C9A84C44",
-                borderRadius: "8px",
-                padding: "9px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-                letterSpacing: "0.03em",
-                transition: "background 0.15s, border-color 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#C9A84C11"; e.currentTarget.style.borderColor = "#C9A84C88"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = "#C9A84C44"; }}
-            >
-              Save Scenario…
-            </button>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <input
-                autoFocus
-                type="text"
-                placeholder="Scenario name"
-                value={scenarioName}
-                onChange={(e) => setScenarioName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && scenarioName.trim()) {
-                    saveCustomScenario(scenarioName.trim());
-                    setSavingName(false);
-                    setActiveTab("scenarios");
-                  }
-                  if (e.key === "Escape") setSavingName(false);
-                }}
-                style={{
-                  backgroundColor: "#12121A",
-                  border: "1px solid #C9A84C66",
-                  borderRadius: "6px",
-                  color: "#f0f0f0",
-                  fontSize: "13px",
-                  padding: "8px 10px",
-                  outline: "none",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}
-              />
-              <div style={{ display: "flex", gap: "6px" }}>
-                <button
-                  disabled={!scenarioName.trim()}
-                  onClick={() => {
-                    if (!scenarioName.trim()) return;
-                    saveCustomScenario(scenarioName.trim());
-                    setSavingName(false);
-                    setActiveTab("scenarios");
+      {/* Bottom Actions */}
+      <div className="mt-auto flex flex-col gap-2">
+        {/* Save Custom Scenario */}
+        {activeScenario === "custom" && (
+          <div>
+            {!savingName ? (
+              <button
+                onClick={() => { setSavingName(true); setScenarioName(""); }}
+                className="w-full bg-transparent text-primary border border-primary/30 rounded-lg py-2 text-[12.5px] font-semibold cursor-pointer tracking-[0.03em] transition-colors duration-150 hover:bg-primary/10 hover:border-primary/60"
+              >
+                Save Scenario…
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Scenario name"
+                  value={scenarioName}
+                  onChange={(e) => setScenarioName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && scenarioName.trim()) {
+                      saveCustomScenario(scenarioName.trim());
+                      setSavingName(false);
+                      setActiveTab("scenarios");
+                    }
+                    if (e.key === "Escape") setSavingName(false);
                   }}
-                  style={{
-                    flex: 1,
-                    backgroundColor: scenarioName.trim() ? "#C9A84C" : "#2a2a35",
-                    color: scenarioName.trim() ? "#fff" : "#555",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "8px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: scenarioName.trim() ? "pointer" : "not-allowed",
-                    transition: "background 0.15s",
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setSavingName(false)}
-                  style={{
-                    backgroundColor: "transparent",
-                    color: "#555",
-                    border: "1px solid #222",
-                    borderRadius: "6px",
-                    padding: "8px 12px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
+                  className="bg-white/70 border border-primary/40 rounded-[6px] text-foreground text-[13px] px-2.5 py-2 outline-none w-full focus:border-primary/70"
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    disabled={!scenarioName.trim()}
+                    onClick={() => {
+                      if (!scenarioName.trim()) return;
+                      saveCustomScenario(scenarioName.trim());
+                      setSavingName(false);
+                      setActiveTab("scenarios");
+                    }}
+                    className="flex-1 rounded-[6px] py-2 text-xs font-semibold cursor-pointer transition-colors duration-150 border-none"
+                    style={{
+                      backgroundColor: scenarioName.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))",
+                      color: scenarioName.trim() ? "#fff" : "hsl(var(--muted-foreground))",
+                      cursor: scenarioName.trim() ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setSavingName(false)}
+                    className="bg-transparent text-muted-foreground border border-border rounded-[6px] px-3 py-2 text-xs cursor-pointer hover:border-muted-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {/* Sensitivity Analysis Button */}
-      <button
-        onClick={onSensitivityClick}
-        style={{
-          width: "100%",
-          backgroundColor: "#C9A84C",
-          color: "#fff",
-          border: "none",
-          borderRadius: "8px",
-          padding: "11px",
-          fontSize: "13px",
-          fontWeight: 600,
-          cursor: "pointer",
-          letterSpacing: "0.03em",
-          transition: "opacity 0.15s",
-          marginTop: "auto",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-      >
-        Run Sensitivity Analysis
-      </button>
+        {/* Sensitivity Analysis Button */}
+        <button
+          onClick={onSensitivityClick}
+          className="w-full bg-primary text-primary-foreground border-none rounded-lg py-[11px] text-[13px] font-semibold cursor-pointer tracking-[0.03em] transition-opacity duration-150 hover:opacity-85"
+        >
+          Run Sensitivity Analysis
+        </button>
+      </div>
 
       {/* Import Modal */}
       {showImport && (
@@ -335,47 +330,31 @@ export function InputPanel({ onSensitivityClick }: { onSensitivityClick: () => v
 
       {/* Toast Notification */}
       {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            zIndex: 2000,
-            backgroundColor: "#12121A",
-            border: "1px solid #1e1e2a",
-            borderRadius: "10px",
-            padding: "14px 18px",
-            minWidth: "260px",
-            maxWidth: "360px",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#f0f0f0", marginBottom: "8px" }}>
-            Import Complete
-          </div>
+        <div className="fixed bottom-6 right-6 z-[2000] bg-white/90 backdrop-blur-md border border-border rounded-[10px] px-4 py-3.5 min-w-[260px] max-w-[360px] shadow-[0_8px_32px_rgba(47,36,133,0.15)]">
+          <div className="text-xs font-bold text-foreground mb-2">Import Complete</div>
           {toast.applied.length > 0 && (
-            <div style={{ marginBottom: "6px" }}>
-              <div style={{ fontSize: "10.5px", color: "#1D9E75", fontWeight: 600, marginBottom: "3px" }}>
+            <div className="mb-1.5">
+              <div className="text-[10.5px] font-semibold mb-0.5" style={{ color: C_SUCCESS }}>
                 ✓ Applied ({toast.applied.length})
               </div>
               {toast.applied.map((f) => (
-                <div key={f} style={{ fontSize: "11px", color: "#666", paddingLeft: "10px" }}>{f}</div>
+                <div key={f} className="text-[11px] text-muted-foreground pl-2.5">{f}</div>
               ))}
             </div>
           )}
           {toast.skipped.length > 0 && (
             <div>
-              <div style={{ fontSize: "10.5px", color: "#F59E0B", fontWeight: 600, marginBottom: "3px" }}>
+              <div className="text-[10.5px] font-semibold mb-0.5" style={{ color: C_WARNING }}>
                 ⚠ Not detected ({toast.skipped.length})
               </div>
               {toast.skipped.map((f) => (
-                <div key={f} style={{ fontSize: "11px", color: "#666", paddingLeft: "10px" }}>{f}</div>
+                <div key={f} className="text-[11px] text-muted-foreground pl-2.5">{f}</div>
               ))}
             </div>
           )}
           <button
             onClick={() => setToast(null)}
-            style={{ position: "absolute", top: "10px", right: "12px", background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "13px" }}
+            className="absolute top-2.5 right-3 bg-transparent border-none text-muted-foreground/50 cursor-pointer text-[13px] hover:text-muted-foreground transition-colors"
           >
             ✕
           </button>

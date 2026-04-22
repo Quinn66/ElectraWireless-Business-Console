@@ -11,6 +11,13 @@ import {
 } from "recharts";
 import { MonthRow, formatCurrency } from "@/lib/projection";
 import { HistoricalPoint, ProphetPoint, SliderForecastPoint } from "@/store/projectionStore";
+import { C_PRIMARY, C_VIOLET, C_HIST, C_ERROR, C_SUCCESS } from "@/lib/colors";
+
+// Chart line colour aliases
+const C_REVENUE  = C_PRIMARY;
+const C_PROPHET  = C_VIOLET;
+const C_EXPENSES = C_ERROR;
+const C_PROFIT   = C_SUCCESS;
 
 interface ProjectionChartProps {
   data: MonthRow[];
@@ -24,21 +31,16 @@ function fmtDs(ds: string): string {
   return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+interface TooltipEntry { name: string; value: number; color?: string; }
+interface TooltipProps { active?: boolean; payload?: TooltipEntry[]; label?: string; }
+
+function CustomTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        backgroundColor: "#16161F",
-        border: "1px solid #2a2a35",
-        borderRadius: "8px",
-        padding: "10px 14px",
-        fontSize: "12px",
-      }}
-    >
-      <div style={{ color: "#888", marginBottom: "6px", fontWeight: 600 }}>{label}</div>
-      {payload.map((entry: any) => (
-        <div key={entry.name} style={{ color: entry.color, marginBottom: "2px" }}>
+    <div className="bg-white/90 backdrop-blur-sm border border-border rounded-lg px-3.5 py-2.5 text-xs shadow-[0_4px_16px_rgba(47,36,133,0.12)]">
+      <div className="text-muted-foreground mb-1.5 font-semibold">{label}</div>
+      {payload.map((entry) => (
+        <div key={entry.name} className="mb-0.5" style={{ color: entry.color }}>
           {entry.name}: {formatCurrency(entry.value)}
         </div>
       ))}
@@ -55,9 +57,6 @@ export function ProjectionChart({
   const hasApiData = historical && historical.length > 0;
 
   if (hasApiData && sliderForecast && sliderForecast.length > 0) {
-    // --- API-driven chart: historical + prophet baseline + slider forecast ---
-
-    // Build unified data array — only show last 6 historical months so forecast dominates
     const histEntries = historical!.slice(-6).map((h) => ({
       name: fmtDs(h.ds),
       hist_revenue: h.revenue,
@@ -67,40 +66,46 @@ export function ProjectionChart({
 
     const dividerName = histEntries[histEntries.length - 1]?.name ?? "";
 
-    const forecastEntries = sliderForecast.map((s, i) => ({
-      name: fmtDs(s.ds),
-      slider_revenue: s.revenue,
-      slider_expenses: s.expenses,
-      net_profit: s.net_profit,
-      prophet_revenue: prophetForecast?.[i]?.revenue ?? null,
-      type: "forecast" as const,
-    }));
+    const forecastEntries = sliderForecast.map((s) => {
+      const match = prophetForecast?.find((p) => p.ds === s.ds);
+      return {
+        name: fmtDs(s.ds),
+        slider_revenue: s.revenue,
+        slider_expenses: s.expenses,
+        net_profit: s.net_profit,
+        prophet_revenue: match?.revenue ?? null,
+        prophet_lower: match?.yhat_lower ?? null,
+        prophet_upper: match?.yhat_upper ?? null,
+        type: "forecast" as const,
+      };
+    });
 
     const chartData = [...histEntries, ...forecastEntries];
 
     const legendItems = [
-      { color: "#888", label: "Historical Revenue", dashed: false },
-      { color: "#5B7FD4", label: "Prophet Baseline", dashed: true },
-      { color: "#C9A84C", label: "Your Forecast (Revenue)", dashed: false },
-      { color: "#E24B4A", label: "Expenses", dashed: false },
-      { color: "#1D9E75", label: "Net Profit", dashed: false },
+      { color: C_HIST,     label: "Historical Revenue",         dashed: false, band: false },
+      { color: C_PROPHET,  label: "Prophet Baseline",           dashed: true,  band: false },
+      { color: C_PROPHET,  label: "Prophet Confidence Band",    dashed: false, band: true  },
+      { color: C_REVENUE,  label: "Your Forecast (Revenue)",    dashed: false, band: false },
+      { color: C_EXPENSES, label: "Expenses",                   dashed: false, band: false },
+      { color: C_PROFIT,   label: "Net Profit",                 dashed: false, band: false },
     ];
 
     return (
       <div>
         <ResponsiveContainer width="100%" height={260}>
           <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a24" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(47,36,133,0.08)" vertical={false} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 10, fill: "#555" }}
+              tick={{ fontSize: 10, fill: "#6b6890" }}
               axisLine={false}
               tickLine={false}
               interval={Math.floor(chartData.length / 8)}
             />
             <YAxis
               tickFormatter={formatCurrency}
-              tick={{ fontSize: 11, fill: "#555" }}
+              tick={{ fontSize: 11, fill: "#6b6890" }}
               axisLine={false}
               tickLine={false}
               width={55}
@@ -109,81 +114,30 @@ export function ProjectionChart({
             {dividerName && (
               <ReferenceLine
                 x={dividerName}
-                stroke="#2a2a35"
+                stroke="rgba(47,36,133,0.20)"
                 strokeDasharray="4 4"
-                label={{ value: "Today", fill: "#444", fontSize: 10, position: "top" }}
+                label={{ value: "Today", fill: "#6b6890", fontSize: 10, position: "top" }}
               />
             )}
-            <Line
-              type="monotone"
-              dataKey="hist_revenue"
-              name="Historical Revenue"
-              stroke="#555"
-              strokeWidth={2}
-              dot={false}
-              connectNulls={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="prophet_revenue"
-              name="Prophet Baseline"
-              stroke="#5B7FD4"
-              strokeWidth={1.5}
-              strokeDasharray="5 3"
-              dot={false}
-              connectNulls={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="slider_revenue"
-              name="Your Forecast (Revenue)"
-              stroke="#C9A84C"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, fill: "#C9A84C" }}
-              connectNulls={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="slider_expenses"
-              name="Expenses"
-              stroke="#E24B4A"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, fill: "#E24B4A" }}
-              connectNulls={false}
-            />
-            <Area
-              type="monotone"
-              dataKey="net_profit"
-              name="Net Profit"
-              stroke="#1D9E75"
-              strokeWidth={2}
-              fill="#1D9E75"
-              fillOpacity={0.1}
-              dot={false}
-              activeDot={{ r: 4, fill: "#1D9E75" }}
-              connectNulls={false}
-            />
+            <Line type="monotone" dataKey="hist_revenue"    name="Historical Revenue"      stroke={C_HIST}     strokeWidth={2}   dot={false} connectNulls={false} />
+            <Area type="monotone" dataKey="prophet_upper"  name="Prophet Confidence Band"  stroke="none"       fill={C_PROPHET} fillOpacity={0.10} dot={false} connectNulls={false} legendType="none" />
+            <Area type="monotone" dataKey="prophet_lower"  name=""                         stroke="none"       fill="white"     fillOpacity={1}    dot={false} connectNulls={false} legendType="none" />
+            <Line type="monotone" dataKey="prophet_revenue" name="Prophet Baseline"         stroke={C_PROPHET}  strokeWidth={1.5} strokeDasharray="5 3" dot={false} connectNulls={false} />
+            <Line type="monotone" dataKey="slider_revenue"  name="Your Forecast (Revenue)"  stroke={C_REVENUE}  strokeWidth={2}   dot={false} activeDot={{ r: 4, fill: C_REVENUE }}  connectNulls={false} />
+            <Line type="monotone" dataKey="slider_expenses" name="Expenses"                 stroke={C_EXPENSES} strokeWidth={2}   dot={false} activeDot={{ r: 4, fill: C_EXPENSES }} connectNulls={false} />
+            <Area type="monotone" dataKey="net_profit"      name="Net Profit"               stroke={C_PROFIT}   strokeWidth={2}   fill={C_PROFIT} fillOpacity={0.08} dot={false} activeDot={{ r: 4, fill: C_PROFIT }} connectNulls={false} />
           </ComposedChart>
         </ResponsiveContainer>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "14px 20px", paddingLeft: "55px", marginTop: "10px" }}>
-          {legendItems.map(({ color, label, dashed }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <div
-                style={{
-                  width: dashed ? 14 : 8,
-                  height: dashed ? 2 : 8,
-                  borderRadius: dashed ? 0 : "50%",
-                  backgroundColor: color,
-                  opacity: dashed ? 0.8 : 1,
-                  borderBottom: dashed ? `2px dashed ${color}` : undefined,
-                  background: dashed ? "none" : color,
-                  borderTop: dashed ? `2px dashed ${color}` : undefined,
-                }}
-              />
-              <span style={{ fontSize: "11px", color: "#666" }}>{label}</span>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 pl-[55px] mt-2.5">
+          {legendItems.map(({ color, label, dashed, band }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              {band
+                ? <div style={{ width: 14, height: 8, borderRadius: "2px", backgroundColor: color, opacity: 0.25 }} />
+                : dashed
+                  ? <div style={{ width: 14, borderTop: `2px dashed ${color}`, opacity: 0.8 }} />
+                  : <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />}
+              <span className="text-[11px] text-muted-foreground">{label}</span>
             </div>
           ))}
         </div>
@@ -191,7 +145,7 @@ export function ProjectionChart({
     );
   }
 
-  // --- Fallback: local-math chart (backend not connected) ---
+  // Fallback: local-math chart
   const chartData = data.map((row) => ({
     name: `M${row.month}`,
     Revenue: Math.round(row.revenue),
@@ -203,59 +157,25 @@ export function ProjectionChart({
     <div>
       <ResponsiveContainer width="100%" height={240}>
         <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1a1a24" vertical={false} />
-          <XAxis
-            dataKey="name"
-            tick={{ fontSize: 11, fill: "#555" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tickFormatter={formatCurrency}
-            tick={{ fontSize: 11, fill: "#555" }}
-            axisLine={false}
-            tickLine={false}
-            width={55}
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(47,36,133,0.08)" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b6890" }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 11, fill: "#6b6890" }} axisLine={false} tickLine={false} width={55} />
           <Tooltip content={<CustomTooltip />} />
-          <Line
-            type="monotone"
-            dataKey="Revenue"
-            stroke="#C9A84C"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#C9A84C" }}
-          />
-          <Line
-            type="monotone"
-            dataKey="Expenses"
-            stroke="#E24B4A"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#E24B4A" }}
-          />
-          <Area
-            type="monotone"
-            dataKey="Net Profit"
-            stroke="#1D9E75"
-            strokeWidth={2}
-            fill="#1D9E75"
-            fillOpacity={0.1}
-            dot={false}
-            activeDot={{ r: 4, fill: "#1D9E75" }}
-          />
+          <Line type="monotone" dataKey="Revenue"    stroke={C_REVENUE}  strokeWidth={2} dot={false} activeDot={{ r: 4, fill: C_REVENUE }}  />
+          <Line type="monotone" dataKey="Expenses"   stroke={C_EXPENSES} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: C_EXPENSES }} />
+          <Area type="monotone" dataKey="Net Profit" stroke={C_PROFIT}   strokeWidth={2} fill={C_PROFIT} fillOpacity={0.08} dot={false} activeDot={{ r: 4, fill: C_PROFIT }} />
         </ComposedChart>
       </ResponsiveContainer>
 
-      <div style={{ display: "flex", gap: "20px", paddingLeft: "55px", marginTop: "8px" }}>
+      <div className="flex gap-5 pl-[55px] mt-2">
         {[
-          { color: "#C9A84C", label: "Revenue" },
-          { color: "#E24B4A", label: "Expenses" },
-          { color: "#1D9E75", label: "Net Profit" },
+          { color: C_REVENUE,  label: "Revenue"    },
+          { color: C_EXPENSES, label: "Expenses"   },
+          { color: C_PROFIT,   label: "Net Profit" },
         ].map(({ color, label }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: color }} />
-            <span style={{ fontSize: "11px", color: "#666" }}>{label}</span>
+          <div key={label} className="flex items-center gap-1.5">
+            <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
+            <span className="text-[11px] text-muted-foreground">{label}</span>
           </div>
         ))}
       </div>
