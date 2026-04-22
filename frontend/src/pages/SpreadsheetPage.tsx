@@ -269,7 +269,7 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
   const formulaBarActiveRef = useRef(false);
 
   const [formulaBarValue, setFormulaBarValue] = useState("");
-  const [formulaRefCell, setFormulaRefCell] = useState<{ rowIndex: number; colIndex: number } | null>(null);
+  const formulaRefCellRef = useRef<{ rowIndex: number; colIndex: number } | null>(null);
   const [showApply, setShowApply] = useState(false);
   const [ellyOpen, setEllyOpen] = useState(true);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
@@ -301,10 +301,17 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
     return m;
   }, [anomalies]);
 
-  // Repaint cells after formulaRefCell changes so the old highlight clears
-  useEffect(() => {
-    gridApiRef.current?.refreshCells({ force: true });
-  }, [formulaRefCell]);
+  const clearFormulaRef = useCallback(() => {
+    const prev = formulaRefCellRef.current;
+    if (prev !== null) {
+      formulaRefCellRef.current = null;
+      const api = gridApiRef.current;
+      if (api) {
+        const prevNode = api.getDisplayedRowAtIndex(prev.rowIndex);
+        if (prevNode) api.redrawRows({ rowNodes: [prevNode] });
+      }
+    }
+  }, []);
 
   // Sync formula bar
   useEffect(() => {
@@ -357,30 +364,36 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
           const ri = params.node.rowIndex ?? 0;
 
           // Formula-entry point-mode highlight takes priority
-          if (formulaRefCell && formulaRefCell.rowIndex === ri && formulaRefCell.colIndex === ci) {
+          const frc = formulaRefCellRef.current;
+          if (frc && frc.rowIndex === ri && frc.colIndex === ci) {
             return { backgroundColor: "rgba(47,36,133,0.12)", outline: `2px solid ${C_PRIMARY}`, outlineOffset: "-2px" };
           }
+
+          // When in formula mode, start with explicit resets so AG Grid doesn't leave
+          // stale inline styles on cells that were previously the formula reference.
+          const css: Record<string, string> = frc
+            ? { outline: "", outlineOffset: "", backgroundColor: "" }
+            : {};
 
           // Anomaly highlight takes next priority
           const cellId = toCellId(activeSheetIndex, ri, ci);
           const anomaly = anomalyMap[cellId];
           if (anomaly && !dismissed.has(cellId)) {
             const sev = SEVERITY_COLOR[anomaly.severity];
-            return { backgroundColor: sev.bg, borderLeft: `3px solid ${sev.border}` };
+            return { ...css, backgroundColor: sev.bg, borderLeft: `3px solid ${sev.border}` };
           }
 
           // Excel cell style
           const cs: CellStyle | null | undefined = activeSheet?.styles?.[ri]?.[ci];
-          if (!cs) return undefined;
-
-          const css: Record<string, string> = {};
-          if (cs.bgColor)       css.backgroundColor = cs.bgColor;
-          if (cs.hAlign)        css.textAlign       = cs.hAlign;
-          if (cs.borderTop)     css.borderTop       = "1px solid #bbb";
-          if (cs.borderBottom)  css.borderBottom    = "1px solid #bbb";
-          if (cs.borderLeft)    css.borderLeft      = "1px solid #bbb";
-          if (cs.borderRight)   css.borderRight     = "1px solid #bbb";
-          if (cs.wrapText)      css.whiteSpace      = "normal";
+          if (cs) {
+            if (cs.bgColor)       css.backgroundColor = cs.bgColor;
+            if (cs.hAlign)        css.textAlign       = cs.hAlign;
+            if (cs.borderTop)     css.borderTop       = "1px solid #bbb";
+            if (cs.borderBottom)  css.borderBottom    = "1px solid #bbb";
+            if (cs.borderLeft)    css.borderLeft      = "1px solid #bbb";
+            if (cs.borderRight)   css.borderRight     = "1px solid #bbb";
+            if (cs.wrapText)      css.whiteSpace      = "normal";
+          }
           return Object.keys(css).length > 0 ? css : undefined;
         },
 
@@ -429,7 +442,7 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
     });
 
     return [rowNumCol, ...dataCols];
-  }, [numCols, activeSheet, activeSheetIndex, anomalyMap, dismissed, formulaRefCell]);
+  }, [numCols, activeSheet, activeSheetIndex, anomalyMap, dismissed]);
 
   const handleCellFocused = useCallback((e: CellFocusedEvent) => {
     if (e.rowIndex == null || !e.column) return;
@@ -460,7 +473,19 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
 
     const next = formulaBarValue.slice(0, insertAt) + ref + formulaBarValue.slice(end);
     setFormulaBarValue(next);
-    setFormulaRefCell({ rowIndex, colIndex });
+    const api = gridApiRef.current;
+    const prevRef = formulaRefCellRef.current;
+    formulaRefCellRef.current = { rowIndex, colIndex };
+    if (api) {
+      const rowsToRedraw: any[] = [];
+      const newNode = api.getDisplayedRowAtIndex(rowIndex);
+      if (newNode) rowsToRedraw.push(newNode);
+      if (prevRef !== null && prevRef.rowIndex !== rowIndex) {
+        const prevNode = api.getDisplayedRowAtIndex(prevRef.rowIndex);
+        if (prevNode) rowsToRedraw.push(prevNode);
+      }
+      if (rowsToRedraw.length > 0) api.redrawRows({ rowNodes: rowsToRedraw });
+    }
     requestAnimationFrame(() => {
       input.setSelectionRange(start + ref.length, start + ref.length);
     });
@@ -480,7 +505,10 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
     const rowIndex = parseInt(rowEl.getAttribute("row-index") ?? "-1");
     const ci       = colId.startsWith("c") ? parseInt(colId.slice(1)) : -1;
     if (ci < 0 || rowIndex < 0) return;
-    e.preventDefault(); // keep formula bar focused
+    // Stop the native event before AG Grid's cell listeners see it — prevents
+    // AG Grid's own focus/selection highlight from being applied to clicked cells.
+    e.nativeEvent.stopImmediatePropagation();
+    e.preventDefault();
     insertCellRef(rowIndex, ci);
   }, [formulaBarValue, insertCellRef]);
 
@@ -606,17 +634,17 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
           value={formulaBarValue}
           onChange={e => {
             setFormulaBarValue(e.target.value);
-            if (!e.target.value.startsWith("=")) setFormulaRefCell(null);
+            if (!e.target.value.startsWith("=")) clearFormulaRef();
           }}
           onFocus={() => { formulaBarActiveRef.current = true; }}
           onBlur={() => {
             formulaBarActiveRef.current = false;
-            setFormulaRefCell(null);
+            clearFormulaRef();
             handleFormulaBarCommit();
           }}
           onKeyDown={e => {
-            if (e.key === "Enter") { setFormulaRefCell(null); handleFormulaBarCommit(); }
-            if (e.key === "Escape") { setFormulaRefCell(null); }
+            if (e.key === "Enter") { clearFormulaRef(); handleFormulaBarCommit(); }
+            if (e.key === "Escape") { clearFormulaRef(); }
           }}
           placeholder="Select a cell to edit…"
           style={{ flex: 1, height: "100%", border: "none", outline: "none", padding: "0 12px", fontSize: "12.5px", fontFamily: "monospace", color: formulaBarValue.startsWith("=") ? C_PRIMARY : "hsl(242 44% 25%)", backgroundColor: "transparent" }}
@@ -628,7 +656,7 @@ export function SpreadsheetPage({ mode = "overlay" }: { mode?: SpreadsheetMode }
 
       {/* ── Grid + ELLY sidebar ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}>
-        <div className="ag-theme-alpine" style={{ flex: 1, minWidth: 0 }} onMouseDown={handleGridAreaMouseDown}>
+        <div className="ag-theme-alpine" style={{ flex: 1, minWidth: 0 }} onMouseDownCapture={handleGridAreaMouseDown}>
           <AgGridReact
             key={`${activeSheetIndex}-${fileName}`}
             theme="legacy"
