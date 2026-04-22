@@ -10,7 +10,7 @@ from forecast import (
 )
 from LlamaModel import get_web_context, parse_output
 from contextLlamaTest import get_analysis
-from CsvDetect import detect_anomalies
+from CsvDetectFull import detect_anomalies
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
