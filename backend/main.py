@@ -8,6 +8,7 @@ from forecast import (
     run_prophet_forecast,
     run_slider_forecast,
 )
+from upload_parser import parse_uploaded_financial_file
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
