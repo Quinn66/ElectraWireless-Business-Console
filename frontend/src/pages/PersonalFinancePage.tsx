@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
+import { PERIODS } from "@/lib/periodFilter";
 import { BankStatementModal } from "@/components/pf/BankStatementModal";
 import { TransactionFormModal } from "@/components/pf/TransactionFormModal";
 import { CategoryReviewTable } from "@/components/pf/CategoryReviewTable";
@@ -165,20 +166,18 @@ function EmptyState({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-const PERIODS = ["Last 30 days", "Last 3 months", "Last 6 months", "This year"] as const;
-type Period = (typeof PERIODS)[number];
-
 export function PersonalFinancePage() {
-  const flowStep      = usePersonalFinanceStore((s) => s.flowStep);
-  const activeTab     = usePersonalFinanceStore((s) => s.activeTab);
-  const setActiveTab  = usePersonalFinanceStore((s) => s.setActiveTab);
-  const loadDemoData  = usePersonalFinanceStore((s) => s.loadDemoData);
-  const transactions  = usePersonalFinanceStore((s) => s.transactions);
-  const reset         = usePersonalFinanceStore((s) => s.reset);
+  const flowStep        = usePersonalFinanceStore((s) => s.flowStep);
+  const activeTab       = usePersonalFinanceStore((s) => s.activeTab);
+  const setActiveTab    = usePersonalFinanceStore((s) => s.setActiveTab);
+  const loadDemoData    = usePersonalFinanceStore((s) => s.loadDemoData);
+  const transactions    = usePersonalFinanceStore((s) => s.transactions);
+  const reset           = usePersonalFinanceStore((s) => s.reset);
+  const activePeriod    = usePersonalFinanceStore((s) => s.activePeriod);
+  const setActivePeriod = usePersonalFinanceStore((s) => s.setActivePeriod);
 
   const [showImport,    setShowImport]   = useState(false);
   const [showAddManual, setShowAddManual] = useState(false);
-  const [activePeriod,  setActivePeriod] = useState<Period>("Last 3 months");
 
   function renderContent() {
     if (flowStep === "empty") {
