@@ -38,13 +38,19 @@ ElectraWireless-Business-Console/
 | Nishant  | Backend   |
 
 ---
+## Running Ollama
+First need to install Ollama onto the local system
+Then run in a separate terminal
+ - ollama pull llama3.2
+ - ollama serve       (if needed)
+
 
 ## Running the Backend
 
 ```bash
 cd backend
-pip install -r requirements.txt OR python3 -m pip install -r requirements.txt
-uvicorn main:app --reload OR python3 -m uvicorn main:app --reload
+pip install -r requirements.txt OR python3 -m pip install -r requirements.txt  OR  py -3.12 -m pip install -r requirements.txt
+uvicorn main:app --reload OR python3 -m uvicorn main:app --reload OR py -3.12 -m uvicorn main:app --reload
 ```
 
 API runs at `http://localhost:8000`
