@@ -1,6 +1,8 @@
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from database import engine, Base
+import models  # noqa: F401 — registers all ORM models with Base
 from forecast import (
     load_sample_data,
     load_prophet_historical,
@@ -9,8 +11,14 @@ from forecast import (
     run_slider_forecast,
 )
 from upload_parser import parse_uploaded_financial_file
+from LlamaModel import get_web_context, parse_output
+from contextLlamaTest import get_analysis
+from CsvDetectFull import detect_anomalies
 
 app = FastAPI(title="ElectraWireless Business Console API")
+
+# Create all PF tables on startup if they don't already exist
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
