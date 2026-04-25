@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { useMemo } from "react";
 import { MOCK_TRANSACTIONS } from "@/services/personalFinanceApi";
 import { filterByPeriod, type Period } from "@/lib/periodFilter";
@@ -55,7 +56,9 @@ interface PersonalFinanceState {
   reset: () => void;
 }
 
-export const usePersonalFinanceStore = create<PersonalFinanceState>((set) => ({
+export const usePersonalFinanceStore = create<PersonalFinanceState>()(
+  persist(
+    (set) => ({
   flowStep: "empty",
   activeTab: "overview",
   activePeriod: "Last 3 months",
@@ -132,7 +135,22 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>((set) => ({
       apiLoading: false,
       apiError: null,
     }),
-}));
+    }),
+    {
+      name: "elly-pf-store",
+      // Only persist user data — exclude transient UI/API state
+      partialize: (state) => ({
+        flowStep:     state.flowStep,
+        activeTab:    state.activeTab,
+        activePeriod: state.activePeriod,
+        transactions: state.transactions,
+        budgets:      state.budgets,
+        assets:       state.assets,
+        liabilities:  state.liabilities,
+      }),
+    }
+  )
+);
 
 /** Returns the confirmed transactions filtered to the currently selected period. */
 export function useFilteredTransactions(): Transaction[] {
