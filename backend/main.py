@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from database import engine, Base
@@ -10,6 +10,7 @@ from forecast import (
     run_prophet_forecast,
     run_slider_forecast,
 )
+from upload_parser import parse_uploaded_financial_file
 from LlamaModel import get_web_context, parse_output
 from contextLlamaTest import get_analysis
 from CsvDetectFull import detect_anomalies
@@ -164,3 +165,22 @@ def forecast(req: ForecastRequest):
         what_if_annual_cost=req.what_if_annual_cost,
     )
     return {"historical": historical, "forecast": projected}
+
+@app.post("/upload-financial-data")
+async def upload_financial_data(file: UploadFile = File(...)):
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file uploaded")
+        
+        content = await file.read()
+        result = parse_uploaded_financial_file(file.filename, content)
+        return result
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"An error occurred while processing the file: {str(e)}")
+    
