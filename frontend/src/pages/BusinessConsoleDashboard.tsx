@@ -8,6 +8,7 @@ import { ConsoleHome } from "@/pages/ConsoleHome";
 import ProfileSelector from "@/ProfileSelector";
 import OnboardingFlow from "@/OnboardingFlow";
 import { useProjectionStore } from "@/store/projectionStore";
+import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
 import { PROFILE_PRESETS, DEFAULT_PRESET } from "@/lib/profilePresets";
 import type { ProfilePreset } from "@/lib/profilePresets";
 
@@ -20,7 +21,8 @@ export function BusinessConsoleDashboard() {
   const [profilePreset, setProfilePreset]     = useState<ProfilePreset | null>(null);
   const [projectionOnboarded, setProjectionOnboarded] = useState(false);
 
-  const accountType = useProjectionStore((s) => s.accountType);
+  const accountType  = useProjectionStore((s) => s.accountType);
+  const resetPF      = usePersonalFinanceStore((s) => s.reset);
 
   function handleOpenProjection() {
     setActiveTool("projection");
@@ -89,7 +91,14 @@ export function BusinessConsoleDashboard() {
       <div className="flex flex-1 overflow-hidden min-h-0">
         <ConsoleSidebar
           activeTool={activeTool}
-          onSelect={(tool) => tool === "projection" ? handleOpenProjection() : setActiveTool(tool)}
+          onSelect={(tool) => {
+            if (tool === "home") {
+              resetPF();
+              localStorage.removeItem("elly-pf-store");
+            }
+            if (tool === "projection") { handleOpenProjection(); return; }
+            setActiveTool(tool);
+          }}
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded((e) => !e)}
         />
