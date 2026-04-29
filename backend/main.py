@@ -1,8 +1,10 @@
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from database import engine, Base
-import models  # noqa: F401 — registers all ORM models with Base
+
+from database import engine, Base, get_db
+import models  # registers ORM models
+
 from forecast import (
     load_sample_data,
     load_prophet_historical,
@@ -10,10 +12,15 @@ from forecast import (
     run_prophet_forecast,
     run_slider_forecast,
 )
+
 from upload_parser import parse_uploaded_financial_file
 from LlamaModel import get_web_context, parse_output
 from contextLlamaTest import get_analysis
 from CsvDetectFull import detect_anomalies
+
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from uuid import uuid4
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
@@ -184,3 +191,146 @@ async def upload_financial_data(file: UploadFile = File(...)):
             status_code=500, 
             detail=f"An error occurred while processing the file: {str(e)}")
     
+@app.post("/pf/transactions/upload")
+async def upload_pf_transactions(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    content = await file.read()
+    parsed = parse_uploaded_financial_file(file.filename, content)
+
+    records = parsed.get("normalized_data", {}).get("records", [])
+    saved = []
+
+    for row in records:
+        amount = row.get("amount") or row.get("revenue") or row.get("expenses") or row.get("sales")
+        if amount is None:
+            continue
+
+        amount = float(amount)
+        transaction_type = "income" if amount >= 0 else "expense"
+
+        transaction = models.PFTransaction(
+            id=str(uuid4()),
+            user_id="demo-user",
+            date=str(row.get("date") or ""),
+            description=str(row.get("description") or "Imported transaction"),
+            amount=abs(amount),
+            type=transaction_type,
+            category=str(row.get("category") or "Uncategorised"),
+            source="csv",
+        )
+
+        db.add(transaction)
+        saved.append(transaction)
+
+    db.commit()
+
+    return {
+        "parsed_successfully": parsed.get("parsed_successfully"),
+        "imported_count": len(saved),
+    }
+
+@app.get("/pf/transactions")
+def get_pf_transactions(db: Session = Depends(get_db)):
+    return db.query(models.PFTransaction).all()
+
+@app.get("/pf/summary")
+def get_pf_summary(db: Session = Depends(get_db)):
+    transactions = db.query(models.PFTransaction).all()
+
+    income = sum(t.amount for t in transactions if t.type == "income")
+    expenses = sum(t.amount for t in transactions if t.type == "expense")
+    net = income - expenses
+
+    savings_rate = (net / income * 100) if income else 0
+
+    # Simple health score logic
+    health_score = 50
+    if savings_rate > 20:
+        health_score += 30
+    elif savings_rate > 10:
+        health_score += 20
+    elif savings_rate < 0:
+        health_score -= 30
+
+    health_score = max(0, min(100, int(health_score)))
+
+    snapshot = models.PFSnapshot(
+        user_id="demo-user",
+        health_score=health_score,
+        savings_rate=savings_rate,
+        cashflow_balance=net,
+    )
+
+    db.add(snapshot)
+    db.commit()
+
+    return {
+        "income": income,
+        "expenses": expenses,
+        "net_cash_flow": net,
+        "savings_rate": savings_rate,
+        "health_score": health_score,
+    }
+
+@app.get("/pf/insights")
+def get_pf_insights(db: Session = Depends(get_db)):
+    transactions = db.query(models.PFTransaction).all()
+    budgets = db.query(models.PFBudget).all()
+
+    income = sum(t.amount for t in transactions if t.type == "income")
+    expenses = sum(t.amount for t in transactions if t.type == "expense")
+
+    insights = []
+
+    if expenses > income:
+        insights.append("You are spending more than you earn")
+
+    if income > 0:
+        savings_rate = ((income - expenses) / income) * 100
+        if savings_rate < 10:
+            insights.append("Savings rate is below 10%")
+
+    for budget in budgets:
+        category_spend = sum(
+            t.amount for t in transactions
+            if t.type == "expense" and t.category == budget.category
+        )
+
+        if category_spend > budget.budget_amount:
+            insights.append(f"Over budget in {budget.category}")
+
+    return insights
+
+class BudgetRequest(BaseModel):
+    category: str
+    budget_amount: float
+    period: str = "monthly"
+
+
+@app.post("/pf/budgets")
+def create_budget(req: BudgetRequest, db: Session = Depends(get_db)):
+    existing = db.query(models.PFBudget).filter(
+        models.PFBudget.user_id == "demo-user",
+        models.PFBudget.category == req.category
+    ).first()
+
+    if existing:
+        existing.budget_amount = req.budget_amount
+        existing.period = req.period
+    else:
+        budget = models.PFBudget(
+            user_id="demo-user",
+            category=req.category,
+            budget_amount=req.budget_amount,
+            period=req.period,
+        )
+        db.add(budget)
+
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/pf/budgets")
+def get_budgets(db: Session = Depends(get_db)):
+    return db.query(models.PFBudget).all()
