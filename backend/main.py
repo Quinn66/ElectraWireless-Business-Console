@@ -17,7 +17,8 @@ from upload_parser import parse_uploaded_financial_file
 from LlamaModel import get_web_context, parse_output
 from contextLlamaTest import get_analysis
 from CsvDetectFull import detect_anomalies
-
+from dotenv import load_dotenv
+load_dotenv()
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from uuid import uuid4

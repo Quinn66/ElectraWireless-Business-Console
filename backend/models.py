@@ -12,11 +12,55 @@ Encryption note (spec §3.3 — Nishant + Cole):
 
 from datetime import datetime, date
 from sqlalchemy import (
-    Column, String, Float, Integer, Date, DateTime,
+    TypeDecorator, String, Float, Column, String, Float, Integer, Date, DateTime,
     UniqueConstraint, func,
 )
 from database import Base
+import os
+import base64
+from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+load_dotenv()
 
+# Load key from environment
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+
+if not ENCRYPTION_KEY:
+    raise ValueError("ENCRYPTION_KEY not set")
+
+cipher = Fernet(ENCRYPTION_KEY)
+
+
+class EncryptedString(TypeDecorator):
+    impl = String
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        encrypted = cipher.encrypt(value.encode())
+        return encrypted.decode()
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        decrypted = cipher.decrypt(value.encode())
+        return decrypted.decode()
+
+
+class EncryptedFloat(TypeDecorator):
+    impl = String  # store as string after encryption
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        encrypted = cipher.encrypt(str(value).encode())
+        return encrypted.decode()
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        decrypted = cipher.decrypt(value.encode())
+        return float(decrypted.decode())
 
 class PFTransaction(Base):
     """One confirmed financial transaction belonging to a user."""
@@ -26,8 +70,8 @@ class PFTransaction(Base):
     id          = Column(String,  primary_key=True)          # matches frontend Transaction.id
     user_id     = Column(String,  nullable=False, index=True)
     date        = Column(String,  nullable=False)             # ISO yyyy-mm-dd
-    description = Column(String,  nullable=False)             # TODO: EncryptedString (§3.3)
-    amount      = Column(Float,   nullable=False)             # TODO: EncryptedFloat  (§3.3)
+    description = Column(EncryptedString,  nullable=False)             # TODO: EncryptedString (§3.3)
+    amount      = Column(EncryptedFloat,   nullable=False)             # TODO: EncryptedFloat  (§3.3)
     type        = Column(String,  nullable=False)             # income | expense | transfer
     category    = Column(String,  nullable=False)
     source      = Column(String,  nullable=False)             # csv | manual
@@ -67,3 +111,4 @@ class PFSnapshot(Base):
     savings_rate     = Column(Float,   nullable=True)   # percentage
     cashflow_balance = Column(Float,   nullable=True)   # net cash flow for the period
     created_at       = Column(DateTime, default=func.now())
+
