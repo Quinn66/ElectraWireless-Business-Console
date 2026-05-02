@@ -7,11 +7,18 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useProjectionStore } from "@/store/projectionStore";
-import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
+import { usePersonalFinanceStore, useFilteredTransactions } from "@/store/personalFinanceStore";
 import { AIHintBlock } from "@/components/AIHintBlock";
 import { API_BASE, type AnalysisResult } from "@/lib/api";
 import type { ConsoleTool } from "@/components/ConsoleSidebar";
 import { cn } from "@/lib/utils";
+import {
+  fetchSummary,
+  fetchInsights,
+  fetchPFAIInsights,
+  buildPFAIPayload,
+  type PFAIResponse,
+} from "@/services/personalFinanceApi";
 
 const TOOL_TIPS: Partial<Record<ConsoleTool, string[]>> = {
   home: [
@@ -63,13 +70,17 @@ interface ConsoleAISidebarProps {
 }
 
 export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
-  const [input, setInput]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult]   = useState<AnalysisResult | null>(null);
-  const [error, setError]     = useState<string | null>(null);
+  const [input, setInput]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [result, setResult]     = useState<AnalysisResult | null>(null);
+  const [pfResult, setPfResult] = useState<PFAIResponse | null>(null);
+  const [error, setError]       = useState<string | null>(null);
 
   const setActiveScenario = useProjectionStore((s) => s.setActiveScenario);
   const { loadDemoData, reset } = usePersonalFinanceStore();
+  const pfTransactions = useFilteredTransactions();
+  const pfBudgets      = usePersonalFinanceStore((s) => s.budgets);
+  const pfPeriod       = usePersonalFinanceStore((s) => s.activePeriod);
 
   async function handleAsk() {
     const q = input.trim();
@@ -77,14 +88,22 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
     setLoading(true);
     setError(null);
     setResult(null);
+    setPfResult(null);
     try {
-      const res = await fetch(`${API_BASE}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
-      });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      setResult(await res.json() as AnalysisResult);
+      if (activeTool === "personal") {
+        const summary  = await fetchSummary(pfTransactions);
+        const insights = await fetchInsights(pfTransactions, pfBudgets);
+        const payload  = buildPFAIPayload(q, pfPeriod, summary, insights);
+        setPfResult(await fetchPFAIInsights(payload));
+      } else {
+        const res = await fetch(`${API_BASE}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q }),
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        setResult(await res.json() as AnalysisResult);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -92,7 +111,8 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
     }
   }
 
-  const isDisabled = loading || !input.trim();
+  const noPFData = activeTool === "personal" && pfTransactions.length === 0;
+  const isDisabled = loading || !input.trim() || noPFData;
 
   return (
     <div className="w-[240px] flex-shrink-0 h-full flex flex-col border-l-[1.5px] border-border bg-white/[0.28] backdrop-blur-[20px] overflow-y-auto overflow-x-hidden">
@@ -128,7 +148,13 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
           {loading ? <><Spinner /> Thinking…</> : "Ask Elly"}
         </button>
 
-        {(result || error) && (
+        {noPFData && !error && !pfResult && (
+          <p className="mt-2 m-0 text-[10.5px] text-muted-foreground leading-[1.55]">
+            Import transactions or load demo data to ask Elly about your finances.
+          </p>
+        )}
+
+        {(result || pfResult || error) && (
           <div className="mt-2.5 px-3 py-2.5 bg-white/[0.62] border border-border rounded-lg leading-[1.65]">
             {error && (
               <span className="text-destructive text-[11.5px]">{error}</span>
@@ -144,6 +170,27 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
                       Next Steps
                     </div>
                     {result.next_steps.slice(0, 2).map((s, i) => (
+                      <p key={i} className="m-0 mb-[3px] text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                        → {s}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {pfResult && (
+              <>
+                {pfResult.summary && (
+                  <p className="m-0 mb-2 text-xs text-[hsl(242_44%_35%)]">
+                    {pfResult.summary}
+                  </p>
+                )}
+                {pfResult.recommendedActions && pfResult.recommendedActions.length > 0 && (
+                  <div>
+                    <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1">
+                      Next Steps
+                    </div>
+                    {pfResult.recommendedActions.slice(0, 3).map((s, i) => (
                       <p key={i} className="m-0 mb-[3px] text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
                         → {s}
                       </p>
