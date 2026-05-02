@@ -17,36 +17,46 @@ export const pfApi = axios.create({ baseURL: BASE_URL });
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 
+// Generates a date string N months and D days before today
+function md(monthsAgo: number, day: number): string {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - monthsAgo);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return d.toISOString().slice(0, 10);
+}
+
 export const MOCK_TRANSACTIONS: Transaction[] = [
-  // January 2024
-  { id: "m1",  date: "2024-01-05", description: "Woolworths",         amount: -145.50, type: "expense", category: "Groceries",     source: "csv" },
-  { id: "m2",  date: "2024-01-08", description: "Shell Petrol",       amount: -82.00,  type: "expense", category: "Transport",     source: "csv" },
-  { id: "m3",  date: "2024-01-10", description: "Netflix",            amount: -22.99,  type: "expense", category: "Subscriptions", source: "csv" },
-  { id: "m4",  date: "2024-01-15", description: "Salary Direct Dep",  amount: 4200.00, type: "income",  category: "Income",        source: "csv" },
-  { id: "m5",  date: "2024-01-18", description: "Rent Payment",       amount: -1800.00,type: "expense", category: "Housing",       source: "csv" },
-  { id: "m6",  date: "2024-01-20", description: "Uber Eats",          amount: -38.50,  type: "expense", category: "Dining",        source: "csv" },
-  { id: "m7",  date: "2024-01-22", description: "Electricity Bill",   amount: -180.00, type: "expense", category: "Utilities",     source: "csv" },
-  { id: "m8",  date: "2024-01-25", description: "Spotify",            amount: -12.99,  type: "expense", category: "Subscriptions", source: "csv" },
-  { id: "m9",  date: "2024-01-28", description: "Chemist Warehouse",  amount: -45.00,  type: "expense", category: "Health",        source: "csv" },
-  // February 2024
-  { id: "m10", date: "2024-02-02", description: "Coles",              amount: -162.30, type: "expense", category: "Groceries",     source: "csv" },
-  { id: "m11", date: "2024-02-05", description: "Uber",               amount: -24.00,  type: "expense", category: "Transport",     source: "csv" },
-  { id: "m12", date: "2024-02-10", description: "Amazon Prime",       amount: -9.99,   type: "expense", category: "Subscriptions", source: "csv" },
-  { id: "m13", date: "2024-02-15", description: "Salary Direct Dep",  amount: 4200.00, type: "income",  category: "Income",        source: "csv" },
-  { id: "m14", date: "2024-02-18", description: "Rent Payment",       amount: -1800.00,type: "expense", category: "Housing",       source: "csv" },
-  { id: "m15", date: "2024-02-20", description: "McDonald's",         amount: -18.50,  type: "expense", category: "Dining",        source: "csv" },
-  { id: "m16", date: "2024-02-22", description: "Internet Bill",      amount: -89.00,  type: "expense", category: "Utilities",     source: "csv" },
-  { id: "m17", date: "2024-02-28", description: "JB Hi-Fi",           amount: -349.00, type: "expense", category: "Shopping",      source: "csv" },
-  // March 2024
-  { id: "m18", date: "2024-03-01", description: "Woolworths",         amount: -138.20, type: "expense", category: "Groceries",     source: "csv" },
-  { id: "m19", date: "2024-03-05", description: "Shell Petrol",       amount: -90.00,  type: "expense", category: "Transport",     source: "csv" },
-  { id: "m20", date: "2024-03-10", description: "Netflix",            amount: -22.99,  type: "expense", category: "Subscriptions", source: "csv" },
-  { id: "m21", date: "2024-03-15", description: "Salary Direct Dep",  amount: 4200.00, type: "income",  category: "Income",        source: "csv" },
-  { id: "m22", date: "2024-03-18", description: "Rent Payment",       amount: -1800.00,type: "expense", category: "Housing",       source: "csv" },
-  { id: "m23", date: "2024-03-20", description: "Cafe Dining",        amount: -55.00,  type: "expense", category: "Dining",        source: "csv" },
-  { id: "m24", date: "2024-03-22", description: "AGL Electricity",    amount: -195.00, type: "expense", category: "Utilities",     source: "csv" },
-  { id: "m25", date: "2024-03-25", description: "David Jones",        amount: -280.00, type: "expense", category: "Shopping",      source: "csv" },
-  { id: "m26", date: "2024-03-28", description: "Event Cinema",       amount: -42.00,  type: "expense", category: "Entertainment", source: "csv" },
+  // 3 months ago
+  { id: "m1",  date: md(3,  5), description: "Woolworths",         amount: -145.50, type: "expense", category: "Groceries",     source: "csv" },
+  { id: "m2",  date: md(3,  8), description: "Shell Petrol",       amount: -82.00,  type: "expense", category: "Transport",     source: "csv" },
+  { id: "m3",  date: md(3, 10), description: "Netflix",            amount: -22.99,  type: "expense", category: "Subscriptions", source: "csv" },
+  { id: "m4",  date: md(3, 15), description: "Salary Direct Dep",  amount: 4200.00, type: "income",  category: "Income",        source: "csv" },
+  { id: "m5",  date: md(3, 18), description: "Rent Payment",       amount: -1800.00,type: "expense", category: "Housing",       source: "csv" },
+  { id: "m6",  date: md(3, 20), description: "Uber Eats",          amount: -38.50,  type: "expense", category: "Dining",        source: "csv" },
+  { id: "m7",  date: md(3, 22), description: "Electricity Bill",   amount: -180.00, type: "expense", category: "Utilities",     source: "csv" },
+  { id: "m8",  date: md(3, 25), description: "Spotify",            amount: -12.99,  type: "expense", category: "Subscriptions", source: "csv" },
+  { id: "m9",  date: md(3, 28), description: "Chemist Warehouse",  amount: -45.00,  type: "expense", category: "Health",        source: "csv" },
+  // 2 months ago
+  { id: "m10", date: md(2,  2), description: "Coles",              amount: -162.30, type: "expense", category: "Groceries",     source: "csv" },
+  { id: "m11", date: md(2,  5), description: "Uber",               amount: -24.00,  type: "expense", category: "Transport",     source: "csv" },
+  { id: "m12", date: md(2, 10), description: "Amazon Prime",       amount: -9.99,   type: "expense", category: "Subscriptions", source: "csv" },
+  { id: "m13", date: md(2, 15), description: "Salary Direct Dep",  amount: 4200.00, type: "income",  category: "Income",        source: "csv" },
+  { id: "m14", date: md(2, 18), description: "Rent Payment",       amount: -1800.00,type: "expense", category: "Housing",       source: "csv" },
+  { id: "m15", date: md(2, 20), description: "McDonald's",         amount: -18.50,  type: "expense", category: "Dining",        source: "csv" },
+  { id: "m16", date: md(2, 22), description: "Internet Bill",      amount: -89.00,  type: "expense", category: "Utilities",     source: "csv" },
+  { id: "m17", date: md(2, 28), description: "JB Hi-Fi",           amount: -349.00, type: "expense", category: "Shopping",      source: "csv" },
+  // 1 month ago
+  { id: "m18", date: md(1,  1), description: "Woolworths",         amount: -138.20, type: "expense", category: "Groceries",     source: "csv" },
+  { id: "m19", date: md(1,  5), description: "Shell Petrol",       amount: -90.00,  type: "expense", category: "Transport",     source: "csv" },
+  { id: "m20", date: md(1, 10), description: "Netflix",            amount: -22.99,  type: "expense", category: "Subscriptions", source: "csv" },
+  { id: "m21", date: md(1, 15), description: "Salary Direct Dep",  amount: 4200.00, type: "income",  category: "Income",        source: "csv" },
+  { id: "m22", date: md(1, 18), description: "Rent Payment",       amount: -1800.00,type: "expense", category: "Housing",       source: "csv" },
+  { id: "m23", date: md(1, 20), description: "Cafe Dining",        amount: -55.00,  type: "expense", category: "Dining",        source: "csv" },
+  { id: "m24", date: md(1, 22), description: "AGL Electricity",    amount: -195.00, type: "expense", category: "Utilities",     source: "csv" },
+  { id: "m25", date: md(1, 25), description: "David Jones",        amount: -280.00, type: "expense", category: "Shopping",      source: "csv" },
+  { id: "m26", date: md(1, 28), description: "Event Cinema",       amount: -42.00,  type: "expense", category: "Entertainment", source: "csv" },
 ];
 
 // ── CSV parsing ───────────────────────────────────────────────────────────────
@@ -311,6 +321,10 @@ export interface PFAIRequest {
 }
 
 export interface PFAIResponse {
+  // Q&A mode
+  answer?: string;
+  supporting_insights?: string[];
+  // Report mode
   summary?: string;
   healthScore?: { score: number; interpretation: string; trend: string };
   alerts?: Array<{ alert: string; meaning: string; urgency: string }>;

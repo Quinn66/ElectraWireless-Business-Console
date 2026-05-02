@@ -137,7 +137,7 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
     }),
     }),
     {
-      name: "elly-pf-store",
+      name: "elly-pf-store-v2",
       // Only persist user data — exclude transient UI/API state
       partialize: (state) => ({
         flowStep:     state.flowStep,

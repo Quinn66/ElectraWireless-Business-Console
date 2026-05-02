@@ -15,30 +15,21 @@ function getCutoff(period: Period, ref: Date): Date {
   return d;
 }
 
-/**
- * Filter transactions to those within the selected period.
- * Falls back to anchoring the window against the latest transaction's date
- * when no transactions match today's window (e.g. demo data from 2024).
- */
 export function filterByPeriod(transactions: Transaction[], period: Period): Transaction[] {
   if (transactions.length === 0) return [];
 
-  const cutoff = getCutoff(period, new Date());
-  const filtered = transactions.filter(
-    (tx) => new Date(tx.date + "T00:00:00") >= cutoff
+  const now = Date.now();
+  const latestMs = Math.max(
+    ...transactions.map((tx) => new Date(tx.date + "T00:00:00").getTime())
   );
 
-  if (filtered.length === 0) {
-    const latestMs = Math.max(
-      ...transactions.map((tx) => new Date(tx.date + "T00:00:00").getTime())
-    );
-    const demoCutoff = getCutoff(period, new Date(latestMs));
-    return transactions.filter(
-      (tx) => new Date(tx.date + "T00:00:00") >= demoCutoff
-    );
-  }
+  // If the newest transaction is more than 90 days old, anchor the period
+  // window to that transaction date so historical/imported data still shows.
+  const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+  const anchor = now - latestMs > NINETY_DAYS ? new Date(latestMs) : new Date();
 
-  return filtered;
+  const cutoff = getCutoff(period, anchor);
+  return transactions.filter((tx) => new Date(tx.date + "T00:00:00") >= cutoff);
 }
 
 /** Number of months covered by the period — used to scale monthly budgets. */
