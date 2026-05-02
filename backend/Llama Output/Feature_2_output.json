@@ -1,25 +1,31 @@
 {
-  "summary": "* Total Income: $12,600\n* Total Expenses: $9,800\n* Net Cash Flow: $2,800 (22% savings rate)\n* Health Score: 74 (B grade)",
-  "health_score": {},
-  "alerts": [],
+  "summary": "The user's overall financial situation shows a mixed picture. Their total income is $12,600, while their total expenses come out to be $9,800, resulting in a net cash flow of $2,800. The savings rate stands at 22%, which is a reasonable goal. However, the health score indicates some room for improvement.",
+  "health_score": {
+    "score": 74,
+    "raw": "The user's financial health score is 74 out of a possible 100. This score suggests that they are generally managing their finances well but have some areas where they can improve. A higher score would indicate better budgeting, saving, and debt management habits."
+  },
+  "alerts": [
+    "\u2022 High Housing Costs: Housing expenses account for 55% of total spending, exceeding the recommended 30-35% allocation.",
+    "\u2022 Net Cash Flow Shrinking: The net cash flow has fallen 27% over the last three months while income remained flat.",
+    "\u2022 Recurring Subscriptions Stable: Active subscriptions remain stable at $180/month across 6 services."
+  ],
   "risks": [
-    "Based on the analysis, there are several risks associated with your financial situation:",
-    "* High housing costs may lead to reduced savings and increased debt.",
-    "* Shrinking net cash flow could impact long-term financial stability.",
-    "* Inconsistent income or expenses could lead to unexpected financial shocks."
+    "High housing costs could lead to financial strain if not addressed.",
+    "Decreasing net cash flow might limit the user's ability to save for emergencies or achieve long-term financial goals.",
+    "Over-spending on Entertainment and Shopping categories can quickly deplete savings."
   ],
   "opportunities": [
-    "To improve your financial situation, consider the following opportunities:",
-    "* Review and adjust housing costs (e.g., explore cheaper options).",
-    "* Optimize grocery shopping and dining expenses.",
-    "* Increase income through side hustles or career development.",
-    "* Automate savings to ensure consistent progress towards long-term goals."
+    "To improve their financial situation:",
+    "Review and adjust housing expenses to bring them within a sustainable range (30-35%).",
+    "Reassess monthly income and expenses to identify areas of inefficiency.",
+    "Create a budget that allocates funds for savings, emergencies, and debt repayment.",
+    "Prioritize building an emergency fund and exploring ways to reduce unnecessary expenses."
   ],
   "recommended_actions": [
-    "Review housing costs and consider exploring cheaper options (e.g., rent reduction).",
-    "Adjust budget to prioritize saving over discretionary spending.",
-    "Increase income through side hustles or career development.",
-    "Automate savings to ensure consistent progress towards long-term goals."
+    "Schedule a housing expense review to ensure costs are within a sustainable range.",
+    "Conduct a comprehensive monthly income and expense analysis to identify areas of inefficiency.",
+    "Allocate at least 20% of the total income towards savings and debt repayment.",
+    "Set aside $500 for emergency funds as soon as possible."
   ],
-  "spending_patterns": "* Housing: 43% of total expenses\n* Groceries: 7%\n* Transport: 6%\n* Dining: 4%\n* Utilities: 3%\n* Entertainment: 3%\n* Subscriptions: 1.5%\n* Healthcare: 2%\n* Shopping: 5%\n* Other: 4%"
+  "spending_patterns": "Overall, the user spends money on essential categories like Housing (55%), Groceries (7%), and Utilities (3.5%). They also allocate a significant amount to Entertainment ($3.8) and Shopping ($0.7). The monthly breakdown shows consistent income and expenses across all three months."
 }

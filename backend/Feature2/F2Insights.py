@@ -7,25 +7,18 @@ from groq import Groq
 
 app = FastAPI()
 
-
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-
 # File paths
-
 INPUT_FILE = "../LLama Input/Feature_2_input.json"
 OUTPUT_FILE_REPORT = "../Llama Output/Feature_2_output.json"
 OUTPUT_FILE_QA = "../Llama Output/Feature_2_Qoutput.json"
 
-
-# FastAPI Request Model
-
+# Request Model
 class AIInsightsRequest(BaseModel):
     data: dict
 
-
 # Load JSON input
-
 def load_input():
     try:
         with open(INPUT_FILE, "r", encoding="utf-8") as f:
@@ -37,12 +30,12 @@ def load_input():
         print("❌ Invalid JSON format")
         return None
 
-# Parse LLM output
+# PARSER
 def parse_llm_output(text):
     sections = {}
 
-    pattern = r"\[SECTION: (.*?)\]\n(.*?)(?=\n\[SECTION:|\nEND OF REPORT|\nEND OF RESPONSE|$)"
-    matches = re.findall(pattern, text, re.DOTALL)
+    pattern = r"\[SECTION:\s*([^\]]+)\]\s*(.*?)(?=\n\s*\[SECTION:|\Z)"
+    matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
 
     for name, content in matches:
         key = name.strip().lower()
@@ -56,7 +49,7 @@ def parse_llm_output(text):
 
         insights_raw = sections.get("supporting_insights", "")
         structured["supporting_insights"] = [
-            line.strip("•- ").strip()
+            line.strip("•-* ").strip()
             for line in insights_raw.split("\n")
             if line.strip()
         ]
@@ -64,61 +57,58 @@ def parse_llm_output(text):
         return structured
 
     # REPORT MODE
+
     structured["summary"] = sections.get("summary", "")
 
+    # HEALTH SCORE (light + robust)
     health_raw = sections.get("health_score", "")
-    health = {}
+    structured["health_score"] = {
+        "score": (
+            int(m.group(1))
+            if (m := re.search(r"\b(\d{2,3})\b", health_raw))
+            else None
+        ),
+        "raw": health_raw.strip()
+    }
 
-    score_match = re.search(r"Score:\s*(\d+)", health_raw)
-    interp_match = re.search(r"Interpretation:\s*(.*)", health_raw)
-    trend_match = re.search(r"Trend:\s*(.*)", health_raw)
-
-    if score_match:
-        health["score"] = int(score_match.group(1))
-    if interp_match:
-        health["interpretation"] = interp_match.group(1).strip()
-    if trend_match:
-        health["trend"] = trend_match.group(1).strip()
-
-    structured["health_score"] = health
-
+    # ALERTS (simple + stable)
     alerts_raw = sections.get("alerts", "")
     alerts = []
 
-    alert_pattern = r"- Alert:\s*(.*?)\n\s*Meaning:\s*(.*?)\n\s*Urgency:\s*(.*)"
-    for match in re.findall(alert_pattern, alerts_raw):
-        alerts.append({
-            "alert": match[0].strip(),
-            "meaning": match[1].strip(),
-            "urgency": match[2].strip()
-        })
+    for line in alerts_raw.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
 
-    if not alerts and "No alerts" in alerts_raw:
-        alerts = []
+        line = re.sub(r"\*\*", "", line)
+        alerts.append(line)
 
     structured["alerts"] = alerts
 
+    # BULLETS
     def extract_bullets(text):
-        return [line.strip("•- ").strip() for line in text.split("\n") if line.strip()]
+        return [
+            re.sub(r"^[\*\-\•]\s*", "", line).strip()
+            for line in text.split("\n")
+            if line.strip()
+        ]
 
     structured["risks"] = extract_bullets(sections.get("risks", ""))
     structured["opportunities"] = extract_bullets(sections.get("opportunities", ""))
 
+    # ACTIONS
     actions_raw = sections.get("recommended_actions", "")
-    actions = []
+    structured["recommended_actions"] = [
+        re.sub(r"^\d+\.\s*", "", line).strip()
+        for line in actions_raw.split("\n")
+        if re.match(r"^\d+\.", line.strip())
+    ]
 
-    for line in actions_raw.split("\n"):
-        match = re.match(r"\d+\.\s*(.*)", line.strip())
-        if match:
-            actions.append(match.group(1).strip())
-
-    structured["recommended_actions"] = actions
     structured["spending_patterns"] = sections.get("spending_patterns", "")
 
     return structured
 
-# Build Prompt
-
+# PROMPT (UPDATED VERSION)
 def build_finance_prompt(data):
     question = data.get("question", "").strip()
 
@@ -134,37 +124,51 @@ CRITICAL RULES:
 3. Keep language simple and direct.
 """
 
+    # REPORT MODE
     if not question:
         return base_prompt + """
 
 Your task is to generate a full financial report.
 
-Follow this EXACT format:
+Follow this format:
 
 [SECTION: SUMMARY]
-...
+- Provide a short overview of financial situation.
+- Mention income, expenses, net cash flow if available.
+- Keep it concise and readable.
 
 [SECTION: HEALTH_SCORE]
-...
+- Explain financial health score in simple terms.
+- Include score if available.
+- Brief interpretation.
 
 [SECTION: ALERTS]
-...
+- List important financial alerts or warnings.
+- Use bullet points.
+- If none, clearly state no alerts.
 
 [SECTION: SPENDING_PATTERNS]
-...
+- Summarize spending behaviour.
+- Show category breakdown if available.
 
 [SECTION: RISKS]
-...
+- List financial risks based on data.
+- Keep each point short.
 
 [SECTION: OPPORTUNITIES]
-...
+- List improvements or optimisations.
 
 [SECTION: RECOMMENDED_ACTIONS]
-...
+- Provide 4 clear next steps:
+  1. Most urgent
+  2. High impact
+  3. Medium term
+  4. Optional improvement
 
 END OF REPORT
 """
 
+    # Q&A MODE
     else:
         return base_prompt + f"""
 
@@ -188,20 +192,17 @@ OUTPUT FORMAT:
 END OF RESPONSE
 """
 
-# Call Ollama
-
+# GROQ CALL
 def get_analysis(prompt):
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
+        messages=[{"role": "user", "content": prompt}],
         max_tokens=1500
     )
 
     return response.choices[0].message.content
 
-# Save Output
+# SAVE OUTPUT
 def save_output(raw_text, output_path):
     parsed = parse_llm_output(raw_text)
 
@@ -210,7 +211,7 @@ def save_output(raw_text, output_path):
 
     print(f"💾 Saved structured output to {output_path}")
 
-# FASTAPI ROUTE
+# FASTAPI ENDPOINT
 @app.post("/pf/ai-insights")
 def ai_insights(request: AIInsightsRequest):
     data = request.data
@@ -232,7 +233,8 @@ def ai_insights(request: AIInsightsRequest):
 
     return structured
 
-# MAIN FLOW
+# RUN
+
 def run():
     data = load_input()
     if not data:

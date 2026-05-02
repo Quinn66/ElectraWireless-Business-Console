@@ -1,8 +1,8 @@
 {
-  "answer": "Your finances are tracking with a net cash flow of $2800, indicating that you're managing your expenses effectively. However, your savings rate is only 22%, which might be lower than recommended. You've also experienced a decline in net cash flow over the last three months. To improve, focus on increasing your savings and reducing unnecessary expenses.",
+  "answer": "Your finances are tracking with a net cash flow of $2800, indicating a relatively stable financial situation. However, your net cash flow has shrunk by 27% over the last three months while income remained flat. To focus next, consider addressing high housing costs and exploring ways to increase savings rate.",
   "supporting_insights": [
-    "Housing costs are 55% of total spending, exceeding the recommended range.",
-    "Net cash flow has decreased by 27% over the last three months despite maintaining a steady income.",
-    "Your health score is 74, indicating room for improvement in managing your finances to prioritize healthcare expenses."
+    "Housing expenses account for 55% of total spending, exceeding the recommended 30-35% allocation.",
+    "Your net cash flow decreased from $1100 in January to $800 in March despite flat income.",
+    "Your savings rate is 22%, which is below the general recommendation."
   ]
 }

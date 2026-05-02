@@ -25,9 +25,12 @@ def load_input():
 def parse_llm_output(text):
     sections = {}
 
-    # Regex to capture each section block
-    pattern = r"\[SECTION: (.*?)\]\n(.*?)(?=\n\[SECTION:|\nEND OF REPORT|\nEND OF RESPONSE|$)"
-    matches = re.findall(pattern, text, re.DOTALL)
+    # -----------------------------------
+    # UNIVERSAL SECTION PARSER (FIXED)
+    # -----------------------------------
+    pattern = r"\[SECTION:\s*([^\]]+)\]\s*(.*?)(?=\n\s*\[SECTION:|\Z)"
+
+    matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
 
     for name, content in matches:
         key = name.strip().lower()
@@ -36,73 +39,71 @@ def parse_llm_output(text):
     structured = {}
 
     # -------------------------
-    # ✅ Q&A MODE DETECTION
+    # Q&A MODE
     # -------------------------
     if "answer" in sections:
         structured["answer"] = sections.get("answer", "")
 
         insights_raw = sections.get("supporting_insights", "")
         structured["supporting_insights"] = [
-            line.strip("•- ").strip()
+            line.strip("•-* ").strip()
             for line in insights_raw.split("\n")
             if line.strip()
         ]
 
-        return structured  # 🔥 EARLY RETURN for Q&A mode
+        return structured
 
     # -------------------------
-    # 📊 REPORT MODE (existing logic)
+    # REPORT MODE
     # -------------------------
 
     structured["summary"] = sections.get("summary", "")
 
+    # HEALTH SCORE (now just raw passthrough + light extraction)
     health_raw = sections.get("health_score", "")
-    health = {}
+    structured["health_score"] = {
+        "score": (
+            int(m.group(1))
+            if (m := re.search(r"\b(\d{2,3})\b", health_raw))
+            else None
+        ),
+        "raw": health_raw.strip()
+    }
 
-    score_match = re.search(r"Score:\s*(\d+)", health_raw)
-    interp_match = re.search(r"Interpretation:\s*(.*)", health_raw)
-    trend_match = re.search(r"Trend:\s*(.*)", health_raw)
-
-    if score_match:
-        health["score"] = int(score_match.group(1))
-    if interp_match:
-        health["interpretation"] = interp_match.group(1).strip()
-    if trend_match:
-        health["trend"] = trend_match.group(1).strip()
-
-    structured["health_score"] = health
-
+    # ALERTS (pure structural split, no assumptions about format)
     alerts_raw = sections.get("alerts", "")
     alerts = []
 
-    alert_pattern = r"- Alert:\s*(.*?)\n\s*Meaning:\s*(.*?)\n\s*Urgency:\s*(.*)"
-    for match in re.findall(alert_pattern, alerts_raw):
-        alerts.append({
-            "alert": match[0].strip(),
-            "meaning": match[1].strip(),
-            "urgency": match[2].strip()
-        })
+    for line in alerts_raw.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
 
-    if not alerts and "No alerts" in alerts_raw:
-        alerts = []
+        line = re.sub(r"\*\*", "", line)  # remove bold markdown
+
+        alerts.append(line)
 
     structured["alerts"] = alerts
 
+    # RISKS / OPPORTUNITIES / OTHERS (generic bullet extractor)
     def extract_bullets(text):
-        return [line.strip("•- ").strip() for line in text.split("\n") if line.strip()]
+        return [
+            re.sub(r"^[\*\-\•]\s*", "", line).strip()
+            for line in text.split("\n")
+            if line.strip()
+        ]
 
     structured["risks"] = extract_bullets(sections.get("risks", ""))
     structured["opportunities"] = extract_bullets(sections.get("opportunities", ""))
 
+    # RECOMMENDED ACTIONS
     actions_raw = sections.get("recommended_actions", "")
-    actions = []
+    structured["recommended_actions"] = [
+        re.sub(r"^\d+\.\s*", "", line).strip()
+        for line in actions_raw.split("\n")
+        if re.match(r"^\d+\.", line.strip())
+    ]
 
-    for line in actions_raw.split("\n"):
-        match = re.match(r"\d+\.\s*(.*)", line.strip())
-        if match:
-            actions.append(match.group(1).strip())
-
-    structured["recommended_actions"] = actions
     structured["spending_patterns"] = sections.get("spending_patterns", "")
 
     return structured
@@ -123,9 +124,7 @@ CRITICAL RULES:
 3. Keep language simple and direct.
 """
 
-    # -------------------------
     # MODE 1: No question (auto page load)
-    # -------------------------
     if not question:
         return base_prompt + """
 
@@ -134,32 +133,42 @@ Your task is to generate a full financial report.
 Follow this EXACT format:
 
 [SECTION: SUMMARY]
-...
+- Provide a short overview of the user's overall financial situation.
+- Mention key figures like income, expenses, net cash flow, and general financial health if available.
+- Keep it clear and easy to read.
 
 [SECTION: HEALTH_SCORE]
-...
+- Explain the user's financial health score in simple terms.
+- Include the score if provided.
+- Briefly describe what the score indicates.
 
 [SECTION: ALERTS]
-...
+- List any important financial alerts or warnings.
+- Use bullet points for each alert.
+- If no alerts exist, state that clearly.
 
 [SECTION: SPENDING_PATTERNS]
-...
+- Summarize how the user spends money overall.
+- Break down key spending categories in bullet points if available.
+- Highlight any noticeable patterns.
 
 [SECTION: RISKS]
-...
+- List potential financial risks based on the data.
+- Keep each point short and direct.
 
 [SECTION: OPPORTUNITIES]
-...
+- List areas where the user could improve their financial situation.
+- Focus on practical and realistic improvements.
 
 [SECTION: RECOMMENDED_ACTIONS]
-...
+- Provide a short list of helpful next steps.
+- Keep actions clear and easy to follow.
+- No need for strict ordering unless naturally obvious.
 
 END OF REPORT
 """
 
-    # -------------------------
     # MODE 2: Question asked
-    # -------------------------
     else:
         return base_prompt + f"""
 
