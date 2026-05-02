@@ -280,6 +280,88 @@ export async function fetchInsights(
   return insights.sort((a, b) => (a.severity === "danger" ? -1 : b.severity === "danger" ? 1 : 0));
 }
 
+// ── AI Insights (Ask Elly on PF dashboard) ────────────────────────────────────
+
+export interface PFAIRequest {
+  question: string;
+  period: string;
+  summary: {
+    totalIncome: number;
+    totalExpenses: number;
+    netCashFlow: number;
+    savingsRate: number;
+    healthScore: number;
+    healthGrade: string;
+  };
+  breakdown: {
+    categoryTotals: Record<string, number>;
+    monthlyBreakdown: Array<{
+      month: string;
+      income: number;
+      expenses: number;
+      netCashFlow: number;
+    }>;
+  };
+  alerts: Array<{
+    type: string;
+    severity: string;
+    title: string;
+    message: string;
+  }>;
+}
+
+export interface PFAIResponse {
+  summary?: string;
+  healthScore?: { score: number; interpretation: string; trend: string };
+  alerts?: Array<{ alert: string; meaning: string; urgency: string }>;
+  spendingPatterns?: { overview: string; keyCategories: string[]; anomalies: string };
+  risks?: string[];
+  opportunities?: string[];
+  recommendedActions?: string[];
+}
+
+/** Build the payload the backend team requested from already-computed PF data. */
+export function buildPFAIPayload(
+  question: string,
+  period: string,
+  summary: FinancialSummary,
+  insights: PFInsight[],
+): PFAIRequest {
+  return {
+    question,
+    period,
+    summary: {
+      totalIncome:   summary.totalIncome,
+      totalExpenses: summary.totalExpenses,
+      netCashFlow:   summary.netCashFlow,
+      savingsRate:   summary.savingsRate,
+      healthScore:   summary.healthScore,
+      healthGrade:   summary.healthGrade,
+    },
+    breakdown: {
+      categoryTotals: summary.categoryTotals,
+      monthlyBreakdown: summary.monthlyBreakdown.map((m) => ({
+        month:       m.month,
+        income:      m.income,
+        expenses:    m.expenses,
+        netCashFlow: m.net,
+      })),
+    },
+    alerts: insights.map((i) => ({
+      type:     i.type,
+      severity: i.severity,
+      title:    i.title,
+      message:  i.message,
+    })),
+  };
+}
+
+/** POST PF context + question to the Ollama-backed insights endpoint. */
+export async function fetchPFAIInsights(payload: PFAIRequest): Promise<PFAIResponse> {
+  const res = await pfApi.post<PFAIResponse>("/pf/ai-insights", payload);
+  return res.data;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function groupByMonthCat(transactions: Transaction[], month: string): Record<string, number> {
