@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, HTTPException, UploadFile, Depends
+from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -335,3 +335,15 @@ def create_budget(req: BudgetRequest, db: Session = Depends(get_db)):
 @app.get("/pf/budgets")
 def get_budgets(db: Session = Depends(get_db)):
     return db.query(models.PFBudget).all()
+
+
+# ── Feature 2 AI Insights ─────────────────────────────────────────────────────
+
+from Feature2.F2Insights import build_finance_prompt, get_analysis, parse_llm_output
+
+
+@app.post("/pf/ai-insights")
+def ai_insights(req: dict = Body(...)):
+    prompt = build_finance_prompt(req)
+    raw = get_analysis(prompt)
+    return parse_llm_output(raw)
