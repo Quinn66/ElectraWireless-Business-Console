@@ -1,41 +1,25 @@
 {
-  "summary": "The overall financial condition is tracking within a stable range, with a net cash flow of $2800 and savings rate of 22%. However, housing expenses are above the recommended allocation, indicating potential areas for optimization.",
-  "health_score": {
-    "score": 74,
-    "interpretation": "A health score of 74 indicates a moderate level of financial stability. While overall spending is manageable, there are some notable expenses that warrant attention.",
-    "trend": "Stable"
-  },
-  "alerts": [
-    {
-      "alert": "High Housing Costs",
-      "meaning": "Excessive housing expenses may lead to reduced savings and financial flexibility.",
-      "urgency": "Medium"
-    },
-    {
-      "alert": "Net cash flow shrinking",
-      "meaning": "A decline in net cash flow could impact long-term financial security, particularly if not offset by increased income or expense reductions.",
-      "urgency": "Low"
-    },
-    {
-      "alert": "Recurring subscriptions stable",
-      "meaning": "Stable subscription costs indicate no immediate risks from this category, but ongoing monitoring is still necessary to ensure they remain affordable and relevant.",
-      "urgency": "Low"
-    }
-  ],
+  "summary": "* Total Income: $12,600\n* Total Expenses: $9,800\n* Net Cash Flow: $2,800 (22% savings rate)\n* Health Score: 74 (B grade)",
+  "health_score": {},
+  "alerts": [],
   "risks": [
-    "High housing costs may impact financial flexibility and savings rates if not addressed.",
-    "A declining net cash flow could compromise long-term financial stability unless corrected or offset by increased income or expenses reductions."
+    "Based on the analysis, there are several risks associated with your financial situation:",
+    "* High housing costs may lead to reduced savings and increased debt.",
+    "* Shrinking net cash flow could impact long-term financial stability.",
+    "* Inconsistent income or expenses could lead to unexpected financial shocks."
   ],
   "opportunities": [
-    "Reduce housing expenses to bring them within the recommended 30-35% allocation range (immediate action).",
-    "Explore strategies to boost income, such as salary negotiations or side hustles, to offset the decline in net cash flow.",
-    "Reassess subscription costs and services to ensure they remain necessary and affordable."
+    "To improve your financial situation, consider the following opportunities:",
+    "* Review and adjust housing costs (e.g., explore cheaper options).",
+    "* Optimize grocery shopping and dining expenses.",
+    "* Increase income through side hustles or career development.",
+    "* Automate savings to ensure consistent progress towards long-term goals."
   ],
   "recommended_actions": [
-    "Reduce housing expenses to bring them within the recommended allocation range (high priority).",
-    "Investigate ways to increase income or reduce expenses elsewhere to stabilize or improve the net cash flow (important action).",
-    "Re-evaluate subscription costs to minimize unnecessary services and optimize spending (medium-term improvement).",
-    "Implement a budgeting plan with regular reviews to monitor and adjust spending categories as needed (optional optimization)."
+    "Review housing costs and consider exploring cheaper options (e.g., rent reduction).",
+    "Adjust budget to prioritize saving over discretionary spending.",
+    "Increase income through side hustles or career development.",
+    "Automate savings to ensure consistent progress towards long-term goals."
   ],
-  "spending_patterns": "Overview: The spending patterns suggest a generally stable financial position, with some categories exhibiting notable expenses. Housing expenses are the most prominent category, accounting for 55% of total spending.\n\nKey Categories:\n- Housing: Excessive expenses (above 30-35% allocation)\n- Transport: No anomalies detected\n\nAnomalies:\n- None explicitly present in the data, but it's essential to monitor these categories closely to ensure they remain within budgeted limits."
+  "spending_patterns": "* Housing: 43% of total expenses\n* Groceries: 7%\n* Transport: 6%\n* Dining: 4%\n* Utilities: 3%\n* Entertainment: 3%\n* Subscriptions: 1.5%\n* Healthcare: 2%\n* Shopping: 5%\n* Other: 4%"
 }

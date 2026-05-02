@@ -5,7 +5,8 @@ import re
 # File paths
 # =========================
 INPUT_FILE = "../LLama Input/Feature_2_input.json"
-OUTPUT_FILE = "../Llama Output/Feature_2_output.json"
+OUTPUT_FILE_REPORT = "../Llama Output/Feature_2_output.json"
+OUTPUT_FILE_QA = "../Llama Output/Feature_2_Qoutput.json"
 
 # =========================
 # Load JSON input
@@ -25,22 +26,39 @@ def parse_llm_output(text):
     sections = {}
 
     # Regex to capture each section block
-    pattern = r"\[SECTION: (.*?)\]\n(.*?)(?=\n\[SECTION:|\nEND OF REPORT|$)"
+    pattern = r"\[SECTION: (.*?)\]\n(.*?)(?=\n\[SECTION:|\nEND OF REPORT|\nEND OF RESPONSE|$)"
     matches = re.findall(pattern, text, re.DOTALL)
 
     for name, content in matches:
         key = name.strip().lower()
         sections[key] = content.strip()
 
-    # --- Optional deeper parsing per section ---
     structured = {}
 
-    # SUMMARY
+    # -------------------------
+    # ✅ Q&A MODE DETECTION
+    # -------------------------
+    if "answer" in sections:
+        structured["answer"] = sections.get("answer", "")
+
+        insights_raw = sections.get("supporting_insights", "")
+        structured["supporting_insights"] = [
+            line.strip("•- ").strip()
+            for line in insights_raw.split("\n")
+            if line.strip()
+        ]
+
+        return structured  # 🔥 EARLY RETURN for Q&A mode
+
+    # -------------------------
+    # 📊 REPORT MODE (existing logic)
+    # -------------------------
+
     structured["summary"] = sections.get("summary", "")
 
-    # HEALTH SCORE
     health_raw = sections.get("health_score", "")
     health = {}
+
     score_match = re.search(r"Score:\s*(\d+)", health_raw)
     interp_match = re.search(r"Interpretation:\s*(.*)", health_raw)
     trend_match = re.search(r"Trend:\s*(.*)", health_raw)
@@ -54,7 +72,6 @@ def parse_llm_output(text):
 
     structured["health_score"] = health
 
-    # ALERTS
     alerts_raw = sections.get("alerts", "")
     alerts = []
 
@@ -71,7 +88,6 @@ def parse_llm_output(text):
 
     structured["alerts"] = alerts
 
-    # RISKS / OPPORTUNITIES (bullet lists)
     def extract_bullets(text):
         return [line.strip("•- ").strip() for line in text.split("\n") if line.strip()]
 
@@ -87,80 +103,88 @@ def parse_llm_output(text):
             actions.append(match.group(1).strip())
 
     structured["recommended_actions"] = actions
-
     structured["spending_patterns"] = sections.get("spending_patterns", "")
 
     return structured
 
 # Build prompt
 def build_finance_prompt(data):
-    prompt = f"""
-You are a financial and behavioral spending analysis assistant.
+    question = data.get("question", "").strip()
 
-You will be given a JSON input containing financial summary data, including:
-- Account metadata
-- Health score (overall financial health indicator)
-- Alerts (warnings or notable events)
-- Spending patterns (categories, trends, anomalies)
+    base_prompt = f"""
+You are a financial and behavioral spending analysis assistant.
 
 INPUT JSON:
 {json.dumps(data, indent=2)}
 
-Your task is to analyze the data and produce a structured, clear, and actionable report.
-
 CRITICAL RULES:
-1. Only use values explicitly present in the JSON. Do NOT guess or infer missing numbers.
-2. Do NOT fabricate trends, categories, or financial values.
-3. Focus only on what is observable in the data.
-4. Keep language simple and direct.
-5. Do NOT ask questions or request clarification.
-6. Prioritize insights from:
-   - Health score
-   - Alerts
-   - Spending patterns
+1. Only use values explicitly present in the JSON.
+2. Do NOT fabricate data.
+3. Keep language simple and direct.
+"""
 
-OUTPUT FORMAT (STRICT — follow exactly):
+    # -------------------------
+    # MODE 1: No question (auto page load)
+    # -------------------------
+    if not question:
+        return base_prompt + """
+
+Your task is to generate a full financial report.
+
+Follow this EXACT format:
 
 [SECTION: SUMMARY]
-- Provide 2–4 sentences describing overall financial condition
-- Must reference health score and observable spending behavior
+...
 
 [SECTION: HEALTH_SCORE]
-- Score: <value from JSON>
-- Interpretation: <what the score indicates>
-- Trend: <Improving | Stable | Declining | Unknown (if not supported by data)>
+...
 
 [SECTION: ALERTS]
-- If no alerts: "No alerts present"
-- Otherwise list each alert as:
-  - Alert: <alert name or description>
-    Meaning: <practical explanation>
-    Urgency: <Low | Medium | High (only if implied by data)>
+...
 
 [SECTION: SPENDING_PATTERNS]
-- Overview: <1–2 sentence summary>
-- Key Categories:
-  - <Category>: <observation>
-- Anomalies:
-  - <Only include if explicitly present in data>
+...
 
 [SECTION: RISKS]
-- Bullet list of risks directly supported by the data
-- If none: "No significant risks identified"
+...
 
 [SECTION: OPPORTUNITIES]
-- Bullet list of improvements or optimizations
-- Must be grounded in observed data
+...
 
 [SECTION: RECOMMENDED_ACTIONS]
-1. <Most urgent corrective action>
-2. <Important cost or risk reduction action>
-3. <Medium-term improvement action>
-4. <Optional optimization>
+...
 
 END OF REPORT
 """
-    return prompt
+
+    # -------------------------
+    # MODE 2: Question asked
+    # -------------------------
+    else:
+        return base_prompt + f"""
+
+The user has asked the following question:
+
+"{question}"
+
+Your task:
+- Answer the question directly using ONLY the provided data
+- Be concise and focused
+- Do NOT generate the full report
+- Do NOT include sections unless needed
+
+OUTPUT FORMAT:
+
+[SECTION: ANSWER]
+- Direct answer to the question
+- Include supporting numbers from the data
+- Keep it under 5 sentences
+
+[SECTION: SUPPORTING_INSIGHTS]
+- Bullet points of relevant supporting observations
+
+END OF RESPONSE
+"""
 
 # Call Ollama
 def get_analysis(prompt):
@@ -180,19 +204,22 @@ def get_analysis(prompt):
     return response.json()["response"]
 
 # Save output
-def save_output(raw_text):
+def save_output(raw_text, output_path):
     parsed = parse_llm_output(raw_text)
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(parsed, f, indent=2)
 
-    print(f"💾 Saved structured output to {OUTPUT_FILE}")
+    print(f"💾 Saved structured output to {output_path}")
 
 # Main flow
 def run():
     data = load_input()
     if not data:
         return
+
+    question = data.get("question", "").strip()
+    has_question = bool(question)
 
     print("🔍 Generating financial summary...\n")
 
@@ -202,7 +229,11 @@ def run():
     print("=== LLM OUTPUT ===\n")
     print(result)
 
-    save_output(result)
+    # Route output based on mode
+    if has_question:
+        save_output(result, OUTPUT_FILE_QA)
+    else:
+        save_output(result, OUTPUT_FILE_REPORT)
 
 
 if __name__ == "__main__":
