@@ -1,31 +1,16 @@
 import json
+import requests
 import re
-from fastapi import FastAPI
-from pydantic import BaseModel
-import os
-from groq import Groq
-
-app = FastAPI()
-
-
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-
-
+# =========================
 # File paths
-
+# =========================
 INPUT_FILE = "../LLama Input/Feature_2_input.json"
 OUTPUT_FILE_REPORT = "../Llama Output/Feature_2_output.json"
 OUTPUT_FILE_QA = "../Llama Output/Feature_2_Qoutput.json"
 
-
-# FastAPI Request Model
-
-class AIInsightsRequest(BaseModel):
-    data: dict
-
-
+# =========================
 # Load JSON input
-
+# =========================
 def load_input():
     try:
         with open(INPUT_FILE, "r", encoding="utf-8") as f:
@@ -37,10 +22,10 @@ def load_input():
         print("❌ Invalid JSON format")
         return None
 
-# Parse LLM output
 def parse_llm_output(text):
     sections = {}
 
+    # Regex to capture each section block
     pattern = r"\[SECTION: (.*?)\]\n(.*?)(?=\n\[SECTION:|\nEND OF REPORT|\nEND OF RESPONSE|$)"
     matches = re.findall(pattern, text, re.DOTALL)
 
@@ -50,7 +35,9 @@ def parse_llm_output(text):
 
     structured = {}
 
-    # Q&A MODE
+    # -------------------------
+    # ✅ Q&A MODE DETECTION
+    # -------------------------
     if "answer" in sections:
         structured["answer"] = sections.get("answer", "")
 
@@ -61,9 +48,12 @@ def parse_llm_output(text):
             if line.strip()
         ]
 
-        return structured
+        return structured  # 🔥 EARLY RETURN for Q&A mode
 
-    # REPORT MODE
+    # -------------------------
+    # 📊 REPORT MODE (existing logic)
+    # -------------------------
+
     structured["summary"] = sections.get("summary", "")
 
     health_raw = sections.get("health_score", "")
@@ -117,8 +107,7 @@ def parse_llm_output(text):
 
     return structured
 
-# Build Prompt
-
+# Build prompt
 def build_finance_prompt(data):
     question = data.get("question", "").strip()
 
@@ -134,6 +123,9 @@ CRITICAL RULES:
 3. Keep language simple and direct.
 """
 
+    # -------------------------
+    # MODE 1: No question (auto page load)
+    # -------------------------
     if not question:
         return base_prompt + """
 
@@ -165,43 +157,53 @@ Follow this EXACT format:
 END OF REPORT
 """
 
+    # -------------------------
+    # MODE 2: Question asked
+    # -------------------------
     else:
         return base_prompt + f"""
 
-The user has asked:
+The user has asked the following question:
 
 "{question}"
 
 Your task:
-- Answer directly using ONLY the data
+- Answer the question directly using ONLY the provided data
 - Be concise and focused
-- Do NOT generate full report
+- Do NOT generate the full report
+- Do NOT include sections unless needed
 
 OUTPUT FORMAT:
 
 [SECTION: ANSWER]
-- Direct answer (max 5 sentences)
+- Direct answer to the question
+- Include supporting numbers from the data
+- Keep it under 5 sentences
 
 [SECTION: SUPPORTING_INSIGHTS]
-- Bullet points of relevant observations
+- Bullet points of relevant supporting observations
 
 END OF RESPONSE
 """
 
 # Call Ollama
-
 def get_analysis(prompt):
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=1500
-    )
+    url = "http://localhost:11434/api/generate"
 
-    return response.choices[0].message.content
+    payload = {
+        "model": "llama3.2",
+        "prompt": prompt,
+        "stream": False
+    }
 
-# Save Output
+    response = requests.post(url, json=payload)
+
+    if response.status_code != 200:
+        raise Exception(f"Ollama error: {response.text}")
+
+    return response.json()["response"]
+
+# Save output
 def save_output(raw_text, output_path):
     parsed = parse_llm_output(raw_text)
 
@@ -210,29 +212,7 @@ def save_output(raw_text, output_path):
 
     print(f"💾 Saved structured output to {output_path}")
 
-# FASTAPI ROUTE
-@app.post("/pf/ai-insights")
-def ai_insights(request: AIInsightsRequest):
-    data = request.data
-
-    question = data.get("question", "").strip()
-    has_question = bool(question)
-
-    print("🔍 FastAPI /pf/ai-insights called...")
-
-    prompt = build_finance_prompt(data)
-    result = get_analysis(prompt)
-
-    structured = parse_llm_output(result)
-
-    if has_question:
-        save_output(result, OUTPUT_FILE_QA)
-    else:
-        save_output(result, OUTPUT_FILE_REPORT)
-
-    return structured
-
-# MAIN FLOW
+# Main flow
 def run():
     data = load_input()
     if not data:
@@ -249,6 +229,7 @@ def run():
     print("=== LLM OUTPUT ===\n")
     print(result)
 
+    # Route output based on mode
     if has_question:
         save_output(result, OUTPUT_FILE_QA)
     else:
