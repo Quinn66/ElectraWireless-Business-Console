@@ -148,76 +148,89 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
           {loading ? <><Spinner /> Thinking…</> : "Ask Elly"}
         </button>
 
-        {noPFData && !error && !pfResult && (
+        {noPFData && !loading && (
           <p className="mt-2 m-0 text-[10.5px] text-muted-foreground leading-[1.55]">
             Import transactions or load demo data to ask Elly about your finances.
           </p>
         )}
-
-        {(result || pfResult || error) && (
-          <div className="mt-2.5 px-3 py-2.5 bg-white/[0.62] border border-border rounded-lg leading-[1.65]">
-            {error && (
-              <span className="text-destructive text-[11.5px]">{error}</span>
-            )}
-            {result && (
-              <>
-                <p className="m-0 mb-2 text-xs text-[hsl(242_44%_35%)]">
-                  {result.analysis_short}
-                </p>
-                {result.next_steps.length > 0 && (
-                  <div>
-                    <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1">
-                      Next Steps
-                    </div>
-                    {result.next_steps.slice(0, 2).map((s, i) => (
-                      <p key={i} className="m-0 mb-[3px] text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
-                        → {s}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-            {pfResult && (
-              <>
-                {pfResult.summary && (
-                  <p className="m-0 mb-2 text-xs text-[hsl(242_44%_35%)]">
-                    {pfResult.summary}
-                  </p>
-                )}
-                {pfResult.recommendedActions && pfResult.recommendedActions.length > 0 && (
-                  <div>
-                    <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1">
-                      Next Steps
-                    </div>
-                    {pfResult.recommendedActions.slice(0, 3).map((s, i) => (
-                      <p key={i} className="m-0 mb-[3px] text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
-                        → {s}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </section>
 
-      {/* Elly Suggestions */}
-      <section className="p-3.5 border-b border-primary/[0.08] flex-1 min-h-0">
-        <SectionHeader>Elly Suggestions</SectionHeader>
+      {/* Response / Elly Suggestions — flex-1 so it fills available space */}
+      <section className="p-3.5 border-b border-primary/[0.08] flex-1 min-h-0 overflow-y-auto">
+        {error && (
+          <>
+            <SectionHeader>Error</SectionHeader>
+            <span className="text-destructive text-[11.5px]">{error}</span>
+          </>
+        )}
 
-        {activeTool === "projection" ? (
-          <AIHintBlock />
-        ) : (
-          <div className="flex flex-col gap-2">
-            {(TOOL_TIPS[activeTool] ?? []).map((tip, i) => (
-              <p key={i} className="m-0 text-[11.5px] text-muted-foreground leading-[1.65]">
-                <span className="text-primary mr-[5px]">→</span>
-                {tip}
-              </p>
-            ))}
-          </div>
+        {!error && (result || pfResult) && (
+          <>
+            <SectionHeader>Elly's Response</SectionHeader>
+            <div className="flex flex-col gap-3">
+              {result && (
+                <>
+                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
+                    {result.analysis_short}
+                  </p>
+                  {result.next_steps.length > 0 && (
+                    <div>
+                      <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
+                        Next Steps
+                      </div>
+                      {result.next_steps.slice(0, 2).map((s, i) => (
+                        <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                          → {s}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              {pfResult && (
+                <>
+                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
+                    {pfResult.answer ?? pfResult.summary}
+                  </p>
+                  {(() => {
+                    const items = pfResult.supporting_insights ?? pfResult.recommendedActions;
+                    const label = pfResult.supporting_insights ? "Key Insights" : "Next Steps";
+                    if (!items || items.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
+                          {label}
+                        </div>
+                        {items.slice(0, 3).map((s, i) => (
+                          <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                            → {s}
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {!error && !result && !pfResult && (
+          <>
+            <SectionHeader>Elly Suggestions</SectionHeader>
+            {activeTool === "projection" ? (
+              <AIHintBlock />
+            ) : (
+              <div className="flex flex-col gap-2">
+                {(TOOL_TIPS[activeTool] ?? []).map((tip, i) => (
+                  <p key={i} className="m-0 text-[11.5px] text-muted-foreground leading-[1.65]">
+                    <span className="text-primary mr-[5px]">→</span>
+                    {tip}
+                  </p>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
 

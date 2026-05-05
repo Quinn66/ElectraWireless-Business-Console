@@ -339,8 +339,8 @@ export function OverviewTab() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
 
   useEffect(() => {
-    if (transactions.length === 0) return;
-    fetchSummary(transactions).then(setSummary);
+    if (transactions.length === 0) { setSummary(null); return; }
+    fetchSummary(transactions).then(setSummary).catch(() => setSummary(null));
   }, [transactions]);
 
   if (!summary) {
