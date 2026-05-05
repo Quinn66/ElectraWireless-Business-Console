@@ -1,16 +1,13 @@
 import json
 import requests
 import re
-# =========================
+
 # File paths
-# =========================
 INPUT_FILE = "../LLama Input/Feature_2_input.json"
 OUTPUT_FILE_REPORT = "../Llama Output/Feature_2_output.json"
 OUTPUT_FILE_QA = "../Llama Output/Feature_2_Qoutput.json"
 
-# =========================
 # Load JSON input
-# =========================
 def load_input():
     try:
         with open(INPUT_FILE, "r", encoding="utf-8") as f:
@@ -25,11 +22,7 @@ def load_input():
 def parse_llm_output(text):
     sections = {}
 
-    # -----------------------------------
-    # UNIVERSAL SECTION PARSER (FIXED)
-    # -----------------------------------
     pattern = r"\[SECTION:\s*([^\]]+)\]\s*(.*?)(?=\n\s*\[SECTION:|\Z)"
-
     matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
 
     for name, content in matches:
@@ -38,9 +31,7 @@ def parse_llm_output(text):
 
     structured = {}
 
-    # -------------------------
-    # Q&A MODE
-    # -------------------------
+    # ================= Q&A MODE =================
     if "answer" in sections:
         structured["answer"] = sections.get("answer", "")
 
@@ -51,15 +42,21 @@ def parse_llm_output(text):
             if line.strip()
         ]
 
+        # GOALS (optional)
+        goals_raw = sections.get("goals", "")
+        if goals_raw:
+            structured["goals"] = [
+                re.sub(r"^[\*\-\•\d\.\s]*", "", line).strip()
+                for line in goals_raw.split("\n")
+                if line.strip()
+            ]
+
         return structured
 
-    # -------------------------
-    # REPORT MODE
-    # -------------------------
+    # ================= REPORT MODE =================
 
     structured["summary"] = sections.get("summary", "")
 
-    # HEALTH SCORE (now just raw passthrough + light extraction)
     health_raw = sections.get("health_score", "")
     structured["health_score"] = {
         "score": (
@@ -70,22 +67,18 @@ def parse_llm_output(text):
         "raw": health_raw.strip()
     }
 
-    # ALERTS (pure structural split, no assumptions about format)
+    # ALERTS
     alerts_raw = sections.get("alerts", "")
-    alerts = []
+    structured["alerts"] = []
 
     for line in alerts_raw.split("\n"):
         line = line.strip()
         if not line:
             continue
+        line = re.sub(r"\*\*", "", line)
+        structured["alerts"].append(line)
 
-        line = re.sub(r"\*\*", "", line)  # remove bold markdown
-
-        alerts.append(line)
-
-    structured["alerts"] = alerts
-
-    # RISKS / OPPORTUNITIES / OTHERS (generic bullet extractor)
+    # GENERIC BULLETS
     def extract_bullets(text):
         return [
             re.sub(r"^[\*\-\•]\s*", "", line).strip()
@@ -96,7 +89,7 @@ def parse_llm_output(text):
     structured["risks"] = extract_bullets(sections.get("risks", ""))
     structured["opportunities"] = extract_bullets(sections.get("opportunities", ""))
 
-    # RECOMMENDED ACTIONS
+    # ACTIONS
     actions_raw = sections.get("recommended_actions", "")
     structured["recommended_actions"] = [
         re.sub(r"^\d+\.\s*", "", line).strip()
@@ -106,30 +99,35 @@ def parse_llm_output(text):
 
     structured["spending_patterns"] = sections.get("spending_patterns", "")
 
+    # GOALS (optional)
+    goals_raw = sections.get("goals", "")
+    if goals_raw:
+        structured["goals"] = [
+            re.sub(r"^[\*\-\•\d\.\s]*", "", line).strip()
+            for line in goals_raw.split("\n")
+            if line.strip()
+        ]
+
     return structured
 
-# Build prompt
-def build_finance_prompt(data):
-    question = data.get("question", "").strip()
+# ================= PROMPT BUILDER =================
+def build_report_prompt(data):
+    goal = data.get("Goals", "").strip()
+    has_goal = bool(goal)
 
-    base_prompt = f"""
-You are a financial and behavioral spending analysis assistant.
+    prompt = f"""
+You are a financial analysis assistant.
 
 INPUT JSON:
 {json.dumps(data, indent=2)}
 
 CRITICAL RULES:
-1. Only use values explicitly present in the JSON.
-2. Do NOT fabricate data.
-3. Keep language simple and direct.
-"""
-
-    # MODE 1: No question (auto page load)
-    if not question:
-        return base_prompt + """
+- Only use provided data and inferred data
+- Do NOT fabricate information
+- Keep responses concise
+- You MUST output sections exactly in this format: [SECTION: NAME]
 
 Your task is to generate a full financial report.
-
 Follow this EXACT format:
 
 [SECTION: SUMMARY]
@@ -164,25 +162,52 @@ Follow this EXACT format:
 - Provide a short list of helpful next steps.
 - Keep actions clear and easy to follow.
 - No need for strict ordering unless naturally obvious.
-
-END OF REPORT
 """
 
-    # MODE 2: Question asked
-    else:
-        return base_prompt + f"""
+    if has_goal:
+        prompt += f"""
 
-The user has asked the following question:
+[SECTION: GOALS]
+- User goal: "{goal}"
 
-"{question}"
+Provide a structured response with TWO parts:
+
+1. First line (NOT numbered):
+- A few sentences describing the exact financial target required to achieve the goal
+- If the goal is unrealistic, adjust the target slightly and state a more achievable version in the first line
+- Include specific numbers where possible (e.g. how much to save or reduce)
+
+2. Then provide a numbered list of 3–5 actionable steps:
+- Make a numbered list only (1., 2., 3., ...)
+- Each step must directly contribute to achieving the target above
+- One action per line
+- Keep each line short and single-sentence
+- Use the financial data to guide suggestions
+
+"""
+
+    return prompt
+
+def build_qa_prompt(data):
+    question = data.get("question", "").strip()
+    goal = data.get("Goals", "").strip()
+    has_goal = bool(goal)
+
+    prompt = f"""
+You are a financial assistant.
+
+INPUT JSON:
+{json.dumps(data, indent=2)}
+
+QUESTION:
+{question}
 
 Your task:
-- Answer the question directly using ONLY the provided data
+- Answer the question using ONLY the provided data and inferred data
 - Be concise and focused
-- Do NOT generate the full report
-- Do NOT include sections unless needed
+- You MUST follow the exact output format below
 
-OUTPUT FORMAT:
+STRICT OUTPUT FORMAT (DO NOT DEVIATE):
 
 [SECTION: ANSWER]
 - Direct answer to the question
@@ -190,29 +215,58 @@ OUTPUT FORMAT:
 - Keep it under 5 sentences
 
 [SECTION: SUPPORTING_INSIGHTS]
-- Bullet points of relevant supporting observations
-
-END OF RESPONSE
+- Provide at least 2 bullet points
+- If limited data, still extract relevant observations
 """
 
-# Call Ollama
+    if has_goal:
+        prompt += f"""
+
+[SECTION: GOALS]
+- User goal: "{goal}"
+
+Provide a structured response with TWO parts:
+
+1. First line (NOT numbered):
+- A few sentences describing the exact financial target required to achieve the goal
+- If the goal is unrealistic, adjust the target slightly and state a more achievable version in the first line
+- Include specific numbers where possible (e.g. how much to save or reduce)
+
+2. Then provide a numbered list of 3–5 actionable steps:
+- Make a numbered list only (1., 2., 3., ...)
+- Each step must directly contribute to achieving the target above
+- One action per line
+- Keep each line short and single-sentence
+- Use the financial data to guide suggestions
+"""
+
+    return prompt
+
+# ================= OLLAMA =================
 def get_analysis(prompt):
     url = "http://localhost:11434/api/generate"
 
     payload = {
-        "model": "llama3.2",
+        "model": "llama3.1:8b",
         "prompt": prompt,
         "stream": False
     }
 
-    response = requests.post(url, json=payload)
+    print("📡 Sending request to Ollama...")
+
+    try:
+        response = requests.post(url, json=payload, timeout=60)
+    except requests.exceptions.Timeout:
+        raise Exception("❌ Ollama request timed out (prompt likely too large or model slow)")
 
     if response.status_code != 200:
         raise Exception(f"Ollama error: {response.text}")
 
+    print("✅ Response received")
+
     return response.json()["response"]
 
-# Save output
+# ================= SAVE =================
 def save_output(raw_text, output_path):
     parsed = parse_llm_output(raw_text)
 
@@ -221,7 +275,7 @@ def save_output(raw_text, output_path):
 
     print(f"💾 Saved structured output to {output_path}")
 
-# Main flow
+# ================= MAIN =================
 def run():
     data = load_input()
     if not data:
@@ -232,18 +286,24 @@ def run():
 
     print("🔍 Generating financial summary...\n")
 
-    prompt = build_finance_prompt(data)
-    result = get_analysis(prompt)
-
-    print("=== LLM OUTPUT ===\n")
-    print(result)
-
-    # Route output based on mode
+    # ✅ ROUTER (this is the important fix)
     if has_question:
-        save_output(result, OUTPUT_FILE_QA)
-    else:
-        save_output(result, OUTPUT_FILE_REPORT)
+        prompt = build_qa_prompt(data)
+        result = get_analysis(prompt)
 
+        print("=== Q&A OUTPUT ===\n")
+        print(result)
+
+        save_output(result, OUTPUT_FILE_QA)
+
+    else:
+        prompt = build_report_prompt(data)
+        result = get_analysis(prompt)
+
+        print("=== REPORT OUTPUT ===\n")
+        print(result)
+
+        save_output(result, OUTPUT_FILE_REPORT)
 
 if __name__ == "__main__":
     run()
