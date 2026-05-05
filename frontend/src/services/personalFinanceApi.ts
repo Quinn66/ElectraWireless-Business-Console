@@ -189,7 +189,7 @@ export async function fetchSummary(transactions: Transaction[]): Promise<Financi
   const totalExpenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const netCashFlow   = totalIncome - totalExpenses;
   const savingsRate   = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
-  const healthScore   = computeHealthScore(savingsRate, totalExpenses, totalIncome);
+  const healthScore   = computeHealthScore({ savingsRate, totalIncome, totalExpenses, netCashFlow, catTotals, byMonth });
   const healthGrade   = scoreToGrade(healthScore);
 
   let runningBalance = 0;
@@ -388,13 +388,46 @@ function groupByMonthCat(transactions: Transaction[], month: string): Record<str
   return result;
 }
 
-function computeHealthScore(savingsRate: number, expenses: number, income: number): number {
-  const savingsScore  = Math.min(30, (savingsRate / 20) * 30);
-  const spendingRatio = income > 0 ? expenses / income : 1;
-  const spendingScore = Math.max(0, 30 - (spendingRatio - 0.7) / 0.25 * 30);
-  const stabilityScore = 20; // static for now without enough months
-  const total = Math.round(savingsScore + spendingScore + stabilityScore);
-  return Math.max(0, Math.min(100, total));
+function computeHealthScore(p: {
+  savingsRate: number;
+  totalIncome: number;
+  totalExpenses: number;
+  netCashFlow: number;
+  catTotals: Record<string, number>;
+  byMonth: Record<string, { income: number; expenses: number }>;
+}): number {
+  // 1. Savings rate — 25 pts, target ≥ 20%
+  const savingsScore = Math.min(25, Math.max(0, (p.savingsRate / 20) * 25));
+
+  // 2. Expense behavior — 25 pts, full at ≤50% expense ratio, 0 at 100%
+  const expenseRatio = p.totalIncome > 0 ? p.totalExpenses / p.totalIncome : 1;
+  const expenseScore = Math.max(0, Math.min(25, ((1 - expenseRatio) / 0.5) * 25));
+
+  // 3. Income consistency — 20 pts, low coefficient of variation = better
+  const monthlyIncomes = Object.values(p.byMonth).map((m) => m.income);
+  let consistencyScore = 10;
+  if (monthlyIncomes.length >= 2) {
+    const mean = monthlyIncomes.reduce((s, v) => s + v, 0) / monthlyIncomes.length;
+    const variance = monthlyIncomes.reduce((s, v) => s + (v - mean) ** 2, 0) / monthlyIncomes.length;
+    const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
+    consistencyScore = Math.max(0, Math.min(20, (1 - cv) * 20));
+  }
+
+  // 4. Risk level — 15 pts, penalises high concentration in discretionary spend
+  const HIGH_RISK = new Set(["Dining", "Entertainment", "Shopping", "Subscriptions", "Gambling"]);
+  const highRiskSpend = Object.entries(p.catTotals)
+    .filter(([cat]) => HIGH_RISK.has(cat))
+    .reduce((s, [, v]) => s + v, 0);
+  const riskRatio = p.totalExpenses > 0 ? highRiskSpend / p.totalExpenses : 0;
+  const riskScore = Math.max(0, Math.min(15, (1 - riskRatio / 0.5) * 15));
+
+  // 5. Liquidity — 15 pts, full score at ≥ 3 months of expenses covered by net balance
+  const numMonths = Math.max(1, Object.keys(p.byMonth).length);
+  const avgMonthlyExpenses = p.totalExpenses / numMonths;
+  const liquidityMonths = avgMonthlyExpenses > 0 ? Math.max(0, p.netCashFlow / avgMonthlyExpenses) : 0;
+  const liquidityScore = Math.min(15, (liquidityMonths / 3) * 15);
+
+  return Math.max(0, Math.min(100, Math.round(savingsScore + expenseScore + consistencyScore + riskScore + liquidityScore)));
 }
 
 function scoreToGrade(score: number): string {
