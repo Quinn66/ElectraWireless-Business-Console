@@ -95,6 +95,22 @@ class PFBudget(Base):
     )
 
 
+class InvestmentHolding(Base):
+    """One investment holding belonging to a user (Phase 2 — Data Ingestion)."""
+
+    __tablename__ = "investment_holdings"
+
+    id            = Column(String,  primary_key=True)
+    user_id       = Column(String,  nullable=False, index=True)
+    symbol        = Column(String,  nullable=False)
+    asset_type    = Column(String,  nullable=False)   # stock | crypto | etf | fund | real_estate
+    quantity      = Column(Float,   nullable=False)
+    buy_price     = Column(Float,   nullable=False)
+    purchase_date = Column(String,  nullable=False)   # ISO yyyy-mm-dd
+    source        = Column(String,  nullable=False, default="manual")  # manual | csv
+    created_at    = Column(DateTime, default=func.now())
+
+
 class PFSnapshot(Base):
     """
     Point-in-time financial health snapshot computed from a user's transactions.
