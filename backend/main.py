@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
+from datetime import date as date_today
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -335,6 +336,100 @@ def create_budget(req: BudgetRequest, db: Session = Depends(get_db)):
 @app.get("/pf/budgets")
 def get_budgets(db: Session = Depends(get_db)):
     return db.query(models.PFBudget).all()
+
+
+# ── Phase 2: Investment Holdings ─────────────────────────────────────────────
+
+class HoldingCreate(BaseModel):
+    symbol:        str
+    asset_type:    str    # stock | crypto | etf | fund | real_estate
+    quantity:      float
+    buy_price:     float
+    purchase_date: str    # ISO yyyy-mm-dd
+
+
+@app.post("/investments/holdings", status_code=201)
+def create_holding(req: HoldingCreate, db: Session = Depends(get_db)):
+    holding = models.InvestmentHolding(
+        id=str(uuid4()),
+        user_id="demo-user",
+        symbol=req.symbol.upper().strip(),
+        asset_type=req.asset_type.strip().lower(),
+        quantity=req.quantity,
+        buy_price=req.buy_price,
+        purchase_date=req.purchase_date,
+        source="manual",
+    )
+    db.add(holding)
+    db.commit()
+    db.refresh(holding)
+    return holding
+
+
+@app.get("/investments/holdings")
+def get_holdings(db: Session = Depends(get_db)):
+    return db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).order_by(models.InvestmentHolding.created_at.desc()).all()
+
+
+@app.delete("/investments/holdings/{holding_id}", status_code=204)
+def delete_holding(holding_id: str, db: Session = Depends(get_db)):
+    holding = db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.id == holding_id,
+        models.InvestmentHolding.user_id == "demo-user",
+    ).first()
+    if not holding:
+        raise HTTPException(status_code=404, detail="Holding not found")
+    db.delete(holding)
+    db.commit()
+
+
+@app.post("/investments/holdings/upload")
+async def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    import pandas as pd
+    import io
+
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are accepted")
+
+    content = await file.read()
+    try:
+        df = pd.read_csv(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {e}")
+
+    df.columns = [str(c).strip().lower() for c in df.columns]
+
+    required = {"symbol", "asset_type", "quantity", "buy_price"}
+    missing = required - set(df.columns)
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required columns: {', '.join(sorted(missing))}. "
+                   f"Expected: symbol, asset_type, quantity, buy_price, purchase_date (optional)",
+        )
+
+    saved, errors = [], []
+    for i, row in df.iterrows():
+        try:
+            holding = models.InvestmentHolding(
+                id=str(uuid4()),
+                user_id="demo-user",
+                symbol=str(row["symbol"]).upper().strip(),
+                asset_type=str(row["asset_type"]).strip().lower(),
+                quantity=float(row["quantity"]),
+                buy_price=float(row["buy_price"]),
+                purchase_date=str(row.get("purchase_date", date_today.today())).strip(),
+                source="csv",
+            )
+            db.add(holding)
+            saved.append(holding.symbol)
+        except Exception as e:
+            errors.append(f"Row {int(i) + 2}: {e}")
+
+    db.commit()
+    return {"imported": len(saved), "symbols": saved, "errors": errors}
 
 
 # ── Feature 2 AI Insights ─────────────────────────────────────────────────────
