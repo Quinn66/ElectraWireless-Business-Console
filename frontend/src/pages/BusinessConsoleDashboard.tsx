@@ -4,6 +4,7 @@ import { ConsoleSidebar, type ConsoleTool } from "@/components/ConsoleSidebar";
 import { ConsoleAISidebar } from "@/components/ConsoleAISidebar";
 import { ProjectionPage } from "@/pages/ProjectionPage";
 import { PersonalFinancePage } from "@/pages/PersonalFinancePage";
+import { InvestmentPage } from "@/pages/InvestmentPage";
 import { ConsoleHome } from "@/pages/ConsoleHome";
 import ProfileSelector from "@/ProfileSelector";
 import OnboardingFlow from "@/OnboardingFlow";
@@ -79,6 +80,10 @@ export function BusinessConsoleDashboard() {
 
     if (activeTool === "personal") {
       return <PersonalFinancePage />;
+    }
+
+    if (activeTool === "investment") {
+      return <InvestmentPage />;
     }
 
     return null;
