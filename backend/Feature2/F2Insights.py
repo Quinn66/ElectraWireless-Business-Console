@@ -181,7 +181,6 @@ Provide a structured response with TWO parts:
 
 1. First line (NOT numbered):
 - A few sentences describing the exact financial target required to achieve the goal
-- If the goal is unrealistic, adjust the target slightly and state a more achievable version in the first line
 - Include specific numbers where possible (e.g. how much to save or reduce)
 
 2. Then provide a numbered list of 3–5 actionable steps:
@@ -225,6 +224,13 @@ STRICT OUTPUT FORMAT (DO NOT DEVIATE):
 [SECTION: SUPPORTING_INSIGHTS]
 - Provide at least 2 bullet points
 - If limited data, still extract relevant observations
+
+[SECTION: RECOMMENDED_ACTIONS]
+- Provide 4 clear next steps in regards to the question asked:
+  1. Most urgent
+  2. High impact
+  3. Medium term
+  4. Optional improvement
 """
 
     if has_goal:
@@ -237,7 +243,6 @@ Provide a structured response with TWO parts:
 
 1. First line (NOT numbered):
 - A few sentences describing the exact financial target required to achieve the goal
-- If the goal is unrealistic, adjust the target slightly and state a more achievable version in the first line
 - Include specific numbers where possible (e.g. how much to save or reduce)
 
 2. Then provide a numbered list of 3–5 actionable steps:
