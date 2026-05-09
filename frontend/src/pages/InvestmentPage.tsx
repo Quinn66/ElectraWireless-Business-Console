@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { C_PRIMARY, C_BORDER, C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors";
 import {
-  fetchHoldings, addHolding, deleteHolding, uploadHoldingsCsv,
+  fetchHoldings, addHolding, deleteHolding, clearAllHoldings, uploadHoldingsCsv,
   fetchInsights, ASSET_TYPE_LABELS,
 } from "@/services/investmentApi";
 import type { InvestmentHolding, InvestmentInsight, NewHolding, AssetType } from "@/services/investmentApi";
@@ -682,15 +682,23 @@ function CsvUploadZone({ onUpload }: {
   );
 }
 
-function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUpload }: {
+function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onClearAll, onCsvUpload }: {
   holdings: InvestmentHolding[]; loading: boolean; fetchError: string | null;
   onAdd: (data: NewHolding) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onClearAll: () => Promise<void>;
   onCsvUpload: (file: File) => Promise<{ imported: number; symbols: string[]; errors: string[] }>;
 }) {
   const [showAdd, setShowAdd]     = useState(false);
   const [showCsv, setShowCsv]     = useState(false);
   const [deletingId, setDeleting] = useState<string | null>(null);
+  const [clearing, setClearing]   = useState(false);
+
+  async function handleClearAll() {
+    if (!confirm("Clear all holdings? This cannot be undone.")) return;
+    setClearing(true);
+    try { await onClearAll(); } finally { setClearing(false); }
+  }
 
   async function handleDelete(id: string) {
     setDeleting(id);
@@ -715,6 +723,17 @@ function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUplo
           color: C_PRIMARY, border: `1.5px solid ${C_BORDER}`, borderRadius: 8,
           padding: "9px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}><Upload size={13} /> {showCsv ? "Hide CSV" : "Import CSV"}</button>
+        {holdings.length > 0 && (
+          <button onClick={handleClearAll} disabled={clearing} style={{
+            display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.7)",
+            color: C_ERROR, border: `1.5px solid ${C_ERROR}40`, borderRadius: 8,
+            padding: "9px 16px", fontSize: 12, fontWeight: 600,
+            cursor: clearing ? "not-allowed" : "pointer", opacity: clearing ? 0.6 : 1, marginLeft: "auto",
+          }}>
+            {clearing ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Trash2 size={13} />}
+            {clearing ? "Clearing…" : "Clear All"}
+          </button>
+        )}
       </div>
 
       {showCsv && <CsvUploadZone onUpload={async (f) => { const r = await onCsvUpload(f); return r; }} />}
@@ -963,11 +982,15 @@ export function InvestmentPage() {
     await loadHoldings();
     return result;
   }
+  async function handleClearAll() {
+    await clearAllHoldings();
+    setHoldings([]);
+  }
 
   const tabContent: Record<string, React.ReactNode> = {
     overview:  <OverviewTab holdings={holdings} />,
     holdings:  <HoldingsTab holdings={holdings} loading={loading} fetchError={fetchError}
-                 onAdd={handleAdd} onDelete={handleDelete} onCsvUpload={handleCsvUpload} />,
+                 onAdd={handleAdd} onDelete={handleDelete} onClearAll={handleClearAll} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
     insights:  <InsightsTab holdings={holdings} />,
     ai:        <AITab />,
