@@ -9,6 +9,11 @@ from forecast import (
     run_slider_forecast,
 )
 from upload_parser import parse_uploaded_financial_file
+from portfolio_analytics import (
+    calculate_portfolio_summary,
+    compute_allocation,
+    calculate_diversification_score,
+)
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
@@ -157,6 +162,61 @@ def forecast(req: ForecastRequest):
         what_if_annual_cost=req.what_if_annual_cost,
     )
     return {"historical": historical, "forecast": projected}
+
+# ── Phase 1 models (stub — Nishant will expand) ──────────────────────────────
+
+class HoldingCreate(BaseModel):
+    user_id:       str   = Field(..., description="User identifier")
+    symbol:        str   = Field(..., description="Ticker or asset name e.g. AAPL, BTC")
+    asset_type:    str   = Field(..., description="stock | etf | crypto | fund | real_estate")
+    quantity:      float = Field(..., gt=0)
+    buy_price:     float = Field(..., gt=0, description="Price paid per unit ($)")
+    purchase_date: str   = Field(..., description="ISO date YYYY-MM-DD")
+    source:        str   = Field("manual", description="manual | csv | api")
+    current_price: float | None = Field(None, description="Live price; falls back to buy_price if omitted")
+
+
+class InvestmentHolding(HoldingCreate):
+    id: int
+
+
+# ── Shared in-memory store — Abdullah's Phase 2 CRUD will append/delete here ─
+_next_holding_id: int = 1
+holdings_db: list[dict] = []
+
+
+# ── Phase 4: Portfolio Analytics ──────────────────────────────────────────────
+
+@app.get("/investments/summary")
+def investments_summary(
+    user_id: str | None = None,
+    include_volatility: bool = False,
+):
+    """
+    Returns portfolio-level totals (value, cost, P&L, return %) plus
+    per-asset performance (CAGR, optional annualised volatility).
+    Also includes diversification score and overexposure flags.
+
+    ?user_id=        filter to one user (omit for all)
+    ?include_volatility=true  fetch annualised volatility via yfinance (slower)
+    """
+    subset = [h for h in holdings_db if user_id is None or h["user_id"] == user_id]
+    summary     = calculate_portfolio_summary(subset, include_volatility)
+    diversification = calculate_diversification_score(subset)
+    return {**summary, "diversification": diversification}
+
+
+@app.get("/investments/allocation")
+def investments_allocation(user_id: str | None = None):
+    """
+    Returns portfolio allocation split by symbol and by asset type.
+    Each entry includes absolute value ($) and percentage of total portfolio.
+
+    ?user_id=  filter to one user (omit for all)
+    """
+    subset = [h for h in holdings_db if user_id is None or h["user_id"] == user_id]
+    return compute_allocation(subset)
+
 
 @app.post("/upload-financial-data")
 async def upload_financial_data(file: UploadFile = File(...)):
