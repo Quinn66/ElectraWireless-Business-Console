@@ -7,11 +7,12 @@
  */
 
 import axios from "axios";
-import type { Transaction } from "@/store/personalFinanceStore";
+import type { Transaction, Goal } from "@/store/personalFinanceStore";
 import { autoCategory, inferType } from "@/lib/categories";
 import type { ParsedData } from "@/lib/importUtils";
+import { gradeFromScore } from "@/components/pf/aiReportHelpers";
 
-const BASE_URL = (import.meta as Record<string, unknown> & { env: Record<string, string> }).env.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export const pfApi = axios.create({ baseURL: BASE_URL });
 
@@ -190,7 +191,7 @@ export async function fetchSummary(transactions: Transaction[]): Promise<Financi
   const netCashFlow   = totalIncome - totalExpenses;
   const savingsRate   = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
   const healthScore   = computeHealthScore({ savingsRate, totalIncome, totalExpenses, netCashFlow, catTotals, byMonth });
-  const healthGrade   = scoreToGrade(healthScore);
+  const healthGrade   = gradeFromScore(healthScore);
 
   let runningBalance = 0;
   const monthlyBreakdown = Object.entries(byMonth)
@@ -293,6 +294,7 @@ export async function fetchInsights(
 // ── AI Insights (Ask Elly on PF dashboard) ────────────────────────────────────
 
 export interface PFAIRequest {
+  /** Empty string → backend runs report mode; non-empty → Q&A mode. */
   question: string;
   period: string;
   summary: {
@@ -318,20 +320,33 @@ export interface PFAIRequest {
     title: string;
     message: string;
   }>;
+  /** One-goal-per-line summary; backend reads via data.get("Goals", "") and only emits the GOALS section when present. */
+  Goals?: string;
 }
 
-export interface PFAIResponse {
-  // Q&A mode
-  answer?: string;
-  supporting_insights?: string[];
-  // Report mode
-  summary?: string;
-  healthScore?: { score: number; interpretation: string; trend: string };
-  alerts?: Array<{ alert: string; meaning: string; urgency: string }>;
-  spendingPatterns?: { overview: string; keyCategories: string[]; anomalies: string };
-  risks?: string[];
-  opportunities?: string[];
-  recommendedActions?: string[];
+/** Shape of Feature_2_output.json — emitted when the request has no `question`. */
+export interface PFReportResponse {
+  summary: string;
+  health_score: { score: number | null; raw: string };
+  alerts: string[];
+  risks: string[];
+  opportunities: string[];
+  recommended_actions: string[];
+  spending_patterns: string;
+  goals?: string[];
+}
+
+/** Shape of Feature_2_Qoutput.json — emitted when the request has a `question`. */
+export interface PFQAResponse {
+  answer: string;
+  supporting_insights: string[];
+  goals?: string[];
+}
+
+export type PFAIResponse = PFReportResponse | PFQAResponse;
+
+export function isPFQAResponse(r: PFAIResponse): r is PFQAResponse {
+  return "answer" in r;
 }
 
 /** Build the payload the backend team requested from already-computed PF data. */
@@ -340,7 +355,16 @@ export function buildPFAIPayload(
   period: string,
   summary: FinancialSummary,
   insights: PFInsight[],
+  goals: Goal[],
 ): PFAIRequest {
+  const goalLines = goals.map((g) => {
+    const parts = [`${g.name} (${g.type}): target $${g.targetAmount}`];
+    if (g.deadline)         parts.push(`by ${g.deadline}`);
+    if (g.category)         parts.push(`category: ${g.category}`);
+    if (g.currentAmount > 0) parts.push(`current $${g.currentAmount}`);
+    return `- ${parts.join(", ")}`;
+  });
+
   return {
     question,
     period,
@@ -367,12 +391,16 @@ export function buildPFAIPayload(
       title:    i.title,
       message:  i.message,
     })),
+    ...(goalLines.length > 0 ? { Goals: goalLines.join("\n") } : {}),
   };
 }
 
-/** POST PF context + question to the Ollama-backed insights endpoint. */
-export async function fetchPFAIInsights(payload: PFAIRequest): Promise<PFAIResponse> {
-  const res = await pfApi.post<PFAIResponse>("/pf/ai-insights", payload);
+/** POST PF context (+ optional question) to the AI insights endpoint. */
+export async function fetchPFAIInsights(
+  payload: PFAIRequest,
+  signal?: AbortSignal,
+): Promise<PFAIResponse> {
+  const res = await pfApi.post<PFAIResponse>("/pf/ai-insights", payload, { signal });
   return res.data;
 }
 
@@ -428,12 +456,4 @@ function computeHealthScore(p: {
   const liquidityScore = Math.min(15, (liquidityMonths / 3) * 15);
 
   return Math.max(0, Math.min(100, Math.round(savingsScore + expenseScore + consistencyScore + riskScore + liquidityScore)));
-}
-
-function scoreToGrade(score: number): string {
-  if (score >= 80) return "A";
-  if (score >= 65) return "B";
-  if (score >= 50) return "C";
-  if (score >= 35) return "D";
-  return "F";
 }

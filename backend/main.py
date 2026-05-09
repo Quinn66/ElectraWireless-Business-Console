@@ -339,11 +339,20 @@ def get_budgets(db: Session = Depends(get_db)):
 
 # ── Feature 2 AI Insights ─────────────────────────────────────────────────────
 
-from Feature2.F2Insights import build_finance_prompt, get_analysis, parse_llm_output
+from Feature2.F2Insights import (
+    build_report_prompt,
+    build_qa_prompt,
+    get_analysis,
+    parse_llm_output,
+)
 
 
 @app.post("/pf/ai-insights")
 def ai_insights(req: dict = Body(...)):
-    prompt = build_finance_prompt(req)
-    raw = get_analysis(prompt)
+    question = (req.get("question") or "").strip()
+    prompt = build_qa_prompt(req) if question else build_report_prompt(req)
+    try:
+        raw = get_analysis(prompt)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     return parse_llm_output(raw)

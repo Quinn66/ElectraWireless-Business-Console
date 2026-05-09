@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useMemo } from "react";
-import { MOCK_TRANSACTIONS } from "@/services/personalFinanceApi";
+import {
+  MOCK_TRANSACTIONS,
+  type PFReportResponse,
+  type PFQAResponse,
+} from "@/services/personalFinanceApi";
 import { filterByPeriod, type Period } from "@/lib/periodFilter";
 
 export interface Goal {
@@ -48,6 +52,12 @@ interface PersonalFinanceState {
   apiLoading: boolean;
   apiError: string | null;
 
+  // AI insights (Feature 2) — sidebar report + active Q&A
+  aiReport: PFReportResponse | null;
+  aiReportLoading: boolean;
+  aiReportError: string | null;
+  aiQAResult: PFQAResponse | null;
+
   // Actions
   setFlowStep: (step: FlowStep) => void;
   setActiveTab: (tab: string) => void;
@@ -66,6 +76,11 @@ interface PersonalFinanceState {
   setLiabilities: (n: number) => void;
   setApiLoading: (v: boolean) => void;
   setApiError: (e: string | null) => void;
+  setAIReport: (r: PFReportResponse | null) => void;
+  setAIReportLoading: (v: boolean) => void;
+  setAIReportError: (e: string | null) => void;
+  setAIQAResult: (r: PFQAResponse | null) => void;
+  clearAIQAResult: () => void;
   /** Loads all mock transactions at once and navigates to the dashboard view */
   loadDemoData: () => void;
   reset: () => void;
@@ -86,6 +101,11 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
   apiLoading: false,
   apiError: null,
 
+  aiReport: null,
+  aiReportLoading: false,
+  aiReportError: null,
+  aiQAResult: null,
+
   setFlowStep: (flowStep) => set({ flowStep }),
   setActiveTab: (activeTab) => set({ activeTab }),
   setActivePeriod: (activePeriod) => set({ activePeriod }),
@@ -93,7 +113,13 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
   setLiabilities: (liabilities) => set({ liabilities }),
 
   setPendingTransactions: (pendingTransactions) =>
-    set({ pendingTransactions, flowStep: "review" }),
+    set({
+      pendingTransactions,
+      flowStep: "review",
+      aiReport: null,
+      aiReportError: null,
+      aiQAResult: null,
+    }),
 
   confirmPendingTransactions: () =>
     set((s) => ({
@@ -140,6 +166,12 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
   setApiLoading: (apiLoading) => set({ apiLoading }),
   setApiError: (apiError) => set({ apiError }),
 
+  setAIReport: (aiReport) => set({ aiReport }),
+  setAIReportLoading: (aiReportLoading) => set({ aiReportLoading }),
+  setAIReportError: (aiReportError) => set({ aiReportError }),
+  setAIQAResult: (aiQAResult) => set({ aiQAResult }),
+  clearAIQAResult: () => set({ aiQAResult: null }),
+
   loadDemoData: () =>
     set({
       transactions: [...MOCK_TRANSACTIONS],
@@ -160,6 +192,10 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
       liabilities: 0,
       apiLoading: false,
       apiError: null,
+      aiReport: null,
+      aiReportLoading: false,
+      aiReportError: null,
+      aiQAResult: null,
     }),
     }),
     {

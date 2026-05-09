@@ -1,20 +1,12 @@
 import json
-import requests
 import re
-from fastapi import FastAPI
-from pydantic import BaseModel
 from groq import Groq
 import os
-app = FastAPI()
 
 # File paths
-INPUT_FILE = "../LLama Input/Feature_2_input.json"
+INPUT_FILE = "../Llama Input/Feature_2_input.json"
 OUTPUT_FILE_REPORT = "../Llama Output/Feature_2_output.json"
 OUTPUT_FILE_QA = "../Llama Output/Feature_2_Qoutput.json"
-
-# ================= REQUEST MODEL =================
-class AIInsightsRequest(BaseModel):
-    data: dict
 
 # ================= LOAD =================
 def load_input():
@@ -175,22 +167,20 @@ Follow this EXACT format:
         prompt += f"""
 
 [SECTION: GOALS]
-- User goal: "{goal}"
+The user is tracking the following goals (one per line):
+{goal}
 
-Provide a structured response with TWO parts:
+Respond in TWO parts inside this section:
 
-1. First line (NOT numbered):
-- A few sentences describing the exact financial target required to achieve the goal
-- If the goal is unrealistic, adjust the target slightly and state a more achievable version in the first line
-- Include specific numbers where possible (e.g. how much to save or reduce)
+1. First, for EACH goal listed above, write one short bullet line of the form:
+- <goal name>: <on-track / off-track assessment with specific numbers from the data>
+   (Bullet character must be "-". Keep each line under 25 words.)
 
-2. Then provide a numbered list of 3–5 actionable steps:
-- Make a numbered list only (1., 2., 3., ...)
-- Each step must directly contribute to achieving the target above
-- One action per line
-- Keep each line short and single-sentence
-- Use the financial data to guide suggestions
-
+2. Then provide a single combined numbered list of 3–6 actionable steps that move the user toward all of the goals together:
+- Use a numbered list only (1., 2., 3., ...)
+- One action per line, short and single-sentence
+- Reference specific dollar amounts or categories from the data when possible
+- Avoid repeating the per-goal assessments above
 """
 
     return prompt
@@ -231,30 +221,34 @@ STRICT OUTPUT FORMAT (DO NOT DEVIATE):
         prompt += f"""
 
 [SECTION: GOALS]
-- User goal: "{goal}"
+For context only — the user is tracking the following goals:
+{goal}
 
-Provide a structured response with TWO parts:
-
-1. First line (NOT numbered):
-- A few sentences describing the exact financial target required to achieve the goal
-- If the goal is unrealistic, adjust the target slightly and state a more achievable version in the first line
-- Include specific numbers where possible (e.g. how much to save or reduce)
-
-2. Then provide a numbered list of 3–5 actionable steps:
-- Make a numbered list only (1., 2., 3., ...)
-- Each step must directly contribute to achieving the target above
-- One action per line
-- Keep each line short and single-sentence
-- Use the financial data to guide suggestions
+If your answer to the question above already covers the user's goals, you may leave this section concise.
+Otherwise, briefly note (one bullet per goal) whether the question relates to that goal, and add up to 3 numbered action steps connecting the question's answer to the goals.
+- Bullet character must be "-".
+- Numbered list uses 1., 2., 3., ...
 """
 
     return prompt
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+_client: Groq | None = None
+
+def _get_client() -> Groq:
+    global _client
+    if _client is None:
+        key = os.environ.get("GROQ_API_KEY")
+        if not key:
+            raise RuntimeError(
+                "GROQ_API_KEY is not set. Add it to backend/.env "
+                "(get a key from https://console.groq.com)."
+            )
+        _client = Groq(api_key=key)
+    return _client
 
 # ================= GROQ =================
 def get_analysis(prompt):
-    response = client.chat.completions.create(
+    response = _get_client().chat.completions.create(
         model="llama-3.1-8b-instant",  # ← equivalent to llama3.1:8b
         messages=[
             {"role": "user", "content": prompt}
@@ -272,29 +266,6 @@ def save_output(raw_text, output_path):
         json.dump(parsed, f, indent=2)
 
     print(f"💾 Saved structured output to {output_path}")
-
-# ================= FASTAPI =================
-@app.post("/pf/ai-insights")
-def ai_insights(request: AIInsightsRequest):
-    data = request.data
-
-    question = data.get("question", "").strip()
-    has_question = bool(question)
-
-    print("🔍 FastAPI /pf/ai-insights called...")
-
-    # ✅ ROUTER (same as new logic)
-    if has_question:
-        prompt = build_qa_prompt(data)
-        result = get_analysis(prompt)
-        save_output(result, OUTPUT_FILE_QA)
-    else:
-        prompt = build_report_prompt(data)
-        result = get_analysis(prompt)
-        save_output(result, OUTPUT_FILE_REPORT)
-
-    structured = parse_llm_output(result)
-    return structured
 
 # ================= CLI RUN =================
 def run():

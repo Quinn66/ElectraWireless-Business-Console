@@ -6,7 +6,13 @@ import { C_PRIMARY, C_BORDER, C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors
 
 // ── Progress helpers ──────────────────────────────────────────────────────────
 
-function progressColor(pct: number): string {
+function progressColor(pct: number, goalType: Goal["type"]): string {
+  if (goalType === "spending_limit") {
+    // Inverted: low pct = healthy headroom, high pct = danger
+    if (pct >= 90) return C_ERROR;
+    if (pct >= 60) return C_WARNING;
+    return C_SUCCESS;
+  }
   if (pct >= 100) return C_SUCCESS;
   if (pct >= 60)  return C_PRIMARY;
   return C_WARNING;
@@ -50,11 +56,10 @@ function useGoalProgress(goal: Goal): number {
       return Math.max(0, assets - liabilities);
     }
     if (goal.type === "spending_limit") {
-      const spent = txs
+      // progress = amount consumed against the limit; bar fills toward danger
+      return txs
         .filter((t) => t.amount < 0 && t.category === goal.category)
         .reduce((s, t) => s + Math.abs(t.amount), 0);
-      // progress = how much of the limit is still intact (remaining)
-      return Math.max(0, goal.targetAmount - spent);
     }
     // savings: net positive cash flow
     return Math.max(
@@ -80,13 +85,13 @@ function GoalCard({ goal }: { goal: Goal }) {
 
   const effectiveCurrent = goal.type === "savings" || goal.type === "spending_limit"
     ? autoProgress
-    : goal.currentAmount || autoProgress;
+    : (goal.currentAmount ?? autoProgress);
 
   const pct = goal.targetAmount > 0
     ? Math.min(100, Math.round((effectiveCurrent / goal.targetAmount) * 100))
     : 0;
 
-  const barColor = progressColor(pct);
+  const barColor = progressColor(pct, goal.type);
 
   const typeLabel: Record<Goal["type"], string> = {
     savings:        "Savings Goal",
@@ -211,9 +216,13 @@ function GoalCard({ goal }: { goal: Goal }) {
           />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 6 }}>
-          <span style={{ color: barColor, fontWeight: 600 }}>{pct}% complete</span>
+          <span style={{ color: barColor, fontWeight: 600 }}>
+            {pct}% {goal.type === "spending_limit" ? "of limit" : "complete"}
+          </span>
           <span style={{ color: "hsl(245 16% 55%)" }}>
-            ${effectiveCurrent.toLocaleString("en-AU", { maximumFractionDigits: 0 })} / ${goal.targetAmount.toLocaleString("en-AU", { maximumFractionDigits: 0 })}
+            {goal.type === "spending_limit"
+              ? `$${effectiveCurrent.toLocaleString("en-AU", { maximumFractionDigits: 0 })} spent of $${goal.targetAmount.toLocaleString("en-AU", { maximumFractionDigits: 0 })}`
+              : `$${effectiveCurrent.toLocaleString("en-AU", { maximumFractionDigits: 0 })} / $${goal.targetAmount.toLocaleString("en-AU", { maximumFractionDigits: 0 })}`}
           </span>
         </div>
       </div>

@@ -9,16 +9,15 @@ import {
 import { useProjectionStore } from "@/store/projectionStore";
 import { usePersonalFinanceStore, useFilteredTransactions } from "@/store/personalFinanceStore";
 import { AIHintBlock } from "@/components/AIHintBlock";
+import { Spinner } from "@/components/Spinner";
 import { API_BASE, type AnalysisResult } from "@/lib/api";
 import type { ConsoleTool } from "@/components/ConsoleSidebar";
 import { cn } from "@/lib/utils";
-import {
-  fetchSummary,
-  fetchInsights,
-  fetchPFAIInsights,
-  buildPFAIPayload,
-  type PFAIResponse,
-} from "@/services/personalFinanceApi";
+import { extractErrorMessage } from "@/lib/aiErrors";
+import { PFReportView } from "@/components/pf/PFReportView";
+import { PFQAView } from "@/components/pf/PFQAView";
+import { AIErrorBlock } from "@/components/pf/AIErrorBlock";
+import { refetchPFAIReport, usePFAIReport } from "@/hooks/usePFAIReport";
 
 const TOOL_TIPS: Partial<Record<ConsoleTool, string[]>> = {
   home: [
@@ -59,28 +58,33 @@ function QuickActionBtn({ icon, label, onClick }: QuickActionBtnProps) {
   );
 }
 
-function Spinner() {
-  return (
-    <span className="w-2.5 h-2.5 rounded-full border-[1.5px] border-[hsl(245_16%_55%)] border-t-transparent inline-block animate-[spin_0.7s_linear_infinite] flex-shrink-0" />
-  );
-}
-
 interface ConsoleAISidebarProps {
   activeTool: ConsoleTool;
 }
 
 export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
-  const [input, setInput]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [result, setResult]     = useState<AnalysisResult | null>(null);
-  const [pfResult, setPfResult] = useState<PFAIResponse | null>(null);
-  const [error, setError]       = useState<string | null>(null);
+  const [input, setInput]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult]   = useState<AnalysisResult | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
   const setActiveScenario = useProjectionStore((s) => s.setActiveScenario);
-  const { loadDemoData, reset } = usePersonalFinanceStore();
+  const loadDemoData   = usePersonalFinanceStore((s) => s.loadDemoData);
+  const reset          = usePersonalFinanceStore((s) => s.reset);
   const pfTransactions = useFilteredTransactions();
-  const pfBudgets      = usePersonalFinanceStore((s) => s.budgets);
-  const pfPeriod       = usePersonalFinanceStore((s) => s.activePeriod);
+  const flowStep       = usePersonalFinanceStore((s) => s.flowStep);
+  const userGoalCount  = usePersonalFinanceStore((s) => s.goals.length);
+
+  const aiReport         = usePersonalFinanceStore((s) => s.aiReport);
+  const aiReportLoading  = usePersonalFinanceStore((s) => s.aiReportLoading);
+  const aiReportError    = usePersonalFinanceStore((s) => s.aiReportError);
+  const aiQAResult       = usePersonalFinanceStore((s) => s.aiQAResult);
+
+  // Auto-fetch the AI report whenever the user lands on the PF dashboard
+  // with confirmed transactions; the hook also refetches on period change.
+  const { submitQuestion } = usePFAIReport({
+    enabled: activeTool === "personal" && flowStep === "dashboard" && pfTransactions.length > 0,
+  });
 
   async function handleAsk() {
     const q = input.trim();
@@ -88,13 +92,10 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
     setLoading(true);
     setError(null);
     setResult(null);
-    setPfResult(null);
     try {
       if (activeTool === "personal") {
-        const summary  = await fetchSummary(pfTransactions);
-        const insights = await fetchInsights(pfTransactions, pfBudgets);
-        const payload  = buildPFAIPayload(q, pfPeriod, summary, insights);
-        setPfResult(await fetchPFAIInsights(payload));
+        // submitQuestion writes result/error to the store; nothing to do here on success.
+        await submitQuestion(q);
       } else {
         const res = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
@@ -105,7 +106,7 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
         setResult(await res.json() as AnalysisResult);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(extractErrorMessage(err, "Something went wrong."));
     } finally {
       setLoading(false);
     }
@@ -113,6 +114,14 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
 
   const noPFData = activeTool === "personal" && pfTransactions.length === 0;
   const isDisabled = loading || !input.trim() || noPFData;
+
+  const showError       = !!error || (activeTool === "personal" && !!aiReportError);
+  const errorMessage    = error ?? aiReportError;
+  const showQA          = activeTool === "personal" && !showError && !!aiQAResult;
+  const showReport      = activeTool === "personal" && !showError && !showQA && !!aiReport;
+  const showReportLoad  = activeTool === "personal" && !showError && !showQA && !showReport && aiReportLoading;
+  const showProjection  = activeTool !== "personal" && !showError && !!result;
+  const showSuggestions = !showError && !showQA && !showReport && !showReportLoad && !showProjection;
 
   return (
     <div className="w-[240px] flex-shrink-0 h-full flex flex-col border-l-[1.5px] border-border bg-white/[0.28] backdrop-blur-[20px] overflow-y-auto overflow-x-hidden">
@@ -145,7 +154,7 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
               : "bg-primary text-white cursor-pointer"
           )}
         >
-          {loading ? <><Spinner /> Thinking…</> : "Ask Elly"}
+          {loading ? <><Spinner size={10} /> Thinking…</> : "Ask Elly"}
         </button>
 
         {noPFData && !loading && (
@@ -155,67 +164,53 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
         )}
       </section>
 
-      {/* Response / Elly Suggestions — flex-1 so it fills available space */}
+      {/* Response / Report / Suggestions */}
       <section className="p-3.5 border-b border-primary/[0.08] flex-1 min-h-0 overflow-y-auto">
-        {error && (
+        {showError && (
+          <AIErrorBlock
+            message={errorMessage ?? ""}
+            onRetry={activeTool === "personal" ? refetchPFAIReport : undefined}
+          />
+        )}
+
+        {showQA && aiQAResult && <PFQAView qa={aiQAResult} />}
+
+        {showReport && aiReport && <PFReportView report={aiReport} userGoalCount={userGoalCount} />}
+
+        {showReportLoad && (
           <>
-            <SectionHeader>Error</SectionHeader>
-            <span className="text-destructive text-[11.5px]">{error}</span>
+            <SectionHeader>Generating Report</SectionHeader>
+            <div className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
+              <Spinner size={10} />
+              Analysing your finances…
+            </div>
           </>
         )}
 
-        {!error && (result || pfResult) && (
+        {showProjection && result && (
           <>
             <SectionHeader>Elly's Response</SectionHeader>
             <div className="flex flex-col gap-3">
-              {result && (
-                <>
-                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
-                    {result.analysis_short}
-                  </p>
-                  {result.next_steps.length > 0 && (
-                    <div>
-                      <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
-                        Next Steps
-                      </div>
-                      {result.next_steps.slice(0, 2).map((s, i) => (
-                        <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
-                          → {s}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-              {pfResult && (
-                <>
-                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
-                    {pfResult.answer ?? pfResult.summary}
-                  </p>
-                  {(() => {
-                    const items = pfResult.supporting_insights ?? pfResult.recommendedActions;
-                    const label = pfResult.supporting_insights ? "Key Insights" : "Next Steps";
-                    if (!items || items.length === 0) return null;
-                    return (
-                      <div>
-                        <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
-                          {label}
-                        </div>
-                        {items.slice(0, 3).map((s, i) => (
-                          <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
-                            → {s}
-                          </p>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </>
+              <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
+                {result.analysis_short}
+              </p>
+              {result.next_steps.length > 0 && (
+                <div>
+                  <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
+                    Next Steps
+                  </div>
+                  {result.next_steps.slice(0, 2).map((s, i) => (
+                    <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                      → {s}
+                    </p>
+                  ))}
+                </div>
               )}
             </div>
           </>
         )}
 
-        {!error && !result && !pfResult && (
+        {showSuggestions && (
           <>
             <SectionHeader>Elly Suggestions</SectionHeader>
             {activeTool === "projection" ? (
