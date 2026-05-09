@@ -385,6 +385,14 @@ def delete_holding(holding_id: str, db: Session = Depends(get_db)):
     db.commit()
 
 
+@app.delete("/investments/holdings", status_code=204)
+def clear_all_holdings(db: Session = Depends(get_db)):
+    db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).delete()
+    db.commit()
+
+
 @app.post("/investments/holdings/upload")
 async def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     import pandas as pd

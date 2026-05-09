@@ -50,6 +50,10 @@ export async function deleteHolding(id: string): Promise<void> {
   await investmentApiClient.delete(`/investments/holdings/${id}`);
 }
 
+export async function clearAllHoldings(): Promise<void> {
+  await investmentApiClient.delete("/investments/holdings");
+}
+
 export interface InvestmentInsight {
   type: string;
   message: string;
