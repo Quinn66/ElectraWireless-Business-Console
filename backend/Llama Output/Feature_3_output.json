@@ -1,0 +1,23 @@
+{
+  "summary": "The portfolio has a total value of $12,500 with a profit loss of $2,500 over the last six months. The return percentage is 25%, and the cash balance is $1,500.",
+  "pros": [
+    "High return percentage of 25%",
+    "Strong performance from top gainers like BTC and AAPL",
+    "Diversification score of 62 indicates a moderate level of diversification",
+    "Risk grade is B, indicating a relatively stable portfolio"
+  ],
+  "cons": [
+    "High crypto concentration (69.6%) exceeds the recommended threshold of 25%",
+    "Low diversification score could be improved by adding uncorrelated positions",
+    "Portfolio dipped in April before recovering in May",
+    "Loss on VOO investment (-11.2%)"
+  ],
+  "next_steps": [
+    "Rebalance portfolio to reduce high crypto concentration",
+    "Consider adding 2-3 uncorrelated positions to improve diversification",
+    "Monitor and adjust investment strategy based on market performance",
+    "Review and adjust weight of individual holdings as needed"
+  ],
+  "question_response": "Should I rebalance my portfolio given the current crypto exposure?\nYes, it is recommended to rebalance your portfolio to reduce high crypto concentration.",
+  "sources": []
+}
