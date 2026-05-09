@@ -50,6 +50,18 @@ export async function deleteHolding(id: string): Promise<void> {
   await investmentApiClient.delete(`/investments/holdings/${id}`);
 }
 
+export interface InvestmentInsight {
+  type: string;
+  message: string;
+  severity: "high" | "medium" | "low" | "info";
+  affected: string[];
+}
+
+export async function fetchInsights(): Promise<InvestmentInsight[]> {
+  const res = await investmentApiClient.get<InvestmentInsight[]>("/investments/insights");
+  return res.data;
+}
+
 export async function uploadHoldingsCsv(
   file: File
 ): Promise<{ imported: number; symbols: string[]; errors: string[] }> {
