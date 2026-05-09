@@ -6,6 +6,7 @@ import { TransactionFormModal } from "@/components/pf/TransactionFormModal";
 import { CategoryReviewTable } from "@/components/pf/CategoryReviewTable";
 import { BudgetPanel } from "@/components/pf/BudgetPanel";
 import { PFInsightsPanel } from "@/components/pf/PFInsightsPanel";
+import { GoalsTab } from "@/components/pf/GoalsTab";
 import { OverviewTab } from "@/components/pf/OverviewTab";
 import { CashFlowTab } from "@/components/pf/CashFlowTab";
 import { TransactionsTab } from "@/components/pf/TransactionsTab";
@@ -17,6 +18,7 @@ const TABS = [
   { key: "budgets",       label: "Budgets" },
   { key: "cashflow",      label: "Cash Flow" },
   { key: "insights",      label: "Insights" },
+  { key: "goals",         label: "Goals" },
 ];
 
 
@@ -332,6 +334,7 @@ export function PersonalFinancePage() {
           {activeTab === "budgets"      && <BudgetPanel />}
           {activeTab === "cashflow"     && <CashFlowTab />}
           {activeTab === "insights"     && <PFInsightsPanel />}
+          {activeTab === "goals"        && <GoalsTab />}
         </div>
       </div>
     );

@@ -4,6 +4,16 @@ import { useMemo } from "react";
 import { MOCK_TRANSACTIONS } from "@/services/personalFinanceApi";
 import { filterByPeriod, type Period } from "@/lib/periodFilter";
 
+export interface Goal {
+  id: string;
+  name: string;
+  type: "savings" | "spending_limit" | "net_worth";
+  targetAmount: number;
+  currentAmount: number;
+  deadline?: string;   // ISO yyyy-mm-dd
+  category?: string;   // only for spending_limit
+}
+
 export interface Transaction {
   id: string;
   date: string;           // ISO yyyy-mm-dd
@@ -29,6 +39,8 @@ interface PersonalFinanceState {
   // category → monthly budget limit
   budgets: Record<string, number>;
 
+  goals: Goal[];
+
   // Manual net worth inputs (assets and liabilities)
   assets: number;
   liabilities: number;
@@ -47,6 +59,9 @@ interface PersonalFinanceState {
   updatePendingCategory: (id: string, category: string) => void;
   deleteTransaction: (id: string) => void;
   setBudget: (category: string, limit: number) => void;
+  addGoal: (goal: Goal) => void;
+  updateGoal: (id: string, patch: Partial<Goal>) => void;
+  deleteGoal: (id: string) => void;
   setAssets: (n: number) => void;
   setLiabilities: (n: number) => void;
   setApiLoading: (v: boolean) => void;
@@ -65,6 +80,7 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
   transactions: [],
   pendingTransactions: [],
   budgets: {},
+  goals: [],
   assets: 0,
   liabilities: 0,
   apiLoading: false,
@@ -112,6 +128,15 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
   setBudget: (category, limit) =>
     set((s) => ({ budgets: { ...s.budgets, [category]: limit } })),
 
+  addGoal: (goal) =>
+    set((s) => ({ goals: [...s.goals, goal] })),
+
+  updateGoal: (id, patch) =>
+    set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)) })),
+
+  deleteGoal: (id) =>
+    set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
+
   setApiLoading: (apiLoading) => set({ apiLoading }),
   setApiError: (apiError) => set({ apiError }),
 
@@ -130,6 +155,7 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
       transactions: [],
       pendingTransactions: [],
       budgets: {},
+      goals: [],
       assets: 0,
       liabilities: 0,
       apiLoading: false,
@@ -145,6 +171,7 @@ export const usePersonalFinanceStore = create<PersonalFinanceState>()(
         activePeriod: state.activePeriod,
         transactions: state.transactions,
         budgets:      state.budgets,
+        goals:        state.goals,
         assets:       state.assets,
         liabilities:  state.liabilities,
       }),
