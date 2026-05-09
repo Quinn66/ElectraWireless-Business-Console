@@ -1,34 +1,25 @@
 import json
 import re
-import os
-
-from fastapi import FastAPI
-from pydantic import BaseModel
-from groq import Groq
-
-# ================= FASTAPI =================
-app = FastAPI()
+import requests
 
 # ================= FILE PATHS =================
 INPUT_FILE = "../Llama Input/Feature_3_input.json"
 OUTPUT_FILE = "../Llama Output/Feature_3_output.json"
 
 # ================= CONFIG =================
-MODEL_NAME = "llama-3.1-8b-instant"
+MODEL_NAME = "llama3.1:8b"
 
-# ================= GROQ CLIENT =================
-client = Groq(
-    api_key=os.environ.get("GROQ_API_KEY")
-)
-
-# ================= REQUEST MODEL =================
-class PortfolioRequest(BaseModel):
-    data: dict
-
+EXPECTED_SECTIONS = [
+    "summary",
+    "pros",
+    "cons",
+    "next_steps",
+    "question_response",
+    "sources"
+]
 
 # ================= LOAD INPUT =================
 def load_input():
-
     try:
         with open(INPUT_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -105,30 +96,33 @@ No question provided.
 """
 
 
-# ================= GROQ CALL =================
+# ================= LOCAL OLLAMA =================
 def get_analysis(prompt):
 
+    url = "http://localhost:11434/api/generate"
+
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": prompt,
+        "stream": False
+    }
+
     try:
+        response = requests.post(url, json=payload)
 
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            max_tokens=1200
-        )
+        if response.status_code != 200:
+            print("❌ Ollama request failed")
+            print(response.text)
+            return ""
 
-        return response.choices[0].message.content
+        return response.json().get("response", "")
 
-    except Exception as e:
-        print(f"❌ Groq request failed: {e}")
+    except requests.RequestException as e:
+        print(f"❌ Request error: {e}")
         return ""
 
 
-# ================= SECTION EXTRACTION =================
+# ================= GENERIC SECTION PARSER =================
 def extract_sections(text):
 
     pattern = r"\[SECTION:\s*([^\]]+)\]\s*(.*?)(?=\n\s*\[SECTION:|\Z)"
@@ -167,7 +161,7 @@ def clean_bullets(text):
     return bullets
 
 
-# ================= PARSER =================
+# ================= STRUCTURED PARSER =================
 def parse_output(text):
 
     sections = extract_sections(text)
@@ -193,31 +187,7 @@ def save_output(parsed_data):
     print(f"💾 Saved to {OUTPUT_FILE}")
 
 
-# ================= FASTAPI ROUTE =================
-@app.post("/pf/portfolio-analysis")
-def portfolio_analysis(request: PortfolioRequest):
-
-    data = request.data
-
-    user_question = data.get("question", "").strip()
-
-    if not user_question:
-        user_question = None
-
-    print("🔍 FastAPI /pf/portfolio-analysis called...")
-
-    prompt = build_prompt(data, user_question)
-
-    raw_output = get_analysis(prompt)
-
-    structured = parse_output(raw_output)
-
-    save_output(structured)
-
-    return structured
-
-
-# ================= CLI RUN =================
+# ================= MAIN =================
 def run():
 
     data = load_input()
@@ -225,12 +195,10 @@ def run():
     if not data:
         return
 
-    user_question = data.get("question", "").strip()
+    print("🔍 Generating analysis...\n")
 
-    if not user_question:
-        user_question = None
-
-    print("🔍 Generating portfolio analysis...\n")
+    # Future frontend textbox input
+    user_question = None
 
     prompt = build_prompt(data, user_question)
 
@@ -240,9 +208,6 @@ def run():
     print(raw_output)
 
     parsed = parse_output(raw_output)
-
-    print("\n=== PARSED OUTPUT ===\n")
-    print(json.dumps(parsed, indent=2))
 
     save_output(parsed)
 
