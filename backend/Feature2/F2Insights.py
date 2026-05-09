@@ -255,6 +255,11 @@ Provide a structured response with TWO parts:
 
     return prompt
 
+def build_finance_prompt(data: dict) -> str:
+    question = data.get("question", "").strip()
+    return build_qa_prompt(data) if question else build_report_prompt(data)
+
+
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # ================= GROQ =================

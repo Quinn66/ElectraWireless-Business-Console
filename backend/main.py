@@ -432,6 +432,109 @@ async def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depend
     return {"imported": len(saved), "symbols": saved, "errors": errors}
 
 
+# ── Feature 3: Investment Insights (rule-based, no live prices needed) ────────
+
+@app.get("/investments/insights")
+def get_investment_insights(db: Session = Depends(get_db)):
+    holdings = db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).all()
+
+    if not holdings:
+        return []
+
+    total = sum(h.quantity * h.buy_price for h in holdings)
+    if total == 0:
+        return []
+
+    insights = []
+
+    # Per-symbol overexposure
+    symbol_map: dict[str, float] = {}
+    for h in holdings:
+        symbol_map[h.symbol] = symbol_map.get(h.symbol, 0) + h.quantity * h.buy_price
+
+    for symbol, value in sorted(symbol_map.items(), key=lambda x: -x[1]):
+        pct = value / total * 100
+        if pct > 40:
+            insights.append({
+                "type": "Overexposure",
+                "message": f"{symbol} makes up {pct:.1f}% of your portfolio. Concentrated positions amplify both gains and losses.",
+                "severity": "high",
+                "affected": [symbol],
+            })
+        elif pct > 30:
+            insights.append({
+                "type": "Concentrated Position",
+                "message": f"{symbol} represents {pct:.1f}% of your portfolio. Consider whether this aligns with your risk tolerance.",
+                "severity": "medium",
+                "affected": [symbol],
+            })
+
+    # Crypto concentration
+    crypto_value = sum(h.quantity * h.buy_price for h in holdings if h.asset_type == "crypto")
+    crypto_pct = crypto_value / total * 100
+    if crypto_pct > 50:
+        insights.append({
+            "type": "Crypto Concentration",
+            "message": f"{crypto_pct:.1f}% of your portfolio is in crypto — a highly volatile asset class. Consider diversifying into more stable instruments.",
+            "severity": "high",
+            "affected": list({h.symbol for h in holdings if h.asset_type == "crypto"}),
+        })
+    elif crypto_pct > 30:
+        insights.append({
+            "type": "Crypto Concentration",
+            "message": f"{crypto_pct:.1f}% of your portfolio is in crypto assets. High volatility class — review your risk horizon.",
+            "severity": "medium",
+            "affected": list({h.symbol for h in holdings if h.asset_type == "crypto"}),
+        })
+
+    # Low diversification (< 4 distinct symbols)
+    n_symbols = len(symbol_map)
+    if n_symbols < 4:
+        insights.append({
+            "type": "Low Diversification",
+            "message": f"Your portfolio holds only {n_symbols} distinct asset{'s' if n_symbols != 1 else ''}. Broader diversification reduces unsystematic risk.",
+            "severity": "high" if n_symbols <= 2 else "medium",
+            "affected": list(symbol_map.keys()),
+        })
+
+    # Single asset-type dominance (> 80%)
+    type_map: dict[str, float] = {}
+    for h in holdings:
+        type_map[h.asset_type] = type_map.get(h.asset_type, 0) + h.quantity * h.buy_price
+    type_labels = {"stock": "Stocks", "crypto": "Crypto", "etf": "ETFs", "fund": "Funds", "real_estate": "Real Estate"}
+    for atype, value in type_map.items():
+        pct = value / total * 100
+        if pct > 80:
+            insights.append({
+                "type": "Asset Type Concentration",
+                "message": f"{pct:.1f}% of your portfolio is in {type_labels.get(atype, atype)}. Spreading across asset classes reduces correlation risk.",
+                "severity": "medium",
+                "affected": list({h.symbol for h in holdings if h.asset_type == atype}),
+            })
+
+    # No ETF or fund exposure
+    if not any(h.asset_type in ("etf", "fund") for h in holdings):
+        insights.append({
+            "type": "No Index / Fund Exposure",
+            "message": "Portfolio contains no ETFs or mutual funds. Adding broad-market index exposure can reduce volatility without sacrificing long-term returns.",
+            "severity": "low",
+            "affected": [],
+        })
+
+    # Clean bill of health
+    if not insights:
+        insights.append({
+            "type": "Portfolio Looks Balanced",
+            "message": f"No significant concentration risks detected across your {n_symbols} holdings. Keep reviewing as positions shift.",
+            "severity": "info",
+            "affected": [],
+        })
+
+    return insights
+
+
 # ── Feature 2 AI Insights ─────────────────────────────────────────────────────
 
 from Feature2.F2Insights import build_finance_prompt, get_analysis, parse_llm_output

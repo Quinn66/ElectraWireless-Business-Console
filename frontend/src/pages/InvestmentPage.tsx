@@ -12,9 +12,9 @@ import {
 import { C_PRIMARY, C_BORDER, C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors";
 import {
   fetchHoldings, addHolding, deleteHolding, uploadHoldingsCsv,
-  ASSET_TYPE_LABELS,
+  fetchInsights, ASSET_TYPE_LABELS,
 } from "@/services/investmentApi";
-import type { InvestmentHolding, NewHolding, AssetType } from "@/services/investmentApi";
+import type { InvestmentHolding, InvestmentInsight, NewHolding, AssetType } from "@/services/investmentApi";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -824,41 +824,84 @@ function AnalyticsTab() {
 
 // ── Insights tab ──────────────────────────────────────────────────────────────
 
-function InsightsTab() {
-  const mock = [
-    { type: "Overexposure",        message: "Over 70% in a single asset or asset type detected.", severity: "high" },
-    { type: "Crypto Concentration", message: "High crypto allocation — consider diversifying.", severity: "medium" },
-    { type: "Low Diversification", message: "Portfolio holds fewer than 5 distinct assets.", severity: "low" },
-  ];
-  const sc: Record<string, string> = { high: C_ERROR, medium: C_WARNING, low: C_SUCCESS };
+const SEVERITY_COLOR: Record<string, string> = {
+  high: C_ERROR, medium: C_WARNING, low: C_SUCCESS, info: C_PRIMARY,
+};
+
+function InsightsTab({ holdings }: { holdings: InvestmentHolding[] }) {
+  const [insights, setInsights] = useState<InvestmentInsight[]>([]);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  useEffect(() => {
+    if (holdings.length === 0) { setInsights([]); return; }
+    setLoading(true); setError(null);
+    fetchInsights()
+      .then(setInsights)
+      .catch(() => setError("Could not load insights — is the backend running on port 8000?"))
+      .finally(() => setLoading(false));
+  }, [holdings]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ fontSize: 12.5, color: "#666", margin: 0 }}>
-        Rule-based alerts from <code style={{ fontSize: 11 }}>GET /investments/insights</code>. Mock entries — wire up the backend endpoint.
+        Rule-based alerts from <code style={{ fontSize: 11 }}>GET /investments/insights</code> — live from your holdings, no market data required.
       </p>
-      {mock.map((ins) => (
-        <div key={ins.type} style={{
-          background: sc[ins.severity] + "0f", border: `1.5px solid ${sc[ins.severity]}40`,
-          borderLeft: `4px solid ${sc[ins.severity]}`, borderRadius: 10, padding: "14px 16px",
-          display: "flex", flexDirection: "column", gap: 4,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <AlertTriangle size={13} color={sc[ins.severity]} />
-            <span style={{ fontWeight: 700, fontSize: 12.5, color: sc[ins.severity] }}>{ins.type}</span>
-            <span style={{
-              fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
-              background: sc[ins.severity] + "20", color: sc[ins.severity], padding: "1px 6px", borderRadius: 4,
-            }}>{ins.severity}</span>
-          </div>
-          <p style={{ margin: 0, fontSize: 12, color: "#555", lineHeight: 1.5 }}>{ins.message}</p>
+
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#888" }}>
+          <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Analysing portfolio…
         </div>
-      ))}
+      )}
+
+      {error && (
+        <div style={{
+          padding: "10px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
+          background: C_ERROR + "10", border: `1px solid ${C_ERROR}40`, color: C_ERROR,
+        }}>{error}</div>
+      )}
+
+      {!loading && holdings.length === 0 && (
+        <div style={{
+          padding: "18px 20px", borderRadius: 10, fontSize: 12.5, color: "#aaa",
+          background: "rgba(255,255,255,0.4)", border: `1.5px dashed ${C_BORDER}`, textAlign: "center",
+        }}>
+          Add holdings first — insights will appear automatically.
+        </div>
+      )}
+
+      {!loading && insights.map((ins, i) => {
+        const color = SEVERITY_COLOR[ins.severity] ?? C_PRIMARY;
+        return (
+          <div key={i} style={{
+            background: color + "0f", border: `1.5px solid ${color}40`,
+            borderLeft: `4px solid ${color}`, borderRadius: 10, padding: "14px 16px",
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <AlertTriangle size={13} color={color} />
+              <span style={{ fontWeight: 700, fontSize: 12.5, color }}>{ins.type}</span>
+              <span style={{
+                fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                background: color + "20", color, padding: "1px 6px", borderRadius: 4,
+              }}>{ins.severity}</span>
+              {ins.affected.length > 0 && ins.affected.map((sym) => (
+                <span key={sym} style={{
+                  fontSize: 10, fontWeight: 700, background: "rgba(0,0,0,0.06)",
+                  color: "#555", padding: "1px 6px", borderRadius: 4,
+                }}>{sym}</span>
+              ))}
+            </div>
+            <p style={{ margin: 0, fontSize: 12, color: "#555", lineHeight: 1.5 }}>{ins.message}</p>
+          </div>
+        );
+      })}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
-        <PlaceholderCard icon={<Lightbulb size={15} />} title="GET /investments/insights"
-          description="Categorised rule-based alerts with severity (high / medium / low)." owner="Backend" phase="Phase 6" />
         <PlaceholderCard icon={<Lightbulb size={15} />} title="Personalised Insight Language"
           description="Tone adapts to onboarding experience level — simple for beginners, technical for advanced." owner="AI / Insights" phase="Phase 6" />
+        <PlaceholderCard icon={<Sparkles size={15} />} title="Live Price Signals"
+          description="Insight severity updates in real-time as market prices shift your effective allocation." owner="Backend" phase="Phase 3" />
       </div>
     </div>
   );
@@ -926,7 +969,7 @@ export function InvestmentPage() {
     holdings:  <HoldingsTab holdings={holdings} loading={loading} fetchError={fetchError}
                  onAdd={handleAdd} onDelete={handleDelete} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
-    insights:  <InsightsTab />,
+    insights:  <InsightsTab holdings={holdings} />,
     ai:        <AITab />,
   };
 
