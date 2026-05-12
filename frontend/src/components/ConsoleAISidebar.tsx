@@ -7,11 +7,18 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useProjectionStore } from "@/store/projectionStore";
-import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
+import { usePersonalFinanceStore, useFilteredTransactions } from "@/store/personalFinanceStore";
 import { AIHintBlock } from "@/components/AIHintBlock";
 import { API_BASE, type AnalysisResult } from "@/lib/api";
 import type { ConsoleTool } from "@/components/ConsoleSidebar";
 import { cn } from "@/lib/utils";
+import {
+  fetchSummary,
+  fetchInsights,
+  fetchPFAIInsights,
+  buildPFAIPayload,
+  type PFAIResponse,
+} from "@/services/personalFinanceApi";
 
 const TOOL_TIPS: Partial<Record<ConsoleTool, string[]>> = {
   home: [
@@ -63,13 +70,17 @@ interface ConsoleAISidebarProps {
 }
 
 export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
-  const [input, setInput]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult]   = useState<AnalysisResult | null>(null);
-  const [error, setError]     = useState<string | null>(null);
+  const [input, setInput]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [result, setResult]     = useState<AnalysisResult | null>(null);
+  const [pfResult, setPfResult] = useState<PFAIResponse | null>(null);
+  const [error, setError]       = useState<string | null>(null);
 
   const setActiveScenario = useProjectionStore((s) => s.setActiveScenario);
   const { loadDemoData, reset } = usePersonalFinanceStore();
+  const pfTransactions = useFilteredTransactions();
+  const pfBudgets      = usePersonalFinanceStore((s) => s.budgets);
+  const pfPeriod       = usePersonalFinanceStore((s) => s.activePeriod);
 
   async function handleAsk() {
     const q = input.trim();
@@ -77,14 +88,22 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
     setLoading(true);
     setError(null);
     setResult(null);
+    setPfResult(null);
     try {
-      const res = await fetch(`${API_BASE}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
-      });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      setResult(await res.json() as AnalysisResult);
+      if (activeTool === "personal") {
+        const summary  = await fetchSummary(pfTransactions);
+        const insights = await fetchInsights(pfTransactions, pfBudgets);
+        const payload  = buildPFAIPayload(q, pfPeriod, summary, insights);
+        setPfResult(await fetchPFAIInsights(payload));
+      } else {
+        const res = await fetch(`${API_BASE}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q }),
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        setResult(await res.json() as AnalysisResult);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -92,7 +111,8 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
     }
   }
 
-  const isDisabled = loading || !input.trim();
+  const noPFData = activeTool === "personal" && pfTransactions.length === 0;
+  const isDisabled = loading || !input.trim() || noPFData;
 
   return (
     <div className="w-[240px] flex-shrink-0 h-full flex flex-col border-l-[1.5px] border-border bg-white/[0.28] backdrop-blur-[20px] overflow-y-auto overflow-x-hidden">
@@ -128,49 +148,89 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
           {loading ? <><Spinner /> Thinking…</> : "Ask Elly"}
         </button>
 
-        {(result || error) && (
-          <div className="mt-2.5 px-3 py-2.5 bg-white/[0.62] border border-border rounded-lg leading-[1.65]">
-            {error && (
-              <span className="text-destructive text-[11.5px]">{error}</span>
-            )}
-            {result && (
-              <>
-                <p className="m-0 mb-2 text-xs text-[hsl(242_44%_35%)]">
-                  {result.analysis_short}
-                </p>
-                {result.next_steps.length > 0 && (
-                  <div>
-                    <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1">
-                      Next Steps
-                    </div>
-                    {result.next_steps.slice(0, 2).map((s, i) => (
-                      <p key={i} className="m-0 mb-[3px] text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
-                        → {s}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+        {noPFData && !loading && (
+          <p className="mt-2 m-0 text-[10.5px] text-muted-foreground leading-[1.55]">
+            Import transactions or load demo data to ask Elly about your finances.
+          </p>
         )}
       </section>
 
-      {/* Elly Suggestions */}
-      <section className="p-3.5 border-b border-primary/[0.08] flex-1 min-h-0">
-        <SectionHeader>Elly Suggestions</SectionHeader>
+      {/* Response / Elly Suggestions — flex-1 so it fills available space */}
+      <section className="p-3.5 border-b border-primary/[0.08] flex-1 min-h-0 overflow-y-auto">
+        {error && (
+          <>
+            <SectionHeader>Error</SectionHeader>
+            <span className="text-destructive text-[11.5px]">{error}</span>
+          </>
+        )}
 
-        {activeTool === "projection" ? (
-          <AIHintBlock />
-        ) : (
-          <div className="flex flex-col gap-2">
-            {(TOOL_TIPS[activeTool] ?? []).map((tip, i) => (
-              <p key={i} className="m-0 text-[11.5px] text-muted-foreground leading-[1.65]">
-                <span className="text-primary mr-[5px]">→</span>
-                {tip}
-              </p>
-            ))}
-          </div>
+        {!error && (result || pfResult) && (
+          <>
+            <SectionHeader>Elly's Response</SectionHeader>
+            <div className="flex flex-col gap-3">
+              {result && (
+                <>
+                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
+                    {result.analysis_short}
+                  </p>
+                  {result.next_steps.length > 0 && (
+                    <div>
+                      <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
+                        Next Steps
+                      </div>
+                      {result.next_steps.slice(0, 2).map((s, i) => (
+                        <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                          → {s}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              {pfResult && (
+                <>
+                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
+                    {pfResult.answer ?? pfResult.summary}
+                  </p>
+                  {(() => {
+                    const items = pfResult.supporting_insights ?? pfResult.recommendedActions;
+                    const label = pfResult.supporting_insights ? "Key Insights" : "Next Steps";
+                    if (!items || items.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
+                          {label}
+                        </div>
+                        {items.slice(0, 3).map((s, i) => (
+                          <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                            → {s}
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {!error && !result && !pfResult && (
+          <>
+            <SectionHeader>Elly Suggestions</SectionHeader>
+            {activeTool === "projection" ? (
+              <AIHintBlock />
+            ) : (
+              <div className="flex flex-col gap-2">
+                {(TOOL_TIPS[activeTool] ?? []).map((tip, i) => (
+                  <p key={i} className="m-0 text-[11.5px] text-muted-foreground leading-[1.65]">
+                    <span className="text-primary mr-[5px]">→</span>
+                    {tip}
+                  </p>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
 
