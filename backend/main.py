@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
 from datetime import date as date_today
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
+from investments import router as investments_router
 from database import engine, Base, get_db
 import models  # registers ORM models
 
@@ -28,19 +28,50 @@ load_dotenv()
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from uuid import uuid4
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from database import SessionLocal
+import market_data
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
 # Create all PF tables on startup if they don't already exist
 Base.metadata.create_all(bind=engine)
+def scheduled_price_refresh():
+    """
+    Called automatically by the scheduler every 15 min during market hours.
+    Opens its own DB session since this runs outside a request context.
+    """
+    db = SessionLocal()
+    try:
+        print("[scheduler] Running scheduled price refresh...")
+        result = market_data.refresh_all_prices(db)
+        print(f"[scheduler] Done: {result}")
+    finally:
+        db.close()
 
+
+# Start the background scheduler
+scheduler = BackgroundScheduler()
+
+scheduler.add_job(
+    scheduled_price_refresh,
+    trigger=CronTrigger(
+        day_of_week="mon-fri",  # weekdays only — markets are closed on weekends
+        hour="9-16",            # between 9am and 4pm
+        minute="*/15",          # every 15 minutes
+        timezone="Australia/Sydney"
+    ),
+)
+
+scheduler.start()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # tighten in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.include_router(investments_router)
 
 class ForecastRequest(BaseModel):
     revenue: float = Field(..., description="Current monthly revenue ($)")
