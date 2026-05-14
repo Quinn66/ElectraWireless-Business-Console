@@ -14,11 +14,14 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Thresholds
+# Thresholds — tweak these numbers as needed
 # ---------------------------------------------------------------------------
 
-SYMBOL_OVEREXPOSURE_PCT = 40.0   # flag any single symbol above this % of portfolio
-TYPE_OVEREXPOSURE_PCT   = 60.0   # flag any single asset type above this %
+HOLDING_OVEREXPOSURE_PCT = 25.0   # flag any single holding above this % of total portfolio
+TYPE_OVEREXPOSURE_PCT    = 60.0   # flag any single asset type above this % of total portfolio
+
+# All recognised asset types — used for diversification score calculation
+KNOWN_ASSET_TYPES = {"stock", "etf", "crypto", "fund", "real_estate"}
 
 
 # ---------------------------------------------------------------------------
@@ -181,56 +184,55 @@ def compute_allocation(holdings: list[dict]) -> dict[str, Any]:
 # Diversification score + overexposure detection
 # ---------------------------------------------------------------------------
 
-def _hhi(weights: list[float]) -> float:
-    """Herfindahl-Hirschman Index on a list of 0-1 weights."""
-    return float(np.sum(np.array(weights) ** 2))
-
-
 def calculate_diversification_score(holdings: list[dict]) -> dict[str, Any]:
     """
-    Diversification score 0-100 derived from HHI of symbol weights.
-      100 = perfectly equal spread across all symbols
-        0 = entire portfolio in a single symbol
+    Diversification score 0-100 based on sector spread:
+      score = (number of distinct known asset types held / 5 possible types) * 100
 
-    Overexposure flags use SYMBOL_OVEREXPOSURE_PCT and TYPE_OVEREXPOSURE_PCT.
+      e.g. holds stock + crypto + etf → 3/5 = 60%
+
+    Overexposure flags:
+      - overexposed_holdings: any single holding > HOLDING_OVEREXPOSURE_PCT of portfolio
+      - overexposed_types:    any single asset type > TYPE_OVEREXPOSURE_PCT of portfolio
     """
+    empty = {
+        "score":                0,
+        "distinct_asset_types": [],
+        "overexposed_holdings": [],
+        "overexposed_types":    [],
+    }
+
     if not holdings:
-        return {
-            "score":               0,
-            "hhi":                 1.0,
-            "overexposed_symbols": [],
-            "overexposed_types":   [],
-        }
+        return empty
 
     total_value = sum(_current_value(h) for h in holdings)
     if total_value == 0:
-        return {
-            "score":               0,
-            "hhi":                 1.0,
-            "overexposed_symbols": [],
-            "overexposed_types":   [],
-        }
+        return empty
 
-    by_symbol: dict[str, float] = {}
-    by_type:   dict[str, float] = {}
+    # Diversification score — sector spread (Option A)
+    distinct_types = {
+        h.get("asset_type", "").lower()
+        for h in holdings
+    } & KNOWN_ASSET_TYPES
+    score = round(len(distinct_types) / len(KNOWN_ASSET_TYPES) * 100, 1)
+
+    # Overexposure — per individual holding
+    overexposed_holdings = []
     for h in holdings:
-        sym = h["symbol"].upper()
-        at  = h.get("asset_type", "unknown")
-        val = _current_value(h)
-        by_symbol[sym] = by_symbol.get(sym, 0.0) + val
-        by_type[at]    = by_type.get(at, 0.0)    + val
+        pct = _current_value(h) / total_value * 100
+        if pct > HOLDING_OVEREXPOSURE_PCT:
+            overexposed_holdings.append({
+                "id":         h["id"],
+                "symbol":     h["symbol"],
+                "asset_type": h.get("asset_type"),
+                "percentage": round(pct, 2),
+            })
 
-    symbol_weights = [v / total_value for v in by_symbol.values()]
-    hhi = _hhi(symbol_weights)
-
-    n = len(symbol_weights)
-    score = 0.0 if n == 1 else round((1 - hhi) / (1 - 1.0 / n) * 100, 1)
-
-    overexposed_symbols = [
-        {"symbol": sym, "percentage": round(w * 100, 2)}
-        for sym, w in zip(by_symbol.keys(), symbol_weights)
-        if w * 100 > SYMBOL_OVEREXPOSURE_PCT
-    ]
+    # Overexposure — per asset type
+    by_type: dict[str, float] = {}
+    for h in holdings:
+        at = h.get("asset_type", "unknown")
+        by_type[at] = by_type.get(at, 0.0) + _current_value(h)
 
     overexposed_types = [
         {"asset_type": at, "percentage": round(v / total_value * 100, 2)}
@@ -239,8 +241,8 @@ def calculate_diversification_score(holdings: list[dict]) -> dict[str, Any]:
     ]
 
     return {
-        "score":               score,
-        "hhi":                 round(hhi, 6),
-        "overexposed_symbols": overexposed_symbols,
-        "overexposed_types":   overexposed_types,
+        "score":                score,
+        "distinct_asset_types": sorted(distinct_types),
+        "overexposed_holdings": overexposed_holdings,
+        "overexposed_types":    overexposed_types,
     }

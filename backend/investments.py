@@ -17,6 +17,11 @@ from pydantic import BaseModel
 from database import get_db
 import models
 import market_data
+from portfolio_analytics import (
+    calculate_portfolio_summary,
+    compute_allocation,
+    calculate_diversification_score,
+)
 
 router = APIRouter(prefix="/investments", tags=["Investments"])
 
@@ -75,16 +80,84 @@ def refresh_prices(db: Session = Depends(get_db)):
 
 # ── Portfolio Summary & Allocation ────────────────────────────────────────────
 
+def _holding_to_dict(h, price_map: dict) -> dict:
+    """
+    Convert an InvestmentHolding ORM row to a plain dict for analytics.
+    Resolves current_price from the MarketPrice table (price_map).
+    Falls back to None if the symbol has no price yet — analytics will
+    use buy_price as a fallback so nothing crashes.
+    """
+    return {
+        "id":            h.id,
+        "user_id":       h.user_id,
+        "symbol":        h.symbol,
+        "asset_type":    h.asset_type,
+        "quantity":      h.quantity,
+        "buy_price":     h.buy_price,
+        "purchase_date": h.purchase_date,
+        "current_price": price_map.get(h.symbol.upper()),
+    }
+
+
+def _build_price_map(holdings, db: Session) -> dict:
+    """Fetch all relevant MarketPrice rows in one query and return as symbol → price dict."""
+    symbols = list({h.symbol.upper() for h in holdings})
+    if not symbols:
+        return {}
+    rows = db.query(models.MarketPrice).filter(
+        models.MarketPrice.symbol.in_(symbols)
+    ).all()
+    return {row.symbol: row.current_price for row in rows if row.current_price is not None}
+
+
 @router.get("/summary")
-def get_summary(db: Session = Depends(get_db)):
-    """Return total value, cost, P/L, return %. (Phase 4 — Cole)"""
-    return {"message": "TODO — Phase 4"}
+def get_summary(include_volatility: bool = False, db: Session = Depends(get_db)):
+    """
+    Returns portfolio-level totals (value, cost, P&L, return %) plus per-asset
+    performance (CAGR, optional annualised volatility) and diversification score.
+    Also writes a PortfolioSnapshot to the DB for historical tracking.
+
+    ?include_volatility=true  fetch annualised volatility via yfinance — stocks/ETFs only, slower
+    """
+    holdings  = db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).all()
+
+    price_map     = _build_price_map(holdings, db)
+    holding_dicts = [_holding_to_dict(h, price_map) for h in holdings]
+
+    summary         = calculate_portfolio_summary(holding_dicts, include_volatility)
+    diversification = calculate_diversification_score(holding_dicts)
+
+    # Write a snapshot so the frontend can show historical portfolio growth
+    snapshot = models.PortfolioSnapshot(
+        user_id           = "demo-user",
+        total_value       = summary["total_value"],
+        total_cost        = summary["total_cost"],
+        profit_loss       = summary["profit_loss"],
+        return_percentage = summary["return_percentage"],
+    )
+    db.add(snapshot)
+    db.commit()
+
+    return {**summary, "diversification": diversification}
 
 
 @router.get("/allocation")
 def get_allocation(db: Session = Depends(get_db)):
-    """Return allocation breakdown by asset type and symbol. (Phase 4 — Cole)"""
-    return {"message": "TODO — Phase 4"}
+    """
+    Returns portfolio allocation split by symbol and by asset type.
+    Each entry includes absolute value ($) and percentage of total portfolio.
+    Prices come from MarketPrice table — falls back to buy_price if not yet refreshed.
+    """
+    holdings  = db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).all()
+
+    price_map     = _build_price_map(holdings, db)
+    holding_dicts = [_holding_to_dict(h, price_map) for h in holdings]
+
+    return compute_allocation(holding_dicts)
 
 
 # ── Insights ──────────────────────────────────────────────────────────────────
