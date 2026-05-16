@@ -3,13 +3,13 @@
   "Goals": "Reach $20,000 portfolio value within 12 months\nKeep crypto exposure below 25%",
   "period": "Last 6 months",
   "summary": {
-    "totalValue": 12500.00,
-    "totalCost": 10000.00,
-    "profitLoss": 2500.00,
+    "totalValue": 12500.0,
+    "totalCost": 10000.0,
+    "profitLoss": 2500.0,
     "returnPercentage": 25.0,
-    "dayChange": 145.20,
+    "dayChange": 145.2,
     "dayChangePercentage": 1.18,
-    "cashBalance": 1500.00,
+    "cashBalance": 1500.0,
     "diversificationScore": 62,
     "riskGrade": "B",
     "volatility": 18.4,
@@ -21,12 +21,12 @@
       "name": "Apple Inc.",
       "asset_type": "stock",
       "quantity": 10,
-      "buy_price": 150.00,
+      "buy_price": 150.0,
       "purchase_date": "2025-01-01",
-      "current_price": 195.50,
-      "marketValue": 1955.00,
-      "costBasis": 1500.00,
-      "profitLoss": 455.00,
+      "current_price": 195.5,
+      "marketValue": 1955.0,
+      "costBasis": 1500.0,
+      "profitLoss": 455.0,
       "returnPercentage": 30.33,
       "weight": 15.64,
       "dayChangePercentage": 0.85
@@ -36,28 +36,28 @@
       "name": "Bitcoin",
       "asset_type": "crypto",
       "quantity": 0.15,
-      "buy_price": 42000.00,
+      "buy_price": 42000.0,
       "purchase_date": "2024-11-15",
-      "current_price": 58000.00,
-      "marketValue": 8700.00,
-      "costBasis": 6300.00,
-      "profitLoss": 2400.00,
-      "returnPercentage": 38.10,
-      "weight": 69.60,
-      "dayChangePercentage": 2.40
+      "current_price": 58000.0,
+      "marketValue": 8700.0,
+      "costBasis": 6300.0,
+      "profitLoss": 2400.0,
+      "returnPercentage": 38.1,
+      "weight": 69.6,
+      "dayChangePercentage": 2.4
     },
     {
       "symbol": "VOO",
       "name": "Vanguard S&P 500 ETF",
       "asset_type": "etf",
       "quantity": 0.8,
-      "buy_price": 437.50,
+      "buy_price": 437.5,
       "purchase_date": "2025-03-10",
-      "current_price": 423.50,
-      "marketValue": 338.80,
-      "costBasis": 350.00,
-      "profitLoss": -11.20,
-      "returnPercentage": -3.20,
+      "current_price": 423.5,
+      "marketValue": 338.8,
+      "costBasis": 350.0,
+      "profitLoss": -11.2,
+      "returnPercentage": -3.2,
       "weight": 2.71,
       "dayChangePercentage": -0.42
     },
@@ -66,49 +66,97 @@
       "name": "Cash Holdings (USD)",
       "asset_type": "cash",
       "quantity": 1500,
-      "buy_price": 1.00,
+      "buy_price": 1.0,
       "purchase_date": "2025-01-01",
-      "current_price": 1.00,
-      "marketValue": 1500.00,
-      "costBasis": 1500.00,
-      "profitLoss": 0.00,
-      "returnPercentage": 0.00,
-      "weight": 12.00,
-      "dayChangePercentage": 0.00
+      "current_price": 1.0,
+      "marketValue": 1500.0,
+      "costBasis": 1500.0,
+      "profitLoss": 0.0,
+      "returnPercentage": 0.0,
+      "weight": 12.0,
+      "dayChangePercentage": 0.0
     }
   ],
   "allocation": {
     "byAssetType": {
       "stock": 15.64,
       "etf": 2.71,
-      "crypto": 69.60,
-      "cash": 12.00
+      "crypto": 69.6,
+      "cash": 12.0
     },
     "bySymbol": {
       "AAPL": 15.64,
-      "BTC": 69.60,
+      "BTC": 69.6,
       "VOO": 2.71,
-      "CASH": 12.00
+      "CASH": 12.0
     },
     "topConcentration": {
       "symbol": "BTC",
-      "weight": 69.60
+      "weight": 69.6
     }
   },
   "monthlySnapshots": [
-    { "month": "2025-12", "totalValue": 10800, "totalCost": 9800,  "profitLoss": 1000, "returnPercentage": 10.20 },
-    { "month": "2026-01", "totalValue": 11200, "totalCost": 10000, "profitLoss": 1200, "returnPercentage": 12.00 },
-    { "month": "2026-02", "totalValue": 11900, "totalCost": 10000, "profitLoss": 1900, "returnPercentage": 19.00 },
-    { "month": "2026-03", "totalValue": 12300, "totalCost": 10000, "profitLoss": 2300, "returnPercentage": 23.00 },
-    { "month": "2026-04", "totalValue": 11800, "totalCost": 10000, "profitLoss": 1800, "returnPercentage": 18.00 },
-    { "month": "2026-05", "totalValue": 12500, "totalCost": 10000, "profitLoss": 2500, "returnPercentage": 25.00 }
+    {
+      "month": "2025-12",
+      "totalValue": 10800,
+      "totalCost": 9800,
+      "profitLoss": 1000,
+      "returnPercentage": 10.2
+    },
+    {
+      "month": "2026-01",
+      "totalValue": 11200,
+      "totalCost": 10000,
+      "profitLoss": 1200,
+      "returnPercentage": 12.0
+    },
+    {
+      "month": "2026-02",
+      "totalValue": 11900,
+      "totalCost": 10000,
+      "profitLoss": 1900,
+      "returnPercentage": 19.0
+    },
+    {
+      "month": "2026-03",
+      "totalValue": 12300,
+      "totalCost": 10000,
+      "profitLoss": 2300,
+      "returnPercentage": 23.0
+    },
+    {
+      "month": "2026-04",
+      "totalValue": 11800,
+      "totalCost": 10000,
+      "profitLoss": 1800,
+      "returnPercentage": 18.0
+    },
+    {
+      "month": "2026-05",
+      "totalValue": 12500,
+      "totalCost": 10000,
+      "profitLoss": 2500,
+      "returnPercentage": 25.0
+    }
   ],
   "topGainers": [
-    { "symbol": "BTC",  "returnPercentage": 38.10, "profitLoss": 2400.00 },
-    { "symbol": "AAPL", "returnPercentage": 30.33, "profitLoss": 455.00 }
+    {
+      "symbol": "BTC",
+      "returnPercentage": 38.1,
+      "profitLoss": 2400.0
+    },
+    {
+      "symbol": "AAPL",
+      "returnPercentage": 30.33,
+      "profitLoss": 455.0
+    }
   ],
   "topLosers": [
-    { "symbol": "VOO",  "returnPercentage": -3.20, "profitLoss": -11.20 }
+    {
+      "symbol": "VOO",
+      "returnPercentage": -3.2,
+      "profitLoss": -11.2
+    }
   ],
   "alerts": [
     {
@@ -137,5 +185,15 @@
     "healthGrade": "B",
     "healthScore": 74,
     "period": "Last 3 months"
+  },
+  "onboarding": {
+    "available": true,
+    "age": 30,
+    "experienceLevel": "beginner",
+    "financialBackground": "moderate",
+    "communicationStyle": "simple",
+    "investmentGoal": "balanced",
+    "timeHorizon": "medium",
+    "completedAt": "2026-05-16T02:05:05.525083+00:00"
   }
 }

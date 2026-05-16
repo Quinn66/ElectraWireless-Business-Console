@@ -11,7 +11,9 @@ Phases covered in this file:
   Phase 6  — insights engine
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
@@ -55,9 +57,45 @@ def delete_holding(holding_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/holdings/upload")
-def upload_holdings_csv(db: Session = Depends(get_db)):
-    """CSV bulk import of holdings. (Phase 2 — Abdullah)"""
-    return {"message": "TODO — Phase 2"}
+def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """CSV bulk import of holdings. Required columns: symbol, asset_type, quantity, buy_price. Optional: purchase_date."""
+    contents = file.file.read().decode("utf-8")
+    reader = csv.DictReader(io.StringIO(contents))
+
+    # Normalise header names to lowercase stripped strings
+    required = {"symbol", "asset_type", "quantity", "buy_price"}
+    imported = 0
+    symbols: list[str] = []
+    errors: list[str] = []
+
+    for i, raw_row in enumerate(reader, start=2):
+        row = {k.strip().lower(): v.strip() for k, v in raw_row.items() if k}
+        missing = required - row.keys()
+        if missing:
+            errors.append(f"Row {i}: missing columns {missing}")
+            continue
+        try:
+            holding = models.InvestmentHolding(
+                user_id=       "demo-user",
+                symbol=        row["symbol"].upper(),
+                asset_type=    row["asset_type"].lower(),
+                quantity=      float(row["quantity"]),
+                buy_price=     float(row["buy_price"]),
+                purchase_date= row.get("purchase_date") or None,
+                source=        "csv",
+            )
+            db.add(holding)
+            symbols.append(holding.symbol)
+            imported += 1
+        except ValueError as e:
+            errors.append(f"Row {i}: {e}")
+
+    db.commit()
+
+    if symbols:
+        market_data.refresh_all_prices(db)
+
+    return {"imported": imported, "symbols": symbols, "errors": errors}
 
 
 # ── Market Prices ─────────────────────────────────────────────────────────────
@@ -110,6 +148,23 @@ def _build_price_map(holdings, db: Session) -> dict:
     return {row.symbol: row.current_price for row in rows if row.current_price is not None}
 
 
+def _build_daily_change_map(holdings, db: Session) -> dict:
+    """Return symbol → {daily_change, percentage_change} for the gainers/losers widget."""
+    symbols = list({h.symbol.upper() for h in holdings})
+    if not symbols:
+        return {}
+    rows = db.query(models.MarketPrice).filter(
+        models.MarketPrice.symbol.in_(symbols)
+    ).all()
+    return {
+        row.symbol: {
+            "daily_change":      row.daily_change,
+            "percentage_change": row.percentage_change,
+        }
+        for row in rows
+    }
+
+
 @router.get("/summary")
 def get_summary(include_volatility: bool = False, db: Session = Depends(get_db)):
     """
@@ -123,11 +178,19 @@ def get_summary(include_volatility: bool = False, db: Session = Depends(get_db))
         models.InvestmentHolding.user_id == "demo-user"
     ).all()
 
-    price_map     = _build_price_map(holdings, db)
-    holding_dicts = [_holding_to_dict(h, price_map) for h in holdings]
+    price_map      = _build_price_map(holdings, db)
+    daily_map      = _build_daily_change_map(holdings, db)
+    holding_dicts  = [_holding_to_dict(h, price_map) for h in holdings]
 
     summary         = calculate_portfolio_summary(holding_dicts, include_volatility)
     diversification = calculate_diversification_score(holding_dicts)
+
+    # Attach daily change fields to each asset so the frontend gainers/losers widget
+    # can sort by today's move rather than total return since purchase.
+    for asset in summary.get("assets", []):
+        daily = daily_map.get(asset["symbol"].upper(), {})
+        asset["daily_change"]      = daily.get("daily_change")
+        asset["percentage_change"] = daily.get("percentage_change")
 
     # Write a snapshot so the frontend can show historical portfolio growth
     snapshot = models.PortfolioSnapshot(

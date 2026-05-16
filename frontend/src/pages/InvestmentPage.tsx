@@ -357,9 +357,9 @@ function GrowthLineChart({ snapshots }: { snapshots: PortfolioSnapshot[] }) {
 // ── Top gainers / losers ──────────────────────────────────────────────────────
 
 function GainersLosersList({ assets }: { assets: AssetPerformance[] }) {
-  const byReturn = [...assets].sort((a, b) => b.return_percentage - a.return_percentage);
-  const gainers  = byReturn.filter((a) => a.return_percentage >= 0).slice(0, 3);
-  const losers   = [...assets].sort((a, b) => a.return_percentage - b.return_percentage).filter((a) => a.return_percentage < 0).slice(0, 3);
+  const withDaily = assets.filter((a) => a.percentage_change != null);
+  const gainers   = [...withDaily].sort((a, b) => (b.percentage_change ?? 0) - (a.percentage_change ?? 0)).filter((a) => (a.percentage_change ?? 0) >= 0).slice(0, 3);
+  const losers    = [...withDaily].sort((a, b) => (a.percentage_change ?? 0) - (b.percentage_change ?? 0)).filter((a) => (a.percentage_change ?? 0) < 0).slice(0, 3);
 
   const itemStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -381,10 +381,10 @@ function GainersLosersList({ assets }: { assets: AssetPerformance[] }) {
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: positive ? C_SUCCESS : C_ERROR }}>
-            {fmtPct(a.return_percentage)}
+            {a.percentage_change != null ? `${a.percentage_change >= 0 ? "+" : ""}${a.percentage_change.toFixed(2)}%` : "—"}
           </div>
           <div style={{ fontSize: 11, color: "#aaa" }}>
-            {a.profit_loss >= 0 ? "+" : ""}{fmt$(a.profit_loss)}
+            {a.daily_change != null ? `${a.daily_change >= 0 ? "+" : ""}${fmt$(a.daily_change)}` : "—"}
           </div>
         </div>
       </div>
