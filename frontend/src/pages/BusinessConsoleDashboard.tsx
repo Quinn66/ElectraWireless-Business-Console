@@ -8,12 +8,13 @@ import { InvestmentPage } from "@/pages/InvestmentPage";
 import { ConsoleHome } from "@/pages/ConsoleHome";
 import ProfileSelector from "@/ProfileSelector";
 import OnboardingFlow from "@/OnboardingFlow";
+import InvestmentOnboardingFlow from "@/InvestmentOnboardingFlow";
 import { useProjectionStore } from "@/store/projectionStore";
 import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
 import { PROFILE_PRESETS, DEFAULT_PRESET } from "@/lib/profilePresets";
 import type { ProfilePreset } from "@/lib/profilePresets";
 
-type OnboardStage = "idle" | "profile-selector" | "onboarding-flow";
+type OnboardStage = "idle" | "profile-selector" | "onboarding-flow" | "investment-onboarding";
 
 export function BusinessConsoleDashboard() {
   const [activeTool, setActiveTool]           = useState<ConsoleTool>("home");
@@ -21,6 +22,7 @@ export function BusinessConsoleDashboard() {
   const [onboardStage, setOnboardStage]       = useState<OnboardStage>("idle");
   const [profilePreset, setProfilePreset]     = useState<ProfilePreset | null>(null);
   const [projectionOnboarded, setProjectionOnboarded] = useState(false);
+  const [investmentOnboarded, setInvestmentOnboarded] = useState(false);
 
   const accountType  = useProjectionStore((s) => s.accountType);
   const resetPF      = usePersonalFinanceStore((s) => s.reset);
@@ -29,6 +31,13 @@ export function BusinessConsoleDashboard() {
     setActiveTool("projection");
     if (!projectionOnboarded) {
       setOnboardStage("profile-selector");
+    }
+  }
+
+  function handleOpenInvestment() {
+    setActiveTool("investment");
+    if (!investmentOnboarded) {
+      setOnboardStage("investment-onboarding");
     }
   }
 
@@ -83,6 +92,20 @@ export function BusinessConsoleDashboard() {
     }
 
     if (activeTool === "investment") {
+      if (onboardStage === "investment-onboarding") {
+        return (
+          <InvestmentOnboardingFlow
+            onComplete={() => {
+              setOnboardStage("idle");
+              setInvestmentOnboarded(true);
+            }}
+            onBack={() => {
+              setOnboardStage("idle");
+              setActiveTool("home");
+            }}
+          />
+        );
+      }
       return <InvestmentPage />;
     }
 
@@ -102,6 +125,7 @@ export function BusinessConsoleDashboard() {
               localStorage.removeItem("elly-pf-store");
             }
             if (tool === "projection") { handleOpenProjection(); return; }
+            if (tool === "investment") { handleOpenInvestment(); return; }
             setActiveTool(tool);
           }}
           expanded={sidebarExpanded}

@@ -5,9 +5,11 @@ import {
   TrendingUp,
   Database,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { useProjectionStore } from "@/store/projectionStore";
 import { usePersonalFinanceStore, useFilteredTransactions } from "@/store/personalFinanceStore";
+import { useInvestmentContextStore } from "@/store/investmentContextStore";
 import { AIHintBlock } from "@/components/AIHintBlock";
 import { API_BASE, type AnalysisResult } from "@/lib/api";
 import type { ConsoleTool } from "@/components/ConsoleSidebar";
@@ -19,6 +21,12 @@ import {
   buildPFAIPayload,
   type PFAIResponse,
 } from "@/services/personalFinanceApi";
+import {
+  fetchHoldings,
+  fetchInvestmentAIInsights,
+  buildInvestmentAIPayload,
+  type InvestmentAIResponse,
+} from "@/services/investmentApi";
 
 const TOOL_TIPS: Partial<Record<ConsoleTool, string[]>> = {
   home: [
@@ -30,6 +38,11 @@ const TOOL_TIPS: Partial<Record<ConsoleTool, string[]>> = {
     "Import your bank statement to get AI-powered category insights.",
     "Set budgets for each category to track overspending in real time.",
     "Review the Cash Flow tab to spot monthly income & expense trends.",
+  ],
+  investment: [
+    "Add holdings or import a CSV — Elly tailors analysis to your real portfolio.",
+    "Open the AI Scenarios tab for a full Llama-powered portfolio review.",
+    "Onboarding context (age, horizon, goals) is automatically included in every prompt.",
   ],
 };
 
@@ -70,11 +83,12 @@ interface ConsoleAISidebarProps {
 }
 
 export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
-  const [input, setInput]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [result, setResult]     = useState<AnalysisResult | null>(null);
-  const [pfResult, setPfResult] = useState<PFAIResponse | null>(null);
-  const [error, setError]       = useState<string | null>(null);
+  const [input, setInput]                 = useState("");
+  const [loading, setLoading]             = useState(false);
+  const [result, setResult]               = useState<AnalysisResult | null>(null);
+  const [pfResult, setPfResult]           = useState<PFAIResponse | null>(null);
+  const [investmentResult, setInvestmentResult] = useState<InvestmentAIResponse | null>(null);
+  const [error, setError]                 = useState<string | null>(null);
 
   const setActiveScenario = useProjectionStore((s) => s.setActiveScenario);
   const { loadDemoData, reset } = usePersonalFinanceStore();
@@ -82,19 +96,32 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
   const pfBudgets      = usePersonalFinanceStore((s) => s.budgets);
   const pfPeriod       = usePersonalFinanceStore((s) => s.activePeriod);
 
-  async function handleAsk() {
-    const q = input.trim();
+  async function handleAsk(overrideQuestion?: string) {
+    const q = (overrideQuestion ?? input).trim();
     if (!q || loading) return;
     setLoading(true);
     setError(null);
     setResult(null);
     setPfResult(null);
+    setInvestmentResult(null);
     try {
       if (activeTool === "personal") {
         const summary  = await fetchSummary(pfTransactions);
         const insights = await fetchInsights(pfTransactions, pfBudgets);
         const payload  = buildPFAIPayload(q, pfPeriod, summary, insights);
         setPfResult(await fetchPFAIInsights(payload));
+      } else if (activeTool === "investment") {
+        const holdings   = await fetchHoldings();
+        const onboarding = useInvestmentContextStore.getState();
+        const payload    = buildInvestmentAIPayload(q, holdings, {
+          age:                 onboarding.age,
+          experienceLevel:     onboarding.experienceLevel,
+          financialBackground: onboarding.financialBackground,
+          communicationStyle:  onboarding.communicationStyle,
+          investmentGoal:      onboarding.investmentGoal,
+          timeHorizon:         onboarding.timeHorizon,
+        });
+        setInvestmentResult(await fetchInvestmentAIInsights(payload));
       } else {
         const res = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
@@ -136,7 +163,7 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
         />
 
         <button
-          onClick={handleAsk}
+          onClick={() => handleAsk()}
           disabled={isDisabled}
           className={cn(
             "mt-2 w-full rounded-[7px] px-3.5 py-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors duration-150",
@@ -164,7 +191,7 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
           </>
         )}
 
-        {!error && (result || pfResult) && (
+        {!error && (result || pfResult || investmentResult) && (
           <>
             <SectionHeader>Elly's Response</SectionHeader>
             <div className="flex flex-col gap-3">
@@ -211,11 +238,33 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
                   })()}
                 </>
               )}
+              {investmentResult && (
+                <>
+                  <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
+                    {investmentResult.question_response &&
+                      investmentResult.question_response.toLowerCase().trim() !== "no question provided."
+                      ? investmentResult.question_response
+                      : investmentResult.summary}
+                  </p>
+                  {investmentResult.next_steps.length > 0 && (
+                    <div>
+                      <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-[hsl(245_16%_56%)] mb-1.5">
+                        Next Steps
+                      </div>
+                      {investmentResult.next_steps.slice(0, 3).map((s, i) => (
+                        <p key={i} className="m-0 mb-1 text-[11px] text-[hsl(245_16%_45%)] leading-[1.55]">
+                          → {s}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
 
-        {!error && !result && !pfResult && (
+        {!error && !result && !pfResult && !investmentResult && (
           <>
             <SectionHeader>Elly Suggestions</SectionHeader>
             {activeTool === "projection" ? (
@@ -269,6 +318,20 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
                 icon={<RotateCcw size={13} />}
                 label="Reset All Data"
                 onClick={reset}
+              />
+            </>
+          )}
+          {activeTool === "investment" && (
+            <>
+              <QuickActionBtn
+                icon={<Sparkles size={13} />}
+                label="Generate AI Report"
+                onClick={() => handleAsk("Give me a full portfolio review with strengths, weaknesses, and next steps.")}
+              />
+              <QuickActionBtn
+                icon={<RotateCcw size={13} />}
+                label="Reset Analysis"
+                onClick={() => { setInvestmentResult(null); setError(null); }}
               />
             </>
           )}
