@@ -160,6 +160,71 @@ def get_allocation(db: Session = Depends(get_db)):
     return compute_allocation(holding_dicts)
 
 
+# ── Portfolio Snapshots ───────────────────────────────────────────────────────
+
+@router.get("/snapshots")
+def get_snapshots(db: Session = Depends(get_db)):
+    """
+    Return one deduplicated snapshot per calendar day (latest write wins).
+    The /summary endpoint writes a snapshot on each call, so this may have
+    multiple rows per day — we collapse them here.
+    """
+    rows = (
+        db.query(models.PortfolioSnapshot)
+        .filter(models.PortfolioSnapshot.user_id == "demo-user")
+        .order_by(models.PortfolioSnapshot.id.asc())
+        .all()
+    )
+    by_date: dict = {}
+    for r in rows:
+        key = r.snapshot_date.isoformat() if hasattr(r.snapshot_date, "isoformat") else str(r.snapshot_date)
+        by_date[key] = r  # last write per day wins
+    return [
+        {
+            "date":              k,
+            "total_value":       r.total_value,
+            "profit_loss":       r.profit_loss,
+            "return_percentage": r.return_percentage,
+        }
+        for k, r in sorted(by_date.items())
+    ]
+
+
+# ── Markowitz Risk-Return Data ─────────────────────────────────────────────────
+
+@router.get("/markowitz")
+def get_markowitz(db: Session = Depends(get_db)):
+    """
+    Risk-return scatter data per holding.
+      risk = annualised volatility % (stocks/ETFs via yfinance; None for others)
+      ret  = CAGR % (all asset types)
+      value = current market value (bubble size)
+    """
+    from portfolio_analytics import calculate_asset_performance
+
+    holdings = db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).all()
+    if not holdings:
+        return []
+
+    price_map = _build_price_map(holdings, db)
+    result = []
+    for h in holdings:
+        h_dict = _holding_to_dict(h, price_map)
+        perf = calculate_asset_performance(h_dict, include_volatility=True)
+        cagr_pct = round(perf["cagr"] * 100, 2) if perf["cagr"] is not None else None
+        vol_pct  = round(perf["annualised_volatility"] * 100, 2) if perf["annualised_volatility"] is not None else None
+        result.append({
+            "symbol":     perf["symbol"],
+            "asset_type": perf["asset_type"],
+            "risk":       vol_pct,
+            "ret":        cagr_pct,
+            "value":      perf["current_value"],
+        })
+    return result
+
+
 # ── Insights ──────────────────────────────────────────────────────────────────
 
 @router.get("/insights")

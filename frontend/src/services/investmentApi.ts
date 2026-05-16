@@ -81,6 +81,79 @@ export async function submitInvestmentOnboarding(
   await investmentApiClient.post("/investments/onboarding", payload);
 }
 
+export interface MarketPrice {
+  symbol: string;
+  current_price: number | null;
+  daily_change: number | null;
+  percentage_change: number | null;
+  timestamp: string;
+}
+
+export interface AssetPerformance {
+  id: number;
+  symbol: string;
+  asset_type: AssetType;
+  quantity: number;
+  buy_price: number;
+  current_price: number;
+  cost_basis: number;
+  current_value: number;
+  profit_loss: number;
+  return_percentage: number;
+  cagr: number | null;
+  annualised_volatility: number | null;
+}
+
+export interface PortfolioSummary {
+  total_value: number;
+  total_cost: number;
+  profit_loss: number;
+  return_percentage: number;
+  holding_count: number;
+  assets: AssetPerformance[];
+  diversification: {
+    score: number;
+    distinct_asset_types: string[];
+    overexposed_holdings: Array<{ id: number; symbol: string; asset_type: string; percentage: number }>;
+    overexposed_types: Array<{ asset_type: string; percentage: number }>;
+  };
+}
+
+export interface PortfolioSnapshot {
+  date: string;
+  total_value: number;
+  profit_loss: number;
+  return_percentage: number;
+}
+
+export interface MarkowitzPoint {
+  symbol: string;
+  asset_type: string;
+  risk: number | null;
+  ret: number | null;
+  value: number;
+}
+
+export async function fetchPrices(): Promise<MarketPrice[]> {
+  const res = await investmentApiClient.get<MarketPrice[]>("/investments/prices");
+  return res.data;
+}
+
+export async function fetchSummary(): Promise<PortfolioSummary> {
+  const res = await investmentApiClient.get<PortfolioSummary>("/investments/summary");
+  return res.data;
+}
+
+export async function fetchSnapshots(): Promise<PortfolioSnapshot[]> {
+  const res = await investmentApiClient.get<PortfolioSnapshot[]>("/investments/snapshots");
+  return res.data;
+}
+
+export async function fetchMarkowitz(): Promise<MarkowitzPoint[]> {
+  const res = await investmentApiClient.get<MarkowitzPoint[]>("/investments/markowitz");
+  return res.data;
+}
+
 export async function uploadHoldingsCsv(
   file: File
 ): Promise<{ imported: number; symbols: string[]; errors: string[] }> {
