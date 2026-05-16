@@ -16,7 +16,13 @@ export default function App() {
   const spreadsheetOpen = useSpreadsheetStore((s) => s.isOpen);
   const activeTab = useProjectionStore((s) => s.activeTab);
 
-  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [loggedIn, setLoggedIn] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("ew-nav");
+      if (saved) return JSON.parse(saved).loggedIn ?? false;
+    } catch {}
+    return false;
+  });
 
   useEffect(() => {
     localStorage.setItem("ew-nav", JSON.stringify({ loggedIn, accountType }));

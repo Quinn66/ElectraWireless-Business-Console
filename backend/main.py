@@ -1,8 +1,10 @@
+import json
+from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
-from datetime import date as date_today
+from datetime import date as date_today, datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
+from investments import router as investments_router
 from database import engine, Base, get_db
 import models  # registers ORM models
 
@@ -23,19 +25,50 @@ load_dotenv()
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from uuid import uuid4
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from database import SessionLocal
+import market_data
 
 app = FastAPI(title="ElectraWireless Business Console API")
 
 # Create all PF tables on startup if they don't already exist
 Base.metadata.create_all(bind=engine)
+def scheduled_price_refresh():
+    """
+    Called automatically by the scheduler every 15 min during market hours.
+    Opens its own DB session since this runs outside a request context.
+    """
+    db = SessionLocal()
+    try:
+        print("[scheduler] Running scheduled price refresh...")
+        result = market_data.refresh_all_prices(db)
+        print(f"[scheduler] Done: {result}")
+    finally:
+        db.close()
 
+
+# Start the background scheduler
+scheduler = BackgroundScheduler()
+
+scheduler.add_job(
+    scheduled_price_refresh,
+    trigger=CronTrigger(
+        day_of_week="mon-fri",  # weekdays only — markets are closed on weekends
+        hour="9-16",            # between 9am and 4pm
+        minute="*/15",          # every 15 minutes
+        timezone="Australia/Sydney"
+    ),
+)
+
+scheduler.start()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # tighten in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.include_router(investments_router)
 
 class ForecastRequest(BaseModel):
     revenue: float = Field(..., description="Current monthly revenue ($)")
@@ -174,6 +207,7 @@ def forecast(req: ForecastRequest):
         what_if_annual_cost=req.what_if_annual_cost,
     )
     return {"historical": historical, "forecast": projected}
+
 
 @app.post("/upload-financial-data")
 async def upload_financial_data(file: UploadFile = File(...)):
@@ -385,6 +419,14 @@ def delete_holding(holding_id: str, db: Session = Depends(get_db)):
     db.commit()
 
 
+@app.delete("/investments/holdings", status_code=204)
+def clear_all_holdings(db: Session = Depends(get_db)):
+    db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).delete()
+    db.commit()
+
+
 @app.post("/investments/holdings/upload")
 async def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     import pandas as pd
@@ -545,3 +587,57 @@ def ai_insights(req: dict = Body(...)):
     prompt = build_finance_prompt(req)
     raw = get_analysis(prompt)
     return parse_llm_output(raw)
+
+
+# ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
+
+from Feature3.F3Insights import (
+    build_prompt as build_portfolio_prompt,
+    get_analysis as get_portfolio_analysis,
+    parse_output as parse_portfolio_output,
+)
+
+
+@app.post("/pf/portfolio-analysis")
+def portfolio_analysis(req: dict = Body(...)):
+    data = req.get("data", {}) or {}
+    user_question = (data.get("question") or "").strip() or None
+    prompt = build_portfolio_prompt(data, user_question)
+    raw = get_portfolio_analysis(prompt)
+    return parse_portfolio_output(raw)
+
+
+# ── Feature 3: Investment Onboarding ──────────────────────────────────────────
+
+FEATURE_3_INPUT_PATH = Path(__file__).parent / "Llama Input" / "Feature_3_input.json"
+
+
+class InvestmentOnboardingRequest(BaseModel):
+    age:                 int
+    experienceLevel:     str   # beginner | intermediate | advanced
+    financialBackground: str   # low | moderate | high
+    communicationStyle:  str   # simple | technical
+    investmentGoal:      str   # growth | income | preservation | balanced
+    timeHorizon:         str   # short | medium | long
+
+
+@app.post("/investments/onboarding")
+def submit_investment_onboarding(req: InvestmentOnboardingRequest):
+    with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    data["onboarding"] = {
+        "available":           True,
+        "age":                 req.age,
+        "experienceLevel":     req.experienceLevel,
+        "financialBackground": req.financialBackground,
+        "communicationStyle":  req.communicationStyle,
+        "investmentGoal":      req.investmentGoal,
+        "timeHorizon":         req.timeHorizon,
+        "completedAt":         datetime.now(timezone.utc).isoformat(),
+    }
+
+    with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    return {"status": "ok", "onboarding": data["onboarding"]}

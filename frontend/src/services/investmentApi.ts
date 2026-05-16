@@ -50,6 +50,10 @@ export async function deleteHolding(id: string): Promise<void> {
   await investmentApiClient.delete(`/investments/holdings/${id}`);
 }
 
+export async function clearAllHoldings(): Promise<void> {
+  await investmentApiClient.delete("/investments/holdings");
+}
+
 export interface InvestmentInsight {
   type: string;
   message: string;
@@ -59,6 +63,96 @@ export interface InvestmentInsight {
 
 export async function fetchInsights(): Promise<InvestmentInsight[]> {
   const res = await investmentApiClient.get<InvestmentInsight[]>("/investments/insights");
+  return res.data;
+}
+
+export interface InvestmentOnboardingPayload {
+  age:                 number;
+  experienceLevel:     "beginner" | "intermediate" | "advanced";
+  financialBackground: "low" | "moderate" | "high";
+  communicationStyle:  "simple" | "technical";
+  investmentGoal:      "growth" | "income" | "preservation" | "balanced";
+  timeHorizon:         "short" | "medium" | "long";
+}
+
+export async function submitInvestmentOnboarding(
+  payload: InvestmentOnboardingPayload
+): Promise<void> {
+  await investmentApiClient.post("/investments/onboarding", payload);
+}
+
+export interface MarketPrice {
+  symbol: string;
+  current_price: number | null;
+  daily_change: number | null;
+  percentage_change: number | null;
+  timestamp: string;
+}
+
+export interface AssetPerformance {
+  id: number;
+  symbol: string;
+  asset_type: AssetType;
+  quantity: number;
+  buy_price: number;
+  current_price: number;
+  cost_basis: number;
+  current_value: number;
+  profit_loss: number;
+  return_percentage: number;
+  cagr: number | null;
+  annualised_volatility: number | null;
+  daily_change: number | null;
+  percentage_change: number | null;
+}
+
+export interface PortfolioSummary {
+  total_value: number;
+  total_cost: number;
+  profit_loss: number;
+  return_percentage: number;
+  holding_count: number;
+  assets: AssetPerformance[];
+  diversification: {
+    score: number;
+    distinct_asset_types: string[];
+    overexposed_holdings: Array<{ id: number; symbol: string; asset_type: string; percentage: number }>;
+    overexposed_types: Array<{ asset_type: string; percentage: number }>;
+  };
+}
+
+export interface PortfolioSnapshot {
+  date: string;
+  total_value: number;
+  profit_loss: number;
+  return_percentage: number;
+}
+
+export interface MarkowitzPoint {
+  symbol: string;
+  asset_type: string;
+  risk: number | null;
+  ret: number | null;
+  value: number;
+}
+
+export async function fetchPrices(): Promise<MarketPrice[]> {
+  const res = await investmentApiClient.get<MarketPrice[]>("/investments/prices");
+  return res.data;
+}
+
+export async function fetchSummary(): Promise<PortfolioSummary> {
+  const res = await investmentApiClient.get<PortfolioSummary>("/investments/summary");
+  return res.data;
+}
+
+export async function fetchSnapshots(): Promise<PortfolioSnapshot[]> {
+  const res = await investmentApiClient.get<PortfolioSnapshot[]>("/investments/snapshots");
+  return res.data;
+}
+
+export async function fetchMarkowitz(): Promise<MarkowitzPoint[]> {
+  const res = await investmentApiClient.get<MarkowitzPoint[]>("/investments/markowitz");
   return res.data;
 }
 
@@ -74,5 +168,91 @@ export async function uploadHoldingsCsv(
   }>("/investments/holdings/upload", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  return res.data;
+}
+
+// ── AI Insights (portfolio analysis via Llama) ────────────────────────────────
+
+export interface InvestmentAIResponse {
+  summary:           string;
+  pros:              string[];
+  cons:              string[];
+  next_steps:        string[];
+  question_response: string;
+  sources:           string[];
+}
+
+export interface InvestmentAIRequest {
+  question: string;
+  Goals:    string;
+  period:   string;
+  summary: {
+    totalCost:   number;
+    cashBalance: number;
+  };
+  holdings: Array<{
+    symbol:        string;
+    asset_type:    string;
+    quantity:      number;
+    buy_price:     number;
+    purchase_date: string;
+    costBasis:     number;
+  }>;
+  onboarding: {
+    available:           boolean;
+    age:                 number;
+    experienceLevel:     string;
+    financialBackground: string;
+    communicationStyle:  string;
+    investmentGoal:      string;
+    timeHorizon:         string;
+  };
+}
+
+export function buildInvestmentAIPayload(
+  question:   string,
+  holdings:   InvestmentHolding[],
+  onboarding: InvestmentOnboardingPayload,
+  goals:      string = "",
+  period:     string = "Current portfolio",
+): InvestmentAIRequest {
+  const cashBalance = holdings
+    .filter((h) => h.asset_type === ("cash" as AssetType))
+    .reduce((s, h) => s + h.quantity * h.buy_price, 0);
+
+  const totalCost = holdings.reduce((s, h) => s + h.quantity * h.buy_price, 0);
+
+  return {
+    question,
+    Goals:  goals,
+    period,
+    summary: { totalCost, cashBalance },
+    holdings: holdings.map((h) => ({
+      symbol:        h.symbol,
+      asset_type:    h.asset_type,
+      quantity:      h.quantity,
+      buy_price:     h.buy_price,
+      purchase_date: h.purchase_date,
+      costBasis:     h.quantity * h.buy_price,
+    })),
+    onboarding: {
+      available:           true,
+      age:                 onboarding.age,
+      experienceLevel:     onboarding.experienceLevel,
+      financialBackground: onboarding.financialBackground,
+      communicationStyle:  onboarding.communicationStyle,
+      investmentGoal:      onboarding.investmentGoal,
+      timeHorizon:         onboarding.timeHorizon,
+    },
+  };
+}
+
+export async function fetchInvestmentAIInsights(
+  payload: InvestmentAIRequest,
+): Promise<InvestmentAIResponse> {
+  const res = await investmentApiClient.post<InvestmentAIResponse>(
+    "/pf/portfolio-analysis",
+    { data: payload },
+  );
   return res.data;
 }

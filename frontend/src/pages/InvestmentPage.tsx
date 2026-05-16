@@ -5,16 +5,21 @@ import {
   X, Loader2, Bell,
 } from "lucide-react";
 import {
-  PieChart, Pie, Cell, Tooltip as RechartTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, Tooltip as RechartTooltip, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { C_PRIMARY, C_BORDER, C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors";
 import {
-  fetchHoldings, addHolding, deleteHolding, uploadHoldingsCsv,
-  fetchInsights, ASSET_TYPE_LABELS,
+  fetchHoldings, addHolding, deleteHolding, clearAllHoldings, uploadHoldingsCsv,
+  fetchInsights, fetchPrices, fetchSummary, fetchSnapshots, fetchMarkowitz,
+  ASSET_TYPE_LABELS,
 } from "@/services/investmentApi";
-import type { InvestmentHolding, InvestmentInsight, NewHolding, AssetType } from "@/services/investmentApi";
+import type {
+  InvestmentHolding, InvestmentInsight, NewHolding, AssetType,
+  MarketPrice, PortfolioSummary, AssetPerformance, PortfolioSnapshot, MarkowitzPoint,
+} from "@/services/investmentApi";
+import { InvestmentAIPanel } from "@/components/investment/InvestmentAIPanel";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -36,40 +41,18 @@ const ASSET_TYPE_COLORS: Record<string, string> = {
   Fund: "#3b82f6", "Real Estate": "#f97316",
 };
 
-// Dummy data so teammates can see chart shapes before Phase 3/4 data arrives
-const MOCK_GROWTH = [
-  { month: "Dec", value: 8200 },
-  { month: "Jan", value: 9100 },
-  { month: "Feb", value: 8800 },
-  { month: "Mar", value: 10400 },
-  { month: "Apr", value: 11200 },
-  { month: "May", value: 13800 },
-];
-
-const MOCK_MARKOWITZ = [
-  { risk: 4.2,  ret: 6.1,  z: 12000, label: "ETF blend" },
-  { risk: 8.5,  ret: 11.3, z: 8000,  label: "Large-cap stocks" },
-  { risk: 14.0, ret: 18.7, z: 4000,  label: "Crypto" },
-  { risk: 2.1,  ret: 3.4,  z: 6000,  label: "Bond fund" },
-  { risk: 6.7,  ret: 9.2,  z: 9000,  label: "Your portfolio" },
-];
-
-const MOCK_GAINERS = [
-  { symbol: "NVDA", pct: "+18.4%", change: "+$420" },
-  { symbol: "AAPL", pct: "+7.2%",  change: "+$180" },
-  { symbol: "ETH",  pct: "+5.8%",  change: "+$290" },
-];
-
-const MOCK_LOSERS = [
-  { symbol: "TSLA", pct: "−11.2%", change: "−$330" },
-  { symbol: "META", pct: "−4.7%",  change: "−$95"  },
-  { symbol: "BTC",  pct: "−3.1%",  change: "−$140" },
-];
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmt$(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function fmtPct(n: number) {
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+}
+
+function formatSnapshotDate(d: string) {
+  return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function groupHoldings(holdings: InvestmentHolding[], by: "type" | "symbol") {
@@ -139,21 +122,10 @@ function TabBar({ active, onChange }: { active: string; onChange: (k: string) =>
   );
 }
 
-function PhaseBadge({ label }: { label: string }) {
-  return (
-    <span style={{
-      fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
-      background: C_WARNING + "20", color: C_WARNING, padding: "2px 7px", borderRadius: 4,
-    }}>{label}</span>
-  );
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
 function StatCard({
-  label, value, sub, accent, stub,
+  label, value, sub, accent, muted,
 }: {
-  label: string; value: string; sub?: string; accent?: string; stub?: boolean;
+  label: string; value: string; sub?: string; accent?: string; muted?: boolean;
 }) {
   return (
     <div style={{
@@ -162,13 +134,14 @@ function StatCard({
       borderTop: `3px solid ${accent ?? C_PRIMARY}`,
       borderRadius: 12, padding: "16px 20px", flex: 1, minWidth: 140,
     }}>
-      <div style={{ fontSize: 11, color: "#888", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 11, color: "#888", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
+        {label}
+      </div>
       <div style={{
-        fontSize: 24, fontWeight: 800, color: stub ? "#bbb" : (accent ?? C_PRIMARY),
-        letterSpacing: "-0.5px", display: "flex", alignItems: "center", gap: 8,
+        fontSize: 24, fontWeight: 800, color: muted ? "#bbb" : (accent ?? C_PRIMARY),
+        letterSpacing: "-0.5px",
       }}>
         {value}
-        {stub && <PhaseBadge label="Phase 3" />}
       </div>
       {sub && <div style={{ fontSize: 11, color: "#999", marginTop: 5 }}>{sub}</div>}
     </div>
@@ -177,22 +150,41 @@ function StatCard({
 
 // ── Market alert banner ───────────────────────────────────────────────────────
 
-function AlertBanner() {
+function AlertBanner({ prices, holdingSymbols }: { prices: MarketPrice[]; holdingSymbols: Set<string> }) {
   const [dismissed, setDismissed] = useState(false);
-  if (dismissed) return null;
+
+  const notable = prices
+    .filter((p) =>
+      holdingSymbols.has(p.symbol.toUpperCase()) &&
+      p.percentage_change !== null &&
+      Math.abs(p.percentage_change!) >= 5
+    )
+    .sort((a, b) => (a.percentage_change ?? 0) - (b.percentage_change ?? 0));
+
+  if (dismissed || notable.length === 0) return null;
+
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "10px 16px", borderRadius: 10, marginBottom: 16,
+      padding: "10px 16px", borderRadius: 10, marginBottom: 0,
       background: C_WARNING + "12", border: `1.5px solid ${C_WARNING}40`,
+      flexWrap: "wrap", gap: 8,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <Bell size={14} color={C_WARNING} />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: C_WARNING }}>Market Alerts</span>
-        <span style={{ fontSize: 12, color: "#888" }}>
-          Connect Phase 3 market data to show live alerts (e.g. "AAPL dropped 10% today")
-        </span>
-        <PhaseBadge label="Needs Phase 3" />
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: C_WARNING }}>Price Alerts</span>
+        {notable.map((p) => {
+          const pct = p.percentage_change!;
+          const color = pct < 0 ? C_ERROR : C_SUCCESS;
+          return (
+            <span key={p.symbol} style={{
+              fontSize: 11.5, fontWeight: 700, color,
+              background: color + "12", padding: "2px 8px", borderRadius: 6,
+            }}>
+              {p.symbol} {pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
+            </span>
+          );
+        })}
       </div>
       <button onClick={() => setDismissed(true)} style={{
         background: "none", border: "none", cursor: "pointer", color: "#bbb", padding: 4,
@@ -305,37 +297,58 @@ function AllocationPieChart({ holdings }: { holdings: InvestmentHolding[] }) {
 
 // ── Portfolio growth line chart ───────────────────────────────────────────────
 
-function GrowthLineChart() {
+function GrowthLineChart({ snapshots }: { snapshots: PortfolioSnapshot[] }) {
+  if (snapshots.length === 0) {
+    return (
+      <div style={{
+        background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
+        border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: 6, minHeight: 236,
+      }}>
+        <BarChart2 size={28} color="#ccc" />
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#aaa" }}>No snapshot history yet</span>
+        <span style={{ fontSize: 11, color: "#bbb" }}>History builds as you revisit the dashboard</span>
+      </div>
+    );
+  }
+
+  const chartData = snapshots.map((s) => ({
+    date:  formatSnapshotDate(s.date),
+    value: s.total_value,
+    pl:    s.profit_loss,
+  }));
+
+  const lastPl = snapshots[snapshots.length - 1]?.profit_loss ?? 0;
+  const lineColor = lastPl >= 0 ? C_SUCCESS : C_ERROR;
+
   return (
     <div style={{
       background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
-      border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px", position: "relative",
+      border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px",
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Portfolio Growth</span>
-        <PhaseBadge label="Needs Phase 4 snapshots" />
+        <span style={{ fontSize: 10.5, color: "#aaa" }}>
+          {snapshots.length} snapshot{snapshots.length !== 1 ? "s" : ""}
+        </span>
       </div>
-      <div style={{ height: 180, opacity: 0.18, pointerEvents: "none" }}>
+      <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={MOCK_GROWTH}>
+          <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={C_BORDER} />
-            <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-            <Line type="monotone" dataKey="value" stroke={C_PRIMARY} strokeWidth={2} dot={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={46} />
+            <RechartTooltip
+              formatter={(v: number) => [fmt$(v), "Portfolio Value"]}
+              contentStyle={{ fontSize: 12, border: `1px solid ${C_BORDER}`, borderRadius: 8 }}
+            />
+            <Line
+              type="monotone" dataKey="value" stroke={lineColor} strokeWidth={2}
+              dot={{ r: 3, fill: lineColor }} activeDot={{ r: 5 }}
+            />
           </LineChart>
         </ResponsiveContainer>
-      </div>
-      <div style={{
-        position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: 6,
-      }}>
-        <BarChart2 size={28} color="#ccc" />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#aaa" }}>
-          Awaiting Phase 4 — <code style={{ fontSize: 11 }}>GET /investments/snapshots</code>
-        </span>
-        <span style={{ fontSize: 11, color: "#bbb" }}>
-          Backend saves a PortfolioSnapshot on each summary call
-        </span>
       </div>
     </div>
   );
@@ -343,75 +356,63 @@ function GrowthLineChart() {
 
 // ── Top gainers / losers ──────────────────────────────────────────────────────
 
-function GainersLosersList({ holdings }: { holdings: InvestmentHolding[] }) {
-  const itemStyle = (positive: boolean): React.CSSProperties => ({
+function GainersLosersList({ assets }: { assets: AssetPerformance[] }) {
+  const withDaily = assets.filter((a) => a.percentage_change != null);
+  const gainers   = [...withDaily].sort((a, b) => (b.percentage_change ?? 0) - (a.percentage_change ?? 0)).filter((a) => (a.percentage_change ?? 0) >= 0).slice(0, 3);
+  const losers    = [...withDaily].sort((a, b) => (a.percentage_change ?? 0) - (b.percentage_change ?? 0)).filter((a) => (a.percentage_change ?? 0) < 0).slice(0, 3);
+
+  const itemStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "8px 0", borderBottom: `1px solid ${C_BORDER}`,
-  });
+  };
 
-  // Use real symbols from holdings if available, fall back to mock data
-  const hasHoldings = holdings.length > 0;
-
-  return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
-    }}>
-      {/* Gainers */}
-      <div style={{
-        background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
-        border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px", position: "relative",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <TrendingUp size={14} color={C_SUCCESS} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Top Gainers</span>
-          </div>
-          <PhaseBadge label="Needs Phase 3" />
+  const renderItems = (items: AssetPerformance[], positive: boolean) => {
+    if (assets.length === 0) {
+      return <div style={{ fontSize: 12, color: "#bbb", textAlign: "center", padding: "18px 0" }}>Add holdings to see movers</div>;
+    }
+    if (items.length === 0) {
+      return <div style={{ fontSize: 12, color: "#bbb", textAlign: "center", padding: "18px 0" }}>{positive ? "No gainers today" : "No losers today"}</div>;
+    }
+    return items.map((a) => (
+      <div key={a.symbol} style={itemStyle}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: C_PRIMARY }}>{a.symbol}</div>
+          <div style={{ fontSize: 10, color: "#aaa" }}>{ASSET_TYPE_LABELS[a.asset_type as keyof typeof ASSET_TYPE_LABELS] ?? a.asset_type}</div>
         </div>
-        {MOCK_GAINERS.map((g) => (
-          <div key={g.symbol} style={itemStyle(true)}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: C_PRIMARY }}>{g.symbol}</span>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: C_SUCCESS }}>{g.pct}</div>
-              <div style={{ fontSize: 11, color: "#aaa" }}>— live price pending</div>
-            </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: positive ? C_SUCCESS : C_ERROR }}>
+            {a.percentage_change != null ? `${a.percentage_change >= 0 ? "+" : ""}${a.percentage_change.toFixed(2)}%` : "—"}
           </div>
-        ))}
-        <div style={{
-          position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center",
-          fontSize: 10.5, color: "#bbb",
-        }}>
-          Mock data — replace with live prices from Phase 3
+          <div style={{ fontSize: 11, color: "#aaa" }}>
+            {a.daily_change != null ? `${a.daily_change >= 0 ? "+" : ""}${fmt$(a.daily_change)}` : "—"}
+          </div>
         </div>
       </div>
+    ));
+  };
 
-      {/* Losers */}
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
       <div style={{
         background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
-        border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px", position: "relative",
+        border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <TrendingDown size={14} color={C_ERROR} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Top Losers</span>
-          </div>
-          <PhaseBadge label="Needs Phase 3" />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+          <TrendingUp size={14} color={C_SUCCESS} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Top Gainers</span>
         </div>
-        {MOCK_LOSERS.map((l) => (
-          <div key={l.symbol} style={itemStyle(false)}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: C_PRIMARY }}>{l.symbol}</span>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: C_ERROR }}>{l.pct}</div>
-              <div style={{ fontSize: 11, color: "#aaa" }}>— live price pending</div>
-            </div>
-          </div>
-        ))}
-        <div style={{
-          position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center",
-          fontSize: 10.5, color: "#bbb",
-        }}>
-          Mock data — replace with live prices from Phase 3
+        {renderItems(gainers, true)}
+      </div>
+
+      <div style={{
+        background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
+        border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+          <TrendingDown size={14} color={C_ERROR} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Top Losers</span>
         </div>
+        {renderItems(losers, false)}
       </div>
     </div>
   );
@@ -419,85 +420,157 @@ function GainersLosersList({ holdings }: { holdings: InvestmentHolding[] }) {
 
 // ── Markowitz risk-return scatter plot ────────────────────────────────────────
 
+function MarkowitzTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload as MarkowitzPoint & { risk: number; ret: number };
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)",
+      border: `1.5px solid ${C_BORDER}`, borderRadius: 8, padding: "10px 14px",
+      fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+    }}>
+      <div style={{ fontWeight: 700, color: C_PRIMARY, marginBottom: 4 }}>{d.symbol}</div>
+      <div style={{ color: "#555" }}>Volatility: {d.risk.toFixed(1)}%</div>
+      <div style={{ color: "#555" }}>CAGR: {d.ret >= 0 ? "+" : ""}{d.ret.toFixed(1)}%</div>
+      <div style={{ color: "#999", fontSize: 11 }}>Value: {fmt$(d.value)}</div>
+    </div>
+  );
+}
+
 function MarkowitzScatterPlot() {
+  const [data, setData]       = useState<MarkowitzPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchMarkowitz()
+      .then(setData)
+      .catch(() => setError("Could not load — is the backend running on port 8000?"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const plotData = data.filter((d) => d.risk !== null && d.ret !== null) as Array<MarkowitzPoint & { risk: number; ret: number }>;
+  const noVolData = data.filter((d) => d.risk === null);
+
   return (
     <div style={{
       background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
       border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "20px",
-      position: "relative",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>
-            Markowitz Risk-Return Plot
-          </span>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#999" }}>
-            Risk (volatility %) vs Expected Return (%) — bubble size = position value
-          </p>
+      <div style={{ marginBottom: 14 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Markowitz Risk-Return Plot</span>
+        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#999" }}>
+          Annualised volatility (%) vs CAGR (%) — bubble size = position value
+        </p>
+      </div>
+
+      {loading && (
+        <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "#aaa" }}>
+          <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+          <span style={{ fontSize: 12 }}>Computing volatility via yfinance…</span>
         </div>
-        <PhaseBadge label="Needs Phase 4 PyPortfolioOpt" />
-      </div>
-      <div style={{ height: 260, opacity: 0.22, pointerEvents: "none" }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={C_BORDER} />
-            <XAxis type="number" dataKey="risk" name="Risk %" unit="%" tick={{ fontSize: 10 }} label={{ value: "Risk %", position: "insideBottom", offset: -10, fontSize: 10 }} />
-            <YAxis type="number" dataKey="ret" name="Return %" unit="%" tick={{ fontSize: 10 }} label={{ value: "Return %", angle: -90, position: "insideLeft", fontSize: 10 }} />
-            <ZAxis type="number" dataKey="z" range={[60, 400]} />
-            <Scatter data={MOCK_MARKOWITZ} fill={C_PRIMARY} opacity={0.7} />
-          </ScatterChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{
-        position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: 6,
-      }}>
-        <BarChart2 size={28} color="#ccc" />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#aaa" }}>
-          Awaiting Phase 4 — <code style={{ fontSize: 11 }}>GET /investments/markowitz</code>
-        </span>
-        <span style={{ fontSize: 11, color: "#bbb" }}>
-          Backend uses PyPortfolioOpt to compute efficient frontier weights
-        </span>
-      </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 12, color: C_ERROR }}>{error}</span>
+        </div>
+      )}
+
+      {!loading && !error && plotData.length === 0 && (
+        <div style={{ height: 260, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <BarChart2 size={28} color="#ccc" />
+          <span style={{ fontSize: 12.5, color: "#aaa" }}>
+            {data.length === 0
+              ? "Add holdings to see risk-return analysis"
+              : "Volatility unavailable — add stocks or ETFs to plot"}
+          </span>
+        </div>
+      )}
+
+      {!loading && !error && plotData.length > 0 && (
+        <div style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C_BORDER} />
+              <XAxis
+                type="number" dataKey="risk" name="Volatility %" unit="%" tick={{ fontSize: 10 }}
+                label={{ value: "Volatility %", position: "insideBottom", offset: -15, fontSize: 10 }}
+              />
+              <YAxis
+                type="number" dataKey="ret" name="CAGR %" unit="%" tick={{ fontSize: 10 }} width={48}
+                label={{ value: "CAGR %", angle: -90, position: "insideLeft", fontSize: 10 }}
+              />
+              <ZAxis type="number" dataKey="value" range={[60, 400]} />
+              <RechartTooltip content={<MarkowitzTooltip />} />
+              <Scatter data={plotData} fill={C_PRIMARY} opacity={0.78} />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {!loading && noVolData.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 11, color: "#aaa" }}>
+          Not plotted (no volatility data): {noVolData.map((d) => d.symbol).join(", ")} — crypto &amp; real estate excluded
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ holdings }: { holdings: InvestmentHolding[] }) {
-  const costBasis = holdings.reduce((s, h) => s + h.quantity * h.buy_price, 0);
+function OverviewTab({
+  holdings, summary, prices, snapshots,
+}: {
+  holdings: InvestmentHolding[];
+  summary: PortfolioSummary | null;
+  prices: MarketPrice[];
+  snapshots: PortfolioSnapshot[];
+}) {
+  const holdingSymbols = new Set(holdings.map((h) => h.symbol.toUpperCase()));
+  const plColor = summary && summary.profit_loss !== 0
+    ? (summary.profit_loss >= 0 ? C_SUCCESS : C_ERROR)
+    : C_PRIMARY;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <AlertBanner />
+      <AlertBanner prices={prices} holdingSymbols={holdingSymbols} />
 
-      {/* KPI stat cards */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <StatCard
           label="Portfolio Value"
-          value={costBasis > 0 ? fmt$(costBasis) : "$0.00"}
-          sub="At cost basis — updates to market value in Phase 3"
+          value={summary ? fmt$(summary.total_value) : "—"}
+          sub={summary ? `${summary.holding_count} holding${summary.holding_count !== 1 ? "s" : ""} · market value` : "Loading…"}
           accent={C_PRIMARY}
+          muted={!summary}
         />
         <StatCard
           label="Total Cost Basis"
-          value={costBasis > 0 ? fmt$(costBasis) : "$0.00"}
+          value={summary ? fmt$(summary.total_cost) : "—"}
           accent="#6366f1"
+          muted={!summary}
         />
-        <StatCard label="Profit / Loss" value="—" sub="Live prices required" accent={C_SUCCESS} stub />
-        <StatCard label="Return %" value="—" sub="Live prices required" accent={C_SUCCESS} stub />
+        <StatCard
+          label="Profit / Loss"
+          value={summary ? (summary.profit_loss >= 0 ? "+" : "") + fmt$(summary.profit_loss) : "—"}
+          accent={plColor}
+          muted={!summary}
+        />
+        <StatCard
+          label="Return %"
+          value={summary ? fmtPct(summary.return_percentage) : "—"}
+          accent={plColor}
+          muted={!summary}
+        />
       </div>
 
-      {/* Allocation pie + growth chart */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <AllocationPieChart holdings={holdings} />
-        <GrowthLineChart />
+        <GrowthLineChart snapshots={snapshots} />
       </div>
 
-      {/* Gainers / losers */}
-      <GainersLosersList holdings={holdings} />
+      <GainersLosersList assets={summary?.assets ?? []} />
     </div>
   );
 }
@@ -515,7 +588,7 @@ function AddHoldingModal({ onClose, onSave }: {
     symbol: "", asset_type: "stock", quantity: 0, buy_price: 0, purchase_date: TODAY,
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]   = useState<string | null>(null);
   const set = (k: keyof NewHolding, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
   async function handleSubmit(e: React.FormEvent) {
@@ -682,15 +755,32 @@ function CsvUploadZone({ onUpload }: {
   );
 }
 
-function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUpload }: {
+function HoldingsTab({ holdings, loading, fetchError, summary, onAdd, onDelete, onClearAll, onCsvUpload }: {
   holdings: InvestmentHolding[]; loading: boolean; fetchError: string | null;
+  summary: PortfolioSummary | null;
   onAdd: (data: NewHolding) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onClearAll: () => Promise<void>;
   onCsvUpload: (file: File) => Promise<{ imported: number; symbols: string[]; errors: string[] }>;
 }) {
   const [showAdd, setShowAdd]     = useState(false);
   const [showCsv, setShowCsv]     = useState(false);
   const [deletingId, setDeleting] = useState<string | null>(null);
+  const [clearing, setClearing]   = useState(false);
+
+  // Build a symbol → asset performance map from summary for live price display
+  const assetMap: Record<string, AssetPerformance> = {};
+  if (summary) {
+    for (const a of summary.assets) {
+      assetMap[a.symbol.toUpperCase()] = a;
+    }
+  }
+
+  async function handleClearAll() {
+    if (!confirm("Clear all holdings? This cannot be undone.")) return;
+    setClearing(true);
+    try { await onClearAll(); } finally { setClearing(false); }
+  }
 
   async function handleDelete(id: string) {
     setDeleting(id);
@@ -715,6 +805,17 @@ function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUplo
           color: C_PRIMARY, border: `1.5px solid ${C_BORDER}`, borderRadius: 8,
           padding: "9px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}><Upload size={13} /> {showCsv ? "Hide CSV" : "Import CSV"}</button>
+        {holdings.length > 0 && (
+          <button onClick={handleClearAll} disabled={clearing} style={{
+            display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.7)",
+            color: C_ERROR, border: `1.5px solid ${C_ERROR}40`, borderRadius: 8,
+            padding: "9px 16px", fontSize: 12, fontWeight: 600,
+            cursor: clearing ? "not-allowed" : "pointer", opacity: clearing ? 0.6 : 1, marginLeft: "auto",
+          }}>
+            {clearing ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Trash2 size={13} />}
+            {clearing ? "Clearing…" : "Clear All"}
+          </button>
+        )}
       </div>
 
       {showCsv && <CsvUploadZone onUpload={async (f) => { const r = await onCsvUpload(f); return r; }} />}
@@ -733,7 +834,7 @@ function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUplo
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "rgba(255,255,255,0.3)" }}>
-              {["Symbol","Asset Type","Quantity","Buy Price","Current Price","P / L","Return %",""].map((h) => (
+              {["Symbol", "Asset Type", "Quantity", "Buy Price", "Current Price", "P / L", "Return %", ""].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
             </tr>
@@ -747,31 +848,39 @@ function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUplo
               <tr><td colSpan={8} style={{ ...td, textAlign: "center", color: "#aaa" }}>
                 No holdings yet — add manually or import a CSV
               </td></tr>
-            ) : holdings.map((h) => (
-              <tr key={h.id}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.4)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <td style={{ ...td, fontWeight: 700, color: C_PRIMARY }}>{h.symbol}</td>
-                <td style={td}>{ASSET_TYPE_LABELS[h.asset_type] ?? h.asset_type}</td>
-                <td style={td}>{h.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
-                <td style={td}>{fmt$(h.buy_price)}</td>
-                <td style={{ ...td, color: "#bbb" }}>— <span style={{ fontSize: 10 }}>(Phase 3)</span></td>
-                <td style={{ ...td, color: "#bbb" }}>—</td>
-                <td style={{ ...td, color: "#bbb" }}>—</td>
-                <td style={td}>
-                  <button onClick={() => handleDelete(h.id)} disabled={deletingId === h.id}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", padding: 4, borderRadius: 4, display: "flex", alignItems: "center" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = C_ERROR)}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
-                  >
-                    {deletingId === h.id
-                      ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
-                      : <Trash2 size={13} />}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            ) : holdings.map((h) => {
+              const perf = assetMap[h.symbol.toUpperCase()];
+              const plColor = perf ? (perf.profit_loss >= 0 ? C_SUCCESS : C_ERROR) : "#bbb";
+              return (
+                <tr key={h.id}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.4)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <td style={{ ...td, fontWeight: 700, color: C_PRIMARY }}>{h.symbol}</td>
+                  <td style={td}>{ASSET_TYPE_LABELS[h.asset_type] ?? h.asset_type}</td>
+                  <td style={td}>{h.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
+                  <td style={td}>{fmt$(h.buy_price)}</td>
+                  <td style={td}>{perf ? fmt$(perf.current_price) : <span style={{ color: "#bbb" }}>—</span>}</td>
+                  <td style={{ ...td, color: plColor, fontWeight: perf ? 600 : 400 }}>
+                    {perf ? (perf.profit_loss >= 0 ? "+" : "") + fmt$(perf.profit_loss) : "—"}
+                  </td>
+                  <td style={{ ...td, color: plColor, fontWeight: perf ? 600 : 400 }}>
+                    {perf ? fmtPct(perf.return_percentage) : "—"}
+                  </td>
+                  <td style={td}>
+                    <button onClick={() => handleDelete(String(h.id))} disabled={deletingId === String(h.id)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", padding: 4, borderRadius: 4, display: "flex", alignItems: "center" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = C_ERROR)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
+                    >
+                      {deletingId === String(h.id)
+                        ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+                        : <Trash2 size={13} />}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           {holdings.length > 0 && (
             <tfoot>
@@ -781,10 +890,12 @@ function HoldingsTab({ holdings, loading, fetchError, onAdd, onDelete, onCsvUplo
                 </td>
                 <td style={{ ...td, fontWeight: 700 }}>
                   {fmt$(holdings.reduce((s, h) => s + h.quantity * h.buy_price, 0))}
-                  <span style={{ fontSize: 10, fontWeight: 400, color: "#aaa", marginLeft: 4 }}>cost basis</span>
+                  <span style={{ fontSize: 10, fontWeight: 400, color: "#aaa", marginLeft: 4 }}>cost</span>
                 </td>
-                <td colSpan={4} style={{ ...td, fontSize: 11, color: "#aaa" }}>
-                  Market value, P/L &amp; return available after Phase 3
+                <td colSpan={4} style={{ ...td, fontWeight: 700 }}>
+                  {summary
+                    ? <>{fmt$(summary.total_value)} <span style={{ fontSize: 10, fontWeight: 400, color: C_SUCCESS, marginLeft: 4 }}>market value</span></>
+                    : <span style={{ fontSize: 11, color: "#aaa" }}>Market value loading…</span>}
                 </td>
               </tr>
             </tfoot>
@@ -804,20 +915,6 @@ function AnalyticsTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <MarkowitzScatterPlot />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <PlaceholderCard icon={<BarChart2 size={15} />} title="GET /investments/summary"
-          description="Total value, cost basis, P/L, return %. Server-side calculation from holdings + live prices." owner="Backend" phase="Phase 4" />
-        <PlaceholderCard icon={<PieIcon size={15} />} title="GET /investments/allocation"
-          description="Breakdown by asset type and symbol. Feeds overexposure detection logic." owner="Backend" phase="Phase 4" />
-        <PlaceholderCard icon={<TrendingUp size={15} />} title="CAGR & Volatility"
-          description="Compound Annual Growth Rate and standard deviation using NumPy, per asset and portfolio-wide." owner="Backend" phase="Phase 4" />
-        <PlaceholderCard icon={<AlertTriangle size={15} />} title="Diversification Score"
-          description="0–100 score combining overexposure, crypto concentration, and low-diversification signals." owner="Backend" phase="Phase 4" />
-        <PlaceholderCard icon={<TrendingUp size={15} />} title="Market Data — yfinance + CoinGecko"
-          description="Live price refresh every 15 min. Manual fallback when API calls fail." owner="Backend" phase="Phase 3" />
-        <PlaceholderCard icon={<BarChart2 size={15} />} title="GET /investments/snapshots"
-          description="PortfolioSnapshot history for the growth line chart. Written on each summary call." owner="Backend" phase="Phase 4" />
-      </div>
     </div>
   );
 }
@@ -900,8 +997,8 @@ function InsightsTab({ holdings }: { holdings: InvestmentHolding[] }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
         <PlaceholderCard icon={<Lightbulb size={15} />} title="Personalised Insight Language"
           description="Tone adapts to onboarding experience level — simple for beginners, technical for advanced." owner="AI / Insights" phase="Phase 6" />
-        <PlaceholderCard icon={<Sparkles size={15} />} title="Live Price Signals"
-          description="Insight severity updates in real-time as market prices shift your effective allocation." owner="Backend" phase="Phase 3" />
+        <PlaceholderCard icon={<Bell size={15} />} title="Live Price Signals"
+          description="Insight severity updates in real-time as market prices shift your effective allocation." owner="Backend" phase="Phase 6" />
       </div>
     </div>
   );
@@ -909,12 +1006,15 @@ function InsightsTab({ holdings }: { holdings: InvestmentHolding[] }) {
 
 // ── AI Scenarios tab ──────────────────────────────────────────────────────────
 
-function AITab() {
+function AITab({ holdings }: { holdings: InvestmentHolding[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ fontSize: 12.5, color: "#666", margin: 0 }}>
         AI-powered scenario planning. Connects onboarding context (age, horizon, experience) into prompts.
       </p>
+
+      <InvestmentAIPanel holdings={holdings} />
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <PlaceholderCard icon={<Sparkles size={15} />} title="Hypothetical Scenario"
           description="'What if I invested $X in Y today?' — simulates outcome using current market data." owner="AI / Insights" phase="Phase 7" />
@@ -936,41 +1036,63 @@ function AITab() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function InvestmentPage() {
-  const [activeTab, setActiveTab]     = useState("overview");
-  const [holdings, setHoldings]       = useState<InvestmentHolding[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [fetchError, setFetchError]   = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [holdings, setHoldings]   = useState<InvestmentHolding[]>([]);
+  const [summary, setSummary]     = useState<PortfolioSummary | null>(null);
+  const [prices, setPrices]       = useState<MarketPrice[]>([]);
+  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
+  const [loading, setLoading]     = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  async function loadHoldings() {
-    setLoading(true); setFetchError(null);
-    try { setHoldings(await fetchHoldings()); }
-    catch { setFetchError("Could not load holdings — is the backend running on port 8000?"); }
-    finally { setLoading(false); }
+  async function loadAll() {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      // holdings and prices are fast — fetch in parallel
+      const [h, p] = await Promise.all([fetchHoldings(), fetchPrices()]);
+      setHoldings(h);
+      setPrices(p);
+      // summary writes a snapshot — fetch snapshots after so the chart sees the new row
+      const s = await fetchSummary();
+      setSummary(s);
+      const snaps = await fetchSnapshots();
+      setSnapshots(snaps);
+    } catch {
+      setFetchError("Could not load — is the backend running on port 8000?");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { loadHoldings(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
   async function handleAdd(data: NewHolding) {
     await addHolding(data);
-    await loadHoldings();
+    await loadAll();
   }
   async function handleDelete(id: string) {
     await deleteHolding(id);
-    setHoldings((prev) => prev.filter((h) => h.id !== id));
+    await loadAll();
   }
   async function handleCsvUpload(file: File) {
     const result = await uploadHoldingsCsv(file);
-    await loadHoldings();
+    await loadAll();
     return result;
+  }
+  async function handleClearAll() {
+    await clearAllHoldings();
+    setHoldings([]);
+    setSummary(null);
+    setSnapshots([]);
   }
 
   const tabContent: Record<string, React.ReactNode> = {
-    overview:  <OverviewTab holdings={holdings} />,
-    holdings:  <HoldingsTab holdings={holdings} loading={loading} fetchError={fetchError}
-                 onAdd={handleAdd} onDelete={handleDelete} onCsvUpload={handleCsvUpload} />,
+    overview:  <OverviewTab holdings={holdings} summary={summary} prices={prices} snapshots={snapshots} />,
+    holdings:  <HoldingsTab holdings={holdings} loading={loading} fetchError={fetchError} summary={summary}
+                 onAdd={handleAdd} onDelete={handleDelete} onClearAll={handleClearAll} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
     insights:  <InsightsTab holdings={holdings} />,
-    ai:        <AITab />,
+    ai:        <AITab holdings={holdings} />,
   };
 
   return (
@@ -985,7 +1107,7 @@ export function InvestmentPage() {
           <span style={{
             fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase",
             background: C_PRIMARY + "15", color: C_PRIMARY, padding: "2px 8px", borderRadius: 4,
-          }}>Feature 3 — In Development</span>
+          }}>Feature 3</span>
         </div>
         <p style={{ margin: 0, fontSize: 12, color: "#777" }}>
           Portfolio tracking, market data, analytics, and AI-powered scenario planning.

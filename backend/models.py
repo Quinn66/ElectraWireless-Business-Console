@@ -128,3 +128,77 @@ class PFSnapshot(Base):
     cashflow_balance = Column(Float,   nullable=True)   # net cash flow for the period
     created_at       = Column(DateTime, default=func.now())
 
+
+# ─────────────────────────────────────────────
+# Feature 3 — Investment Intelligence Models
+# ─────────────────────────────────────────────
+
+class InvestmentHolding(Base):
+    """
+    Represents a single asset held by a user in their portfolio.
+    e.g. 10 shares of AAPL bought at $150 on 2023-01-15
+    """
+    __tablename__ = "investment_holdings"
+    __table_args__ = {"extend_existing": True}
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    user_id       = Column(String,  nullable=False, index=True)
+    symbol        = Column(String,  nullable=False)          # e.g. "AAPL", "BTC", "VAS.AX"
+    asset_type    = Column(String,  nullable=False)          # stock | crypto | etf | fund | real_estate
+    quantity      = Column(Float,   nullable=False)
+    buy_price     = Column(Float,   nullable=False)          # price per unit at purchase
+    purchase_date = Column(String,  nullable=True)           # ISO yyyy-mm-dd
+    source        = Column(String,  nullable=False, default="manual")  # manual | csv
+
+
+class MarketPrice(Base):
+    """
+    Latest known market price for a given symbol.
+    Updated periodically by the scheduler (Phase 3).
+    One row per symbol — upserted on each refresh.
+    """
+    __tablename__ = "market_prices"
+    __table_args__ = {"extend_existing": True}
+
+    id                 = Column(Integer, primary_key=True, autoincrement=True)
+    symbol             = Column(String,  nullable=False, unique=True, index=True)
+    current_price      = Column(Float,   nullable=True)
+    daily_change       = Column(Float,   nullable=True)   # absolute $ change
+    percentage_change  = Column(Float,   nullable=True)   # % change
+    timestamp          = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class PortfolioSnapshot(Base):
+    """
+    Point-in-time summary of a user's entire portfolio.
+    Written whenever the dashboard is loaded or summary is requested.
+    Mirrors the pattern used by PFSnapshot above.
+    """
+    __tablename__ = "portfolio_snapshots"
+    __table_args__ = {"extend_existing": True}
+
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    user_id           = Column(String,  nullable=False, index=True)
+    total_value       = Column(Float,   nullable=True)    # current market value
+    total_cost        = Column(Float,   nullable=True)    # total amount invested
+    profit_loss       = Column(Float,   nullable=True)    # total_value - total_cost
+    return_percentage = Column(Float,   nullable=True)    # (profit_loss / total_cost) * 100
+    snapshot_date     = Column(Date,    nullable=False, default=date.today)
+
+
+class InvestmentInsight(Base):
+    """
+    A single AI or rule-based insight generated for a user.
+    e.g. "You are 80% concentrated in tech stocks — consider diversifying."
+    severity: info | warning | danger
+    insight_type: overexposure | diversification | drop_alert | rebalance | ai_suggestion
+    """
+    __tablename__ = "investment_insights"
+    __table_args__ = {"extend_existing": True}
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    user_id      = Column(String,  nullable=False, index=True)
+    insight_type = Column(String,  nullable=False)
+    message      = Column(String,  nullable=False)
+    severity     = Column(String,  nullable=False, default="info")  # info | warning | danger
+    created_at   = Column(DateTime, default=func.now())
