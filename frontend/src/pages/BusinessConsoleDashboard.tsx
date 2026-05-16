@@ -11,6 +11,7 @@ import OnboardingFlow from "@/OnboardingFlow";
 import InvestmentOnboardingFlow from "@/InvestmentOnboardingFlow";
 import { useProjectionStore } from "@/store/projectionStore";
 import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
+import { deleteAllHoldings } from "@/services/investmentApi";
 import { PROFILE_PRESETS, DEFAULT_PRESET } from "@/lib/profilePresets";
 import type { ProfilePreset } from "@/lib/profilePresets";
 
@@ -38,6 +39,17 @@ export function BusinessConsoleDashboard() {
     setActiveTool("investment");
     if (!investmentOnboarded) {
       setOnboardStage("investment-onboarding");
+    }
+  }
+
+  async function handleResetInvestment() {
+    if (!window.confirm("This will delete all holdings, snapshots, and market prices. Are you sure?")) return;
+    try {
+      await deleteAllHoldings();
+      setInvestmentOnboarded(false);
+      setOnboardStage("investment-onboarding");
+    } catch {
+      window.alert("Failed to reset investment data — check the server is running.");
     }
   }
 
@@ -130,6 +142,7 @@ export function BusinessConsoleDashboard() {
           }}
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded((e) => !e)}
+          onResetInvestment={handleResetInvestment}
         />
 
         <div className="flex-1 overflow-hidden min-w-0">
