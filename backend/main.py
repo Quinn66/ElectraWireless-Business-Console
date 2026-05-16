@@ -591,20 +591,44 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from backend.Feature3.OldInsights.oldInsights import (
+from Feature3.oldInsights import (
     build_prompt as build_portfolio_prompt,
     get_analysis as get_portfolio_analysis,
     parse_output as parse_portfolio_output,
 )
+from Feature3.F3Insight_memory import store_memories_batch, retrieve_memories_by_intent
 
 
 @app.post("/pf/portfolio-analysis")
 def portfolio_analysis(req: dict = Body(...)):
-    data = req.get("data", {}) or {}
+    data          = req.get("data", {}) or {}
     user_question = (data.get("question") or "").strip() or None
-    prompt = build_portfolio_prompt(data, user_question)
-    raw = get_portfolio_analysis(prompt)
-    return parse_portfolio_output(raw)
+
+    # Retrieve relevant past memories before building the prompt
+    memories = []
+    if user_question:
+        try:
+            memories = retrieve_memories_by_intent(user_question, intent="general", n_results=3)
+        except Exception as e:
+            print(f"[memory] Retrieval failed (non-fatal): {e}")
+
+    prompt = build_portfolio_prompt(data, user_question, memories=memories)
+    raw    = get_portfolio_analysis(prompt)
+    result = parse_portfolio_output(raw)
+
+    # Store this exchange in memory after responding
+    if user_question:
+        try:
+            response_text = result.get("question_response") or result.get("summary") or ""
+            store_memories_batch([{
+                "user":      user_question,
+                "assistant": response_text,
+                "section":   "general",
+            }])
+        except Exception as e:
+            print(f"[memory] Store failed (non-fatal): {e}")
+
+    return result
 
 
 # ── Feature 3: Investment Onboarding ──────────────────────────────────────────

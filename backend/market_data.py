@@ -8,10 +8,89 @@ Handles:
   - Upsert    → saves prices to DB       (Phase 3)
 """
 
+import time
 import yfinance as yf
 import requests
 from sqlalchemy.orm import Session
 import models
+
+# ── Market-wide movers watchlist ──────────────────────────────────────────────
+
+MARKET_WATCHLIST = [
+    # Mega-cap tech
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "ORCL",
+    # Finance
+    "JPM", "BAC", "V", "MA", "GS",
+    # Healthcare
+    "JNJ", "UNH", "PFE",
+    # Energy
+    "XOM", "CVX",
+    # Consumer & retail
+    "WMT", "KO", "MCD", "NKE", "SBUX",
+    # ETFs
+    "SPY", "QQQ", "VTI", "GLD",
+    # Crypto (yfinance supports these)
+    "BTC-USD", "ETH-USD", "SOL-USD",
+]
+
+_movers_cache: dict = {"data": None, "ts": 0.0}
+_MOVERS_TTL = 15 * 60  # 15 minutes
+
+
+def fetch_market_movers() -> dict:
+    """
+    Batch-fetch daily % change for the watchlist via yfinance.
+    Results are cached for 15 minutes so repeated calls are instant.
+    Returns {"gainers": [...top 3...], "losers": [...worst 3...]}.
+    """
+    now = time.time()
+    if _movers_cache["data"] and now - _movers_cache["ts"] < _MOVERS_TTL:
+        return _movers_cache["data"]
+
+    try:
+        raw = yf.download(
+            MARKET_WATCHLIST,
+            period="5d",
+            progress=False,
+            auto_adjust=True,
+        )
+
+        close = raw["Close"]
+        results = []
+
+        for symbol in MARKET_WATCHLIST:
+            try:
+                prices = close[symbol].dropna()
+                if len(prices) < 2:
+                    continue
+                prev = float(prices.iloc[-2])
+                curr = float(prices.iloc[-1])
+                if prev == 0:
+                    continue
+                pct = round((curr - prev) / prev * 100, 2)
+                display = symbol.replace("-USD", "")
+                results.append({
+                    "symbol":            display,
+                    "current_price":     round(curr, 2),
+                    "daily_change":      round(curr - prev, 2),
+                    "percentage_change": pct,
+                })
+            except Exception:
+                continue
+
+        gainers = sorted(results, key=lambda x: x["percentage_change"], reverse=True)
+        gainers = [r for r in gainers if r["percentage_change"] >= 0][:3]
+        losers  = sorted(results, key=lambda x: x["percentage_change"])
+        losers  = [r for r in losers  if r["percentage_change"] <  0][:3]
+
+        output = {"gainers": gainers, "losers": losers}
+        _movers_cache["data"] = output
+        _movers_cache["ts"]   = now
+        return output
+
+    except Exception as e:
+        print(f"[market_movers] Fetch failed: {e}")
+        return {"gainers": [], "losers": []}
 
 
 # ── yfinance: Stocks & ETFs ───────────────────────────────────────────────────

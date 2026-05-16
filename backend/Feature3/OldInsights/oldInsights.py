@@ -43,9 +43,10 @@ def load_input():
 
 
 # ================= BUILD PROMPT =================
-def build_prompt(data, user_question=None):
+def build_prompt(data, user_question=None, memories=None):
 
     question_block = ""
+    memory_block   = ""
 
     if user_question:
         question_block = f"""
@@ -54,23 +55,32 @@ USER QUESTION:
 {user_question}
 """
 
+    if memories:
+        joined = "\n\n---\n\n".join(memories)
+        memory_block = f"""
+
+MEMORY CONTEXT (previous conversations with this user — use this to personalise your response):
+{joined}
+"""
+
     return f"""
-You are a financial portfolio assistant.
+You are a financial portfolio assistant with memory of past conversations.
 
 Your task is to analyze the provided portfolio JSON.
 
 IMPORTANT RULES:
-- ONLY use the provided JSON
+- ONLY use the provided JSON and memory context
 - Do NOT invent data
 - Keep responses concise
 - Use plain English
 - Do NOT include disclaimers
 - If information cannot be determined, say so
 - Bullet points must start with "-"
+- If the user mentioned goals, preferences, or context in past conversations, reference them
 
 INPUT JSON:
 {json.dumps(data, indent=2)}
-
+{memory_block}
 {question_block}
 
 STRICT OUTPUT FORMAT:

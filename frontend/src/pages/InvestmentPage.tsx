@@ -13,11 +13,12 @@ import { C_PRIMARY, C_BORDER, C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors
 import {
   fetchHoldings, addHolding, deleteHolding, clearAllHoldings, uploadHoldingsCsv,
   fetchInsights, fetchPrices, fetchSummary, fetchSnapshots, fetchMarkowitz,
-  ASSET_TYPE_LABELS,
+  fetchMarketMovers, ASSET_TYPE_LABELS,
 } from "@/services/investmentApi";
 import type {
   InvestmentHolding, InvestmentInsight, NewHolding, AssetType,
   MarketPrice, PortfolioSummary, AssetPerformance, PortfolioSnapshot, MarkowitzPoint,
+  MarketMover, MarketMovers,
 } from "@/services/investmentApi";
 import { InvestmentAIPanel } from "@/components/investment/InvestmentAIPanel";
 
@@ -354,37 +355,39 @@ function GrowthLineChart({ snapshots }: { snapshots: PortfolioSnapshot[] }) {
   );
 }
 
-// ── Top gainers / losers ──────────────────────────────────────────────────────
+// ── Market-wide top gainers / losers ─────────────────────────────────────────
 
-function GainersLosersList({ assets }: { assets: AssetPerformance[] }) {
-  const withDaily = assets.filter((a) => a.percentage_change != null);
-  const gainers   = [...withDaily].sort((a, b) => (b.percentage_change ?? 0) - (a.percentage_change ?? 0)).filter((a) => (a.percentage_change ?? 0) >= 0).slice(0, 3);
-  const losers    = [...withDaily].sort((a, b) => (a.percentage_change ?? 0) - (b.percentage_change ?? 0)).filter((a) => (a.percentage_change ?? 0) < 0).slice(0, 3);
+function GainersLosersList() {
+  const [data, setData]       = useState<MarketMovers | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMarketMovers()
+      .then(setData)
+      .catch(() => setData({ gainers: [], losers: [] }))
+      .finally(() => setLoading(false));
+  }, []);
 
   const itemStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "8px 0", borderBottom: `1px solid ${C_BORDER}`,
   };
 
-  const renderItems = (items: AssetPerformance[], positive: boolean) => {
-    if (assets.length === 0) {
-      return <div style={{ fontSize: 12, color: "#bbb", textAlign: "center", padding: "18px 0" }}>Add holdings to see movers</div>;
-    }
-    if (items.length === 0) {
-      return <div style={{ fontSize: 12, color: "#bbb", textAlign: "center", padding: "18px 0" }}>{positive ? "No gainers today" : "No losers today"}</div>;
-    }
-    return items.map((a) => (
-      <div key={a.symbol} style={itemStyle}>
+  const renderItems = (items: MarketMover[], positive: boolean) => {
+    if (loading) return <div style={{ fontSize: 12, color: "#bbb", textAlign: "center", padding: "18px 0" }}>Loading…</div>;
+    if (items.length === 0) return <div style={{ fontSize: 12, color: "#bbb", textAlign: "center", padding: "18px 0" }}>{positive ? "No gainers right now" : "No losers right now"}</div>;
+    return items.map((m) => (
+      <div key={m.symbol} style={itemStyle}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 13, color: C_PRIMARY }}>{a.symbol}</div>
-          <div style={{ fontSize: 10, color: "#aaa" }}>{ASSET_TYPE_LABELS[a.asset_type as keyof typeof ASSET_TYPE_LABELS] ?? a.asset_type}</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: C_PRIMARY }}>{m.symbol}</div>
+          <div style={{ fontSize: 10, color: "#aaa" }}>{fmt$(m.current_price)}</div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: positive ? C_SUCCESS : C_ERROR }}>
-            {a.percentage_change != null ? `${a.percentage_change >= 0 ? "+" : ""}${a.percentage_change.toFixed(2)}%` : "—"}
+            {m.percentage_change >= 0 ? "+" : ""}{m.percentage_change.toFixed(2)}%
           </div>
           <div style={{ fontSize: 11, color: "#aaa" }}>
-            {a.daily_change != null ? `${a.daily_change >= 0 ? "+" : ""}${fmt$(a.daily_change)}` : "—"}
+            {m.daily_change >= 0 ? "+" : ""}{fmt$(m.daily_change)}
           </div>
         </div>
       </div>
@@ -400,8 +403,9 @@ function GainersLosersList({ assets }: { assets: AssetPerformance[] }) {
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
           <TrendingUp size={14} color={C_SUCCESS} />
           <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Top Gainers</span>
+          <span style={{ fontSize: 10, color: "#aaa", marginLeft: "auto" }}>Market</span>
         </div>
-        {renderItems(gainers, true)}
+        {renderItems(data?.gainers ?? [], true)}
       </div>
 
       <div style={{
@@ -411,8 +415,76 @@ function GainersLosersList({ assets }: { assets: AssetPerformance[] }) {
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
           <TrendingDown size={14} color={C_ERROR} />
           <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Top Losers</span>
+          <span style={{ fontSize: 10, color: "#aaa", marginLeft: "auto" }}>Market</span>
         </div>
-        {renderItems(losers, false)}
+        {renderItems(data?.losers ?? [], false)}
+      </div>
+    </div>
+  );
+}
+
+// ── Price Alerts (user's own holdings daily movers) ───────────────────────────
+
+function PriceAlertsPanel({ assets }: { assets: AssetPerformance[] }) {
+  const withDaily = assets
+    .filter((a) => a.percentage_change != null)
+    .sort((a, b) => (a.percentage_change ?? 0) - (b.percentage_change ?? 0));
+
+  if (withDaily.length === 0) return null;
+
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
+      border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+        <Bell size={14} color={C_WARNING} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: C_PRIMARY }}>Price Alerts</span>
+        <span style={{ fontSize: 10, color: "#aaa", marginLeft: "auto" }}>Your holdings · today</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {withDaily.map((a) => {
+          const pct   = a.percentage_change ?? 0;
+          const color = pct >= 0 ? C_SUCCESS : C_ERROR;
+          const direction = pct >= 0 ? "rose" : "fell";
+          const totalRetColor = a.return_percentage >= 0 ? C_SUCCESS : C_ERROR;
+          return (
+            <div key={a.id} style={{
+              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+              padding: "10px 0", borderBottom: `1px solid ${C_BORDER}`, gap: 12,
+            }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flex: 1 }}>
+                <div style={{
+                  width: 3, minHeight: 40, borderRadius: 2,
+                  background: color, flexShrink: 0, marginTop: 2,
+                }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: C_PRIMARY }}>{a.symbol}</span>
+                    <span style={{ fontSize: 10, color: "#aaa" }}>{ASSET_TYPE_LABELS[a.asset_type as keyof typeof ASSET_TYPE_LABELS] ?? a.asset_type}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
+                    {`${a.symbol} ${direction} ${Math.abs(pct).toFixed(2)}% today — now at ${fmt$(a.current_price)}`}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "#aaa", marginTop: 3 }}>
+                    {`${a.quantity} units held · ${fmt$(a.current_value)} value · total return `}
+                    <span style={{ color: totalRetColor, fontWeight: 600 }}>
+                      {a.return_percentage >= 0 ? "+" : ""}{(a.return_percentage * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color }}>
+                  {pct >= 0 ? "+" : ""}{pct.toFixed(2)}%
+                </div>
+                <div style={{ fontSize: 11, color: "#aaa" }}>
+                  {a.daily_change != null ? `${a.daily_change >= 0 ? "+" : ""}${fmt$(a.daily_change)}` : "—"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -570,7 +642,8 @@ function OverviewTab({
         <GrowthLineChart snapshots={snapshots} />
       </div>
 
-      <GainersLosersList assets={summary?.assets ?? []} />
+      <GainersLosersList />
+      <PriceAlertsPanel assets={summary?.assets ?? []} />
     </div>
   );
 }
