@@ -95,34 +95,6 @@ ASSISTANT:
     print(f"✅ Stored {len(documents)} memories")
     total = collection.count()
     print(f"📦 Total memories in DB: {total}")
-    
-# ================= SINGLE STORE =================
-
-def store_memory(user_message, assistant_response, section="general"):
-
-    memory_text = f"""
-USER:
-{user_message}
-
-ASSISTANT:
-{assistant_response}
-""".strip()
-
-    embedding = generate_embedding(memory_text)
-
-    if not embedding:
-        print("❌ Failed to generate embedding")
-        return
-
-    collection.add(
-        ids=[str(uuid.uuid4())],
-        embeddings=[embedding],
-        documents=[memory_text],
-        metadatas=[{
-            "type": "portfolio_memory",
-            "section": section
-        }]
-    )
 
 # ================= FILTERED RETRIEVAL =================
 
@@ -153,42 +125,5 @@ def retrieve_memories_by_intent(query, intent="general", n_results=3):
     )
 
     docs = results.get("documents", [[]])
-
-    return docs[0] if docs and docs[0] else []
-
-# ================= GENERAL RETRIEVAL =================
-
-def retrieve_memories(query, n_results=1):
-
-    print("\n=== MEMORY SEARCH ===")
-    print("Query:", query)
-
-    query_embedding = generate_embedding(query)
-
-    if not query_embedding:
-        print("❌ Empty embedding generated")
-        return []
-
-    query_embedding = [float(x) for x in query_embedding]
-
-    if not isinstance(query_embedding[0], float):
-        print("❌ Invalid embedding format")
-        return []
-
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n_results
-    )
-
-    docs = results.get("documents", [[]])
-
-    print("\n=== RETRIEVED MEMORIES ===")
-
-    if docs and docs[0]:
-        for doc in docs[0]:
-            print(doc)
-            print("------------------")
-    else:
-        print("No memories found")
 
     return docs[0] if docs and docs[0] else []

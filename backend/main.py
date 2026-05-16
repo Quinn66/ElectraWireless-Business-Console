@@ -591,7 +591,7 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from Feature3.F3Insights import (
+from backend.Feature3.oldInsights import (
     build_prompt as build_portfolio_prompt,
     get_analysis as get_portfolio_analysis,
     parse_output as parse_portfolio_output,

@@ -2,7 +2,7 @@ import json
 import re
 
 import time
-from F3Insight_memory import store_memory, retrieve_memories, retrieve_memories_by_intent, store_memories_batch
+from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 
 import os
 from groq import Groq
@@ -229,50 +229,6 @@ Data sources used: {key_sources}
 
     return memory_text
 
-# def store_sectioned_memories(user_question, parsed):
-
-#     base = user_question or "portfolio analysis"
-
-#     memories = []
-
-#     if parsed.get("summary"):
-#         memories.append({
-#             "user": base + " summary",
-#             "assistant": parsed["summary"],
-#             "section": "summary"
-#         })
-
-#     for item in parsed.get("pros", []):
-#         memories.append({
-#             "user": base + " pro",
-#             "assistant": item,
-#             "section": "pros"
-#         })
-
-#     for item in parsed.get("cons", []):
-#         memories.append({
-#             "user": base + " con",
-#             "assistant": item,
-#             "section": "cons"
-#         })
-
-#     for item in parsed.get("next_steps", []):
-#         memories.append({
-#             "user": base + " next",
-#             "assistant": item,
-#             "section": "next_steps"
-#         })
-
-#     if parsed.get("question_response"):
-#         memories.append({
-#             "user": base + " response",
-#             "assistant": parsed["question_response"],
-#             "section": "response"
-#         })
-
-#     if memories:
-#         store_memories_batch(memories)
-
 def store_sectioned_memories(user_question, parsed):
 
     base = user_question or "portfolio analysis"
@@ -390,7 +346,6 @@ def run():
 
     t4 = time.perf_counter()
 
-    end_time = time.perf_counter()
     print("Memory retrieval:", t2 - t1)
     print("LLM generation:", t3 - t2)
     print("Memory storage:", t4 - t3)
