@@ -1,27 +1,27 @@
 {
-  "summary": "The portfolio has a total value of $12,500, with a profit of $2,500 over the last 6 months. The return percentage is 25.0. The cash balance is $1,500, and the diversification score is 62.",
+  "summary": "The portfolio has a total value of $12,500, with a profit of $2,500 over the last 6 months, resulting in a 25% return. The cash balance is $1,500, and the diversification score is 62.",
   "pros": [
-    "The portfolio has a high return percentage of 25.0 over the last 6 months.",
-    "The top gainer is BTC with a return percentage of 38.1.",
-    "The portfolio has a moderate risk grade of B.",
-    "The cash balance is $1,500, providing liquidity.",
-    "The portfolio has a top concentration of 69.6% in BTC."
+    "High return over the last 6 months",
+    "Portfolio has gained value in 4 out of the last 6 months",
+    "Cash balance is sufficient",
+    "Diversification score is above average",
+    "Top holdings (AAPL and BTC) have performed well"
   ],
   "cons": [
-    "The portfolio has a high concentration of 69.6% in BTC, exceeding the 25% threshold.",
-    "The diversification score is 62, indicating a need for more uncorrelated positions.",
-    "The portfolio dipped in April, falling 4.1% from March.",
-    "The VOO ETF has a return percentage of -3.2, indicating a loss.",
-    "The portfolio's risk grade is B, indicating a moderate risk level."
+    "High crypto concentration (70% of the portfolio is in BTC)",
+    "Low diversification score (62/100)",
+    "Portfolio dipped in April",
+    "ETF (VOO) has underperformed",
+    "No bonds or other fixed-income assets"
   ],
   "next_steps": [
-    "Rebalance the portfolio to reduce the concentration in BTC to 25% or less.",
-    "Add 2-3 uncorrelated positions to improve diversification.",
-    "Consider selling the VOO ETF to minimize losses.",
-    "Monitor the portfolio's performance and rebalance regularly.",
-    "Review and adjust the investment strategy to align with the goals."
+    "Reduce crypto concentration to below 25%",
+    "Add 2-3 uncorrelated positions to improve diversification",
+    "Consider adding bonds or other fixed-income assets",
+    "Monitor and adjust the portfolio regularly",
+    "Review and adjust the portfolio's asset allocation regularly"
   ],
-  "question_response": "To improve performance, consider rebalancing the portfolio to reduce the concentration in BTC and adding uncorrelated positions to improve diversification.",
+  "question_response": "To improve performance, consider rebalancing the portfolio to maintain target allocations and reducing crypto concentration to below 25%.",
   "sources": [
     "totalValue",
     "totalCost",
@@ -30,6 +30,7 @@
     "cashBalance",
     "diversificationScore",
     "allocation.byAssetType",
+    "allocation.bySymbol",
     "allocation.topConcentration",
     "monthlySnapshots",
     "topGainers",
