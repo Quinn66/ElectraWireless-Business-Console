@@ -156,6 +156,10 @@ export async function fetchMarkowitz(): Promise<MarkowitzPoint[]> {
   return res.data;
 }
 
+export async function deleteAllHoldings(): Promise<void> {
+  await investmentApiClient.delete("/investments/holdings");
+}
+
 export async function uploadHoldingsCsv(
   file: File
 ): Promise<{ imported: number; symbols: string[]; errors: string[] }> {
