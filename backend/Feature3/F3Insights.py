@@ -110,6 +110,9 @@ Write a short portfolio summary.
 - Max 5 bullets
 
 [SECTION: QUESTION_RESPONSE]
+Answer the following question without repeating the question
+{user_question}
+
 If a question was provided:
 Answer it directly in under 120 words.
 

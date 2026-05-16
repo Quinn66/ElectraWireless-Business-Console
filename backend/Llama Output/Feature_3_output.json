@@ -1,37 +1,32 @@
 {
-  "summary": "The portfolio has a total value of $12,500, with a profit of $2,500 over the last 6 months, resulting in a 25% return. The cash balance is $1,500, and the diversification score is 62.",
+  "summary": "The portfolio has a total value of $12,500 with a 25% return over the last 6 months. The cash balance is $1,500, and the diversification score is 62.",
   "pros": [
-    "High return over the last 6 months",
-    "Portfolio has gained value in 4 out of the last 6 months",
-    "Cash balance is sufficient",
-    "Diversification score is above average",
-    "Top holdings (AAPL and BTC) have performed well"
+    "High return percentage of 25% over the last 6 months",
+    "Strong performance of top holdings, such as BTC and AAPL",
+    "Cash balance of $1,500 provides liquidity",
+    "Diversification score of 62 indicates some diversification",
+    "Moderate risk grade of \"B\""
   ],
   "cons": [
-    "High crypto concentration (70% of the portfolio is in BTC)",
-    "Low diversification score (62/100)",
-    "Portfolio dipped in April",
-    "ETF (VOO) has underperformed",
-    "No bonds or other fixed-income assets"
+    "High crypto concentration of 69.6% in BTC",
+    "Low diversification score of 62",
+    "Portfolio dipped 4.1% in April before recovering",
+    "ETF VOO has a negative return percentage of -3.2%",
+    "Cash balance is relatively low at $1,500"
   ],
   "next_steps": [
     "Reduce crypto concentration to below 25%",
     "Add 2-3 uncorrelated positions to improve diversification",
-    "Consider adding bonds or other fixed-income assets",
+    "Consider rebalancing the portfolio to maintain target allocations",
     "Monitor and adjust the portfolio regularly",
-    "Review and adjust the portfolio's asset allocation regularly"
+    "Review and adjust the investment goal and risk tolerance"
   ],
-  "question_response": "To improve performance, consider rebalancing the portfolio to maintain target allocations and reducing crypto concentration to below 25%.",
+  "question_response": "The portfolio has some strengths, such as a high return percentage and strong performance of top holdings, but also some weaknesses, including high crypto concentration and low diversification score.",
   "sources": [
-    "totalValue",
-    "totalCost",
-    "profitLoss",
-    "returnPercentage",
-    "cashBalance",
-    "diversificationScore",
-    "allocation.byAssetType",
-    "allocation.bySymbol",
-    "allocation.topConcentration",
+    "summary",
+    "holdings",
+    "allocation",
+    "alerts",
     "monthlySnapshots",
     "topGainers",
     "topLosers",
