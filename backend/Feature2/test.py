@@ -33,6 +33,8 @@ def parse_llm_output(text):
 
     # ================= Q&A MODE =================
     if "answer" in sections:
+        structured["mode"] = "qa"
+
         structured["answer"] = sections.get("answer", "")
 
         insights_raw = sections.get("supporting_insights", "")
@@ -42,6 +44,9 @@ def parse_llm_output(text):
             if line.strip()
         ]
 
+        # SUMMARY
+        structured["summary"] = sections.get("summary", "").strip()
+
         # GOALS (optional)
         goals_raw = sections.get("goals", "")
         if goals_raw:
@@ -50,6 +55,8 @@ def parse_llm_output(text):
                 for line in goals_raw.split("\n")
                 if line.strip()
             ]
+        else:
+            structured["goals"] = []   # 👈 ensures JSON consistency
 
         return structured
 
@@ -217,8 +224,12 @@ STRICT OUTPUT FORMAT (DO NOT DEVIATE):
 [SECTION: SUPPORTING_INSIGHTS]
 - Provide at least 2 bullet points
 - If limited data, still extract relevant observations
-"""
 
+[SECTION: SUMMARY]
+- Provide a summary of previous sections, keep it to around 1 paragraph, so 3 to 4 lines
+- Include a list of steps to follow if the user is attempting to achieve something
+"""
+# make sure to expand summary since its breaking things at the momment
     if has_goal:
         prompt += f"""
 

@@ -232,6 +232,9 @@ STRICT OUTPUT FORMAT (DO NOT DEVIATE):
   2. High impact
   3. Medium term
   4. Optional improvement
+
+[SECTION: SUMMARY]
+- Provide a summary of previous sections, keep it to around 1 paragraph, so 3 to 4 lines
 """
 # ensure to add a part that when a question is asked referring to a goal, that if no goal is present
 # make sure that the response will state that no goal was present

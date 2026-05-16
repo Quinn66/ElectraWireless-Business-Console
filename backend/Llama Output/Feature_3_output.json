@@ -1,23 +1,38 @@
 {
-  "summary": "The portfolio has a total value of $12,500 with a profit loss of $2,500 over the last six months. The return percentage is 25%, and the cash balance is $1,500.",
+  "summary": "The portfolio has a total value of $12,500, with a profit of $2,500 over the last 6 months. The return percentage is 25.0%. The cash balance is $1,500, and the diversification score is 62.",
   "pros": [
-    "High return percentage of 25%",
-    "Strong performance from top gainers like BTC and AAPL",
-    "Diversification score of 62 indicates a moderate level of diversification",
-    "Risk grade is B, indicating a relatively stable portfolio"
+    "The portfolio has a high return percentage of 25.0%.",
+    "The top gainer is Bitcoin (BTC) with a return percentage of 38.1%.",
+    "The portfolio has a low cash balance of $1,500.",
+    "The diversification score is 62, indicating some diversification.",
+    "The risk grade is B, indicating a moderate risk level."
   ],
   "cons": [
-    "High crypto concentration (69.6%) exceeds the recommended threshold of 25%",
-    "Low diversification score could be improved by adding uncorrelated positions",
-    "Portfolio dipped in April before recovering in May",
-    "Loss on VOO investment (-11.2%)"
+    "The portfolio has a high concentration of crypto assets, with 69.6% of the portfolio in BTC.",
+    "The diversification score is 62, indicating that the portfolio could benefit from additional uncorrelated positions.",
+    "The portfolio has a low cash balance of $1,500.",
+    "The top loser is VOO with a return percentage of -3.2%.",
+    "The portfolio dipped in April before recovering in May."
   ],
   "next_steps": [
-    "Rebalance portfolio to reduce high crypto concentration",
-    "Consider adding 2-3 uncorrelated positions to improve diversification",
-    "Monitor and adjust investment strategy based on market performance",
-    "Review and adjust weight of individual holdings as needed"
+    "Rebalance the portfolio to maintain target allocations.",
+    "Consider adding 2-3 uncorrelated positions to improve diversification.",
+    "Reduce the concentration of crypto assets to below 25%.",
+    "Review and adjust the portfolio regularly.",
+    "Consider adding a cash reserve to reduce risk."
   ],
-  "question_response": "Should I rebalance my portfolio given the current crypto exposure?\nYes, it is recommended to rebalance your portfolio to reduce high crypto concentration.",
-  "sources": []
+  "question_response": "To improve performance, consider rebalancing the portfolio to maintain target allocations, reducing the concentration of crypto assets, and adding 2-3 uncorrelated positions to improve diversification.",
+  "sources": [
+    "totalValue",
+    "totalCost",
+    "profitLoss",
+    "returnPercentage",
+    "cashBalance",
+    "diversificationScore",
+    "allocation.byAssetType",
+    "allocation.bySymbol",
+    "topGainers",
+    "topLosers",
+    "alerts"
+  ]
 }

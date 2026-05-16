@@ -1,6 +1,15 @@
 import json
 import re
-import requests
+
+import time
+from F3Insight_memory import store_memory, retrieve_memories, retrieve_memories_by_intent, store_memories_batch
+
+import os
+from groq import Groq
+
+api_key = os.getenv("GROQ_API_KEY")
+
+client = Groq(api_key=api_key)
 
 # ================= FILE PATHS =================
 INPUT_FILE = "../Llama Input/Feature_3_input.json"
@@ -34,8 +43,7 @@ def load_input():
 
 
 # ================= BUILD PROMPT =================
-def build_prompt(data, user_question=None):
-
+def build_prompt(data, memories=None, user_question=None):
     question_block = ""
 
     if user_question:
@@ -44,9 +52,17 @@ def build_prompt(data, user_question=None):
 USER QUESTION:
 {user_question}
 """
+        
+    memory_block = ""
+
+    if memories:
+        memory_block = "\n\n".join(memories)
 
     return f"""
 You are a financial portfolio assistant.
+
+RELEVANT PAST CONVERSATIONS:
+{memory_block}
 
 Your task is to analyze the provided portfolio JSON.
 
@@ -99,26 +115,26 @@ No question provided.
 # ================= LOCAL OLLAMA =================
 def get_analysis(prompt):
 
-    url = "http://localhost:11434/api/generate"
-
-    payload = {
-        "model": MODEL_NAME,
-        "prompt": prompt,
-        "stream": False
-    }
-
     try:
-        response = requests.post(url, json=payload)
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a financial portfolio assistant."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2
+        )
 
-        if response.status_code != 200:
-            print("❌ Ollama request failed")
-            print(response.text)
-            return ""
+        return response.choices[0].message.content
 
-        return response.json().get("response", "")
-
-    except requests.RequestException as e:
-        print(f"❌ Request error: {e}")
+    except Exception as e:
+        print(f"❌ Groq request error: {e}")
         return ""
 
 
@@ -187,8 +203,146 @@ def save_output(parsed_data):
     print(f"💾 Saved to {OUTPUT_FILE}")
 
 
+def build_memory_fact(parsed):
+
+    summary = parsed.get("summary", "").strip()
+
+    pros = parsed.get("pros", [])
+    cons = parsed.get("cons", [])
+    next_steps = parsed.get("next_steps", [])
+    question_response = parsed.get("question_response", "").strip()
+    sources = parsed.get("sources", [])
+
+    key_strengths = ", ".join(pros[:2]) if pros else "none identified"
+    key_risks = ", ".join(cons[:2]) if cons else "none identified"
+    key_actions = ", ".join(next_steps[:2]) if next_steps else "none identified"
+    key_sources = ", ".join(sources[:2]) if sources else "none identified"
+
+    memory_text = f"""
+Portfolio insight: {summary}
+Key strengths: {key_strengths}
+Key risks: {key_risks}
+Recommended actions: {key_actions}
+User question response: {question_response}
+Data sources used: {key_sources}
+""".strip()
+
+    return memory_text
+
+# def store_sectioned_memories(user_question, parsed):
+
+#     base = user_question or "portfolio analysis"
+
+#     memories = []
+
+#     if parsed.get("summary"):
+#         memories.append({
+#             "user": base + " summary",
+#             "assistant": parsed["summary"],
+#             "section": "summary"
+#         })
+
+#     for item in parsed.get("pros", []):
+#         memories.append({
+#             "user": base + " pro",
+#             "assistant": item,
+#             "section": "pros"
+#         })
+
+#     for item in parsed.get("cons", []):
+#         memories.append({
+#             "user": base + " con",
+#             "assistant": item,
+#             "section": "cons"
+#         })
+
+#     for item in parsed.get("next_steps", []):
+#         memories.append({
+#             "user": base + " next",
+#             "assistant": item,
+#             "section": "next_steps"
+#         })
+
+#     if parsed.get("question_response"):
+#         memories.append({
+#             "user": base + " response",
+#             "assistant": parsed["question_response"],
+#             "section": "response"
+#         })
+
+#     if memories:
+#         store_memories_batch(memories)
+
+def store_sectioned_memories(user_question, parsed):
+
+    base = user_question or "portfolio analysis"
+
+    memories = []
+
+    # 1. SUMMARY (single memory)
+    if parsed.get("summary"):
+        memories.append({
+            "user": base + " summary",
+            "assistant": parsed["summary"],
+            "section": "summary"
+        })
+
+    # 2. PROS (single block memory)
+    if parsed.get("pros"):
+        pros_block = "\n".join(parsed["pros"])
+        memories.append({
+            "user": base + " pros",
+            "assistant": pros_block,
+            "section": "pros"
+        })
+
+    # 3. CONS (single block memory)
+    if parsed.get("cons"):
+        cons_block = "\n".join(parsed["cons"])
+        memories.append({
+            "user": base + " cons",
+            "assistant": cons_block,
+            "section": "cons"
+        })
+
+    # 4. NEXT STEPS (single block memory)
+    if parsed.get("next_steps"):
+        next_block = "\n".join(parsed["next_steps"])
+        memories.append({
+            "user": base + " next_steps",
+            "assistant": next_block,
+            "section": "next_steps"
+        })
+
+    # 5. RESPONSE (single memory)
+    if parsed.get("question_response"):
+        memories.append({
+            "user": base + " response",
+            "assistant": parsed["question_response"],
+            "section": "response"
+        })
+
+    if memories:
+        store_memories_batch(memories)
+
+def detect_intent(question):
+
+    q = question.lower()
+
+    if any(x in q for x in ["risk", "reduce", "safe", "loss"]):
+        return "cons"
+
+    if any(x in q for x in ["next", "what should", "do", "improve"]):
+        return "next_steps"
+
+    if any(x in q for x in ["performance", "how is", "portfolio"]):
+        return "summary"
+
+    return "general"
+
 # ================= MAIN =================
 def run():
+    start = time.perf_counter()
 
     data = load_input()
 
@@ -198,19 +352,49 @@ def run():
     print("🔍 Generating analysis...\n")
 
     # Future frontend textbox input
-    user_question = None
+    user_question = data.get("question", None)
+    t1 = time.perf_counter()
 
-    prompt = build_prompt(data, user_question)
+    intent = detect_intent(user_question or "")
+    query = user_question or "portfolio analysis"
+
+    memories = retrieve_memories_by_intent(
+        query=query,
+        intent=intent
+    )
+    print("\n=== CONTEXT MEMORIES PASSED INTO LLM ===")
+
+    if memories:
+        for i, m in enumerate(memories):
+            print(f"\n--- MEMORY {i+1} ---")
+            print(m)
+    else:
+        print("No memories retrieved")
+    t2 = time.perf_counter()
+
+    prompt = build_prompt(
+        data,
+        memories,
+        user_question
+    )
 
     raw_output = get_analysis(prompt)
-
+    t3 = time.perf_counter()
     print("=== RAW LLM OUTPUT ===\n")
     print(raw_output)
 
     parsed = parse_output(raw_output)
-
     save_output(parsed)
 
+    store_sectioned_memories(user_question, parsed)
+
+    t4 = time.perf_counter()
+
+    end_time = time.perf_counter()
+    print("Memory retrieval:", t2 - t1)
+    print("LLM generation:", t3 - t2)
+    print("Memory storage:", t4 - t3)
+    print("TOTAL:", t4 - start)
 
 if __name__ == "__main__":
     run()

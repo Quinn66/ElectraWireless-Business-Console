@@ -231,6 +231,11 @@ STRICT OUTPUT FORMAT (DO NOT DEVIATE):
   2. High impact
   3. Medium term
   4. Optional improvement
+
+
+[SECTION: SUMMARY]
+- Provide a summary of previous sections, keep it to around 1 paragraph, so 3 to 4 lines
+
 """
 
     if has_goal:
