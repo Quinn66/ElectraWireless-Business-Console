@@ -102,6 +102,8 @@ export interface AssetPerformance {
   return_percentage: number;
   cagr: number | null;
   annualised_volatility: number | null;
+  daily_change: number | null;
+  percentage_change: number | null;
 }
 
 export interface PortfolioSummary {
