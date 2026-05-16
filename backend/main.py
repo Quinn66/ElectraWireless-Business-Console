@@ -1,5 +1,7 @@
+import json
+from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
-from datetime import date as date_today
+from datetime import date as date_today, datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from investments import router as investments_router
@@ -585,3 +587,57 @@ def ai_insights(req: dict = Body(...)):
     prompt = build_finance_prompt(req)
     raw = get_analysis(prompt)
     return parse_llm_output(raw)
+
+
+# ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
+
+from Feature3.F3Insights import (
+    build_prompt as build_portfolio_prompt,
+    get_analysis as get_portfolio_analysis,
+    parse_output as parse_portfolio_output,
+)
+
+
+@app.post("/pf/portfolio-analysis")
+def portfolio_analysis(req: dict = Body(...)):
+    data = req.get("data", {}) or {}
+    user_question = (data.get("question") or "").strip() or None
+    prompt = build_portfolio_prompt(data, user_question)
+    raw = get_portfolio_analysis(prompt)
+    return parse_portfolio_output(raw)
+
+
+# ── Feature 3: Investment Onboarding ──────────────────────────────────────────
+
+FEATURE_3_INPUT_PATH = Path(__file__).parent / "Llama Input" / "Feature_3_input.json"
+
+
+class InvestmentOnboardingRequest(BaseModel):
+    age:                 int
+    experienceLevel:     str   # beginner | intermediate | advanced
+    financialBackground: str   # low | moderate | high
+    communicationStyle:  str   # simple | technical
+    investmentGoal:      str   # growth | income | preservation | balanced
+    timeHorizon:         str   # short | medium | long
+
+
+@app.post("/investments/onboarding")
+def submit_investment_onboarding(req: InvestmentOnboardingRequest):
+    with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    data["onboarding"] = {
+        "available":           True,
+        "age":                 req.age,
+        "experienceLevel":     req.experienceLevel,
+        "financialBackground": req.financialBackground,
+        "communicationStyle":  req.communicationStyle,
+        "investmentGoal":      req.investmentGoal,
+        "timeHorizon":         req.timeHorizon,
+        "completedAt":         datetime.now(timezone.utc).isoformat(),
+    }
+
+    with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    return {"status": "ok", "onboarding": data["onboarding"]}

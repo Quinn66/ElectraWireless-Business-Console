@@ -15,6 +15,7 @@ import {
   fetchInsights, ASSET_TYPE_LABELS,
 } from "@/services/investmentApi";
 import type { InvestmentHolding, InvestmentInsight, NewHolding, AssetType } from "@/services/investmentApi";
+import { InvestmentAIPanel } from "@/components/investment/InvestmentAIPanel";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -928,12 +929,15 @@ function InsightsTab({ holdings }: { holdings: InvestmentHolding[] }) {
 
 // ── AI Scenarios tab ──────────────────────────────────────────────────────────
 
-function AITab() {
+function AITab({ holdings }: { holdings: InvestmentHolding[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ fontSize: 12.5, color: "#666", margin: 0 }}>
         AI-powered scenario planning. Connects onboarding context (age, horizon, experience) into prompts.
       </p>
+
+      <InvestmentAIPanel holdings={holdings} />
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <PlaceholderCard icon={<Sparkles size={15} />} title="Hypothetical Scenario"
           description="'What if I invested $X in Y today?' — simulates outcome using current market data." owner="AI / Insights" phase="Phase 7" />
@@ -993,7 +997,7 @@ export function InvestmentPage() {
                  onAdd={handleAdd} onDelete={handleDelete} onClearAll={handleClearAll} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
     insights:  <InsightsTab holdings={holdings} />,
-    ai:        <AITab />,
+    ai:        <AITab holdings={holdings} />,
   };
 
   return (
