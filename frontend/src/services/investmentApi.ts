@@ -156,6 +156,23 @@ export async function fetchMarkowitz(): Promise<MarkowitzPoint[]> {
   return res.data;
 }
 
+export interface MarketMover {
+  symbol:            string;
+  current_price:     number;
+  daily_change:      number;
+  percentage_change: number;
+}
+
+export interface MarketMovers {
+  gainers: MarketMover[];
+  losers:  MarketMover[];
+}
+
+export async function fetchMarketMovers(): Promise<MarketMovers> {
+  const res = await investmentApiClient.get<MarketMovers>("/investments/market-movers");
+  return res.data;
+}
+
 export async function deleteAllHoldings(): Promise<void> {
   await investmentApiClient.delete("/investments/holdings");
 }
