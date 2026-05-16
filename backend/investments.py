@@ -119,6 +119,14 @@ def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_
     return {"imported": imported, "symbols": symbols, "errors": errors}
 
 
+# ── Market-wide Movers ────────────────────────────────────────────────────────
+
+@router.get("/market-movers")
+def get_market_movers():
+    """Top 3 gainers and losers from a curated market watchlist. Cached 15 min."""
+    return market_data.fetch_market_movers()
+
+
 # ── Market Prices ─────────────────────────────────────────────────────────────
 
 @router.get("/prices")
