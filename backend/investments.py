@@ -56,13 +56,34 @@ def delete_holding(holding_id: int, db: Session = Depends(get_db)):
     return {"message": f"TODO — Phase 2, id={holding_id}"}
 
 
+@router.delete("/holdings")
+def delete_all_holdings(db: Session = Depends(get_db)):
+    """Clear all holdings and related data for the demo user."""
+    db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).delete()
+    db.query(models.PortfolioSnapshot).filter(
+        models.PortfolioSnapshot.user_id == "demo-user"
+    ).delete()
+    db.query(models.MarketPrice).delete()
+    db.commit()
+    return {"message": "All investment data cleared"}
+
+
 @router.post("/holdings/upload")
 def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """CSV bulk import of holdings. Required columns: symbol, asset_type, quantity, buy_price. Optional: purchase_date."""
+    """CSV bulk import of holdings. Replaces any previously CSV-imported holdings.
+    Required columns: symbol, asset_type, quantity, buy_price. Optional: purchase_date."""
+    # Clear previous CSV import so re-uploading replaces rather than appends
+    db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user",
+        models.InvestmentHolding.source  == "csv",
+    ).delete()
+    db.commit()
+
     contents = file.file.read().decode("utf-8")
     reader = csv.DictReader(io.StringIO(contents))
 
-    # Normalise header names to lowercase stripped strings
     required = {"symbol", "asset_type", "quantity", "buy_price"}
     imported = 0
     symbols: list[str] = []
