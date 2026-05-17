@@ -17,8 +17,7 @@ from forecast import (
 )
 
 from upload_parser import parse_uploaded_financial_file
-from LlamaModel import get_web_context, parse_output
-from contextLlamaTest import get_analysis
+from contextLlamaTest import get_analysis, parse_output
 from CsvDetectFull import detect_anomalies
 from dotenv import load_dotenv
 load_dotenv()
@@ -591,7 +590,7 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from Feature3.oldInsights import (
+from Feature3.OldInsights.oldInsights import (
     build_prompt as build_portfolio_prompt,
     get_analysis as get_portfolio_analysis,
     parse_output as parse_portfolio_output,
