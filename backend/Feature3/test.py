@@ -1,6 +1,5 @@
 import json
 import re
-
 import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 
@@ -353,19 +352,6 @@ def run():
     print("LLM generation:", t3 - t2)
     print("Memory storage:", t4 - t3)
     print("TOTAL:", t4 - start)
-
-    print("\n=== FINAL DEBUG CHECK ===")
-    print("user_question:", repr(user_question))
-    print("intent:", intent)
-    print("query sent to memory:", query)
-    print("question passed to prompt:", repr(user_question))
-
-    print("\n=== QUESTION BLOCK SHOULD BE ===")
-    if user_question:
-        print(f"USER QUESTION:\n{user_question}")
-    else:
-        print("EMPTY QUESTION BLOCK (No question provided)")
-    print("=== END FINAL DEBUG ===\n")
 
 
 if __name__ == "__main__":

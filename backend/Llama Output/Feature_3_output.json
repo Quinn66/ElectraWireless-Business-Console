@@ -1,35 +1,34 @@
 {
   "summary": "The portfolio has a total value of $12,500 with a 25% return over the last 6 months. The cash balance is $1,500, and the diversification score is 62.",
   "pros": [
-    "High return percentage of 25% over the last 6 months",
-    "Strong performance of top holdings, such as BTC and AAPL",
-    "Cash balance of $1,500 provides liquidity",
-    "Diversification score of 62 indicates some diversification",
-    "Moderate risk grade of \"B\""
+    "The portfolio has a 25% return over the last 6 months, indicating a positive performance.",
+    "Bitcoin (BTC) is the top gainer with a 38.1% return.",
+    "Apple Inc. (AAPL) has a 30.33% return.",
+    "The portfolio has a cash balance of $1,500.",
+    "The diversification score is 62, indicating some diversification."
   ],
   "cons": [
-    "High crypto concentration of 69.6% in BTC",
-    "Low diversification score of 62",
-    "Portfolio dipped 4.1% in April before recovering",
-    "ETF VOO has a negative return percentage of -3.2%",
-    "Cash balance is relatively low at $1,500"
+    "The portfolio has a high concentration of crypto assets, with 69.6% of the portfolio in BTC.",
+    "The diversification score is 62, indicating a need for more diversification.",
+    "The portfolio dipped in April, falling 4.1% from March to April.",
+    "The Vanguard S&P 500 ETF (VOO) has a -3.2% return.",
+    "The portfolio has a high risk grade of \"B\"."
   ],
   "next_steps": [
-    "Reduce crypto concentration to below 25%",
-    "Add 2-3 uncorrelated positions to improve diversification",
-    "Consider rebalancing the portfolio to maintain target allocations",
-    "Monitor and adjust the portfolio regularly",
-    "Review and adjust the investment goal and risk tolerance"
+    "Reduce the concentration of crypto assets to below 25%.",
+    "Add 2-3 uncorrelated positions to improve diversification.",
+    "Consider rebalancing the portfolio to reduce the impact of the April dip.",
+    "Review and adjust the investment goal and time horizon.",
+    "Monitor the portfolio regularly to ensure it remains aligned with the investment goal."
   ],
-  "question_response": "The portfolio has some strengths, such as a high return percentage and strong performance of top holdings, but also some weaknesses, including high crypto concentration and low diversification score.",
+  "question_response": "The portfolio has several strengths, including a positive return over the last 6 months, but also several weaknesses, including a high concentration of crypto assets and a low diversification score.",
   "sources": [
     "summary",
     "holdings",
     "allocation",
-    "alerts",
-    "monthlySnapshots",
     "topGainers",
     "topLosers",
-    "alerts"
+    "alerts",
+    "personal_finance_context"
   ]
 }
