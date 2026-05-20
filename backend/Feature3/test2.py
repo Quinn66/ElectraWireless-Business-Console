@@ -2,10 +2,15 @@ import json
 import re
 import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
-
+import yfinance as yf
 import os
 from groq import Groq
+import pandas as pd
+from csv_analyzer import run as analyze_stock_csvs
 
+DATA_DIR = "ydata"
+
+os.makedirs(DATA_DIR, exist_ok=True)
 api_key = os.getenv("GROQ_API_KEY")
 
 client = Groq(api_key=api_key)
@@ -40,7 +45,149 @@ def load_input():
 
     return None
 
+# 
+def extract_stocks_only(data, user_question=None):
 
+    prompt = f"""
+You are a stock extraction system.
+
+USER QUESTION:
+{user_question}
+
+TASK:
+Extract all stock names mentioned in the user question and convert them into Yahoo Finance ticker symbols.
+If the user is not speaking about stocks or no stocks are mentioned output NONE
+
+RULES:
+- If none → NONE
+- Output ONLY this format
+- One stock per line
+
+- No explanations
+FORMAT:
+[SECTION: STOCKS]
+If a stock is mentioned in the question list out the ticker name of the stock in this exact format
+(stock name)
+a stock does not need to appear in the portfolio to mention it here
+one stock per line
+"""
+
+    res = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": "Return ONLY STOCKS section."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0
+    )
+
+    return res.choices[0].message.content.strip()
+# 
+def extract_stock_lines(text):
+    lines = []
+    capture = False
+
+    for line in text.split("\n"):
+        line = line.strip()
+
+        if line.lower().startswith("[section: stocks]"):
+            capture = True
+            continue
+
+        if capture:
+            if line.startswith("[SECTION:"):
+                break
+
+            if line and line.upper() != "NONE":
+                lines.append(line)
+
+    return lines
+# 
+
+
+def normalize_ticker(t):
+    t = t.strip().upper()
+
+    # simple crypto mapping
+    if t == "BTC":
+        return "BTC-USD"
+    if t == "ETH":
+        return "ETH-USD"
+
+    return t
+
+
+def run_yfinance(stock_list):
+    results = []
+    csv_files_used = []
+
+    print("\n🔧 YFINANCE (CSV CACHED MODE):")
+
+    for s in stock_list:
+        ticker = normalize_ticker(s)
+
+        csv_path = os.path.join(DATA_DIR, f"{ticker}_6mo.csv")
+
+        try:
+            # ================= ENSURE FILE EXISTS =================
+            if not os.path.exists(csv_path):
+                print(f"⬇️ Downloading {ticker} ...")
+
+                data = yf.download(
+                    ticker,
+                    period="6mo",
+                    interval="1d",
+                    progress=False
+                )
+
+                if data.empty:
+                    raise ValueError("No data returned from yfinance")
+
+                data.to_csv(csv_path)
+
+            # track ALL files used (not just downloaded ones)
+            csv_files_used.append(csv_path)
+
+            # ================= READ LOCAL CSV =================
+            df = pd.read_csv(csv_path, skiprows=[1])
+
+            df.columns = [str(c).strip() for c in df.columns]
+
+            if "Close" not in df.columns:
+                raise ValueError(f"Missing Close column in {ticker}")
+
+            close = pd.to_numeric(df["Close"], errors="coerce").dropna()
+
+            if len(close) < 2:
+                raise ValueError(f"Not enough valid Close data for {ticker}")
+
+            current_price = float(close.iloc[-1])
+            start_price = float(close.iloc[0])
+
+            change = current_price - start_price
+            change_pct = (change / start_price) * 100 if start_price != 0 else 0
+
+            print("-", ticker)
+
+            results.append({
+                "stock": ticker,
+                "price": round(current_price, 2),
+                "change_6m": round(change, 2),
+                "change_6m_pct": round(change_pct, 2),
+                "source": "csv_cache"
+            })
+
+        except Exception as e:
+            results.append({
+                "stock": ticker,
+                "price": None,
+                "change_6m": None,
+                "change_6m_pct": None,
+                "error": str(e)
+            })
+
+    return results, csv_files_used
+# 
 # ================= BUILD PROMPT =================
 def build_prompt(data, memories=None, user_question=None):
     question_block = ""
@@ -66,7 +213,7 @@ RELEVANT PAST CONVERSATIONS:
 Your task is to analyze the provided portfolio JSON.
 
 IMPORTANT RULES:
-- ONLY use the provided JSON
+- Use provided JSON AND STOCK MARKET DATA if available
 - Do NOT invent data
 - Keep responses concise
 - Use plain English
@@ -83,12 +230,6 @@ STRICT OUTPUT FORMAT:
 - Section headers MUST match EXACTLY
 - No extra sections
 - No markdown headings
-
-[SECTION: STOCKS]
-If a stock is mentioned in the question list out the ticker name of the stock in this exact format
-(stock name)
-a stock does not need to appear in the portfolio to mention it here
-one stock per line
 
 [SECTION: SUMMARY]
 Write a short portfolio summary.
@@ -107,16 +248,14 @@ Write a short portfolio summary.
 
 [SECTION: QUESTION_RESPONSE]
 Answer the following question without repeating the question
-{user_question}
-
+{user_question if user_question else "NO QUESTION PROVIDED"}
+Answer ONLY if QUESTION is not "NO QUESTION PROVIDED".
+If it is, respond with "No question provided."
 If a question was provided:
 Answer it directly in under 120 words.
 
-Otherwise write:
-No question provided.
-
 [SECTION: SOURCES]
-- List which portfolio fields were used
+- List which datasets were used if any
 """
 
 
@@ -309,15 +448,30 @@ def run():
     start = time.perf_counter()
 
     data = load_input()
-
     if not data:
         return
 
     print("🔍 Generating analysis...\n")
 
-    # Future frontend textbox input
     user_question = data.get("question", None)
-    t1 = time.perf_counter()
+
+    # STEP 2: STOCK EXTRACTION
+    stock_section = extract_stocks_only(data, user_question)
+
+    print("\n=== STOCK EXTRACTION ===")
+    print(stock_section)
+
+    stocks = extract_stock_lines(stock_section)
+
+    # STEP 3: SECOND OUTPUT (yfinance placeholder)
+    stock_data, downloaded_files = run_yfinance(stocks)
+    
+    analyze_stock_csvs(downloaded_files)
+    print("\n=== YFINANCE OUTPUT ===")
+    print(stock_data)
+
+    # ================= MEMORY RETRIEVAL =================
+    user_question = data.get("question", None)
 
     intent = detect_intent(user_question or "")
     query = user_question or "portfolio analysis"
@@ -326,25 +480,44 @@ def run():
         query=query,
         intent=intent
     )
-    print("\n=== CONTEXT MEMORIES PASSED INTO LLM ===")
 
+    print("\n=== CONTEXT MEMORIES ===")
     if memories:
         for i, m in enumerate(memories):
             print(f"\n--- MEMORY {i+1} ---")
             print(m)
     else:
         print("No memories retrieved")
-    t2 = time.perf_counter()
 
+    # STEP 4: MAIN LLM ANALYSIS
+    # ================= LOAD CSV ANALYSIS JSON =================
+    csv_analysis_path = os.path.join(DATA_DIR, "csv_analysis_output.json")
+    csv_analysis_data = []
+
+    if os.path.exists(csv_analysis_path):
+        with open(csv_analysis_path, "r", encoding="utf-8") as f:
+            csv_analysis_data = json.load(f)
+
+    # ================= BUILD FINAL PROMPT =================
     prompt = build_prompt(
         data,
         memories,
         user_question
-    )
+    ) + f"""
+
+    STOCK MARKET DATA ANALYSIS:
+    {json.dumps(csv_analysis_data, indent=2)}
+
+    IMPORTANT:
+    - Use this stock market data when answering stock-related questions
+    - Compare stock performance using change_pct
+    - Mention stronger performers when relevant
+    - Use ticker performance trends when suggesting additions to portfolio
+    """
 
     raw_output = get_analysis(prompt)
-    t3 = time.perf_counter()
-    print("=== RAW LLM OUTPUT ===\n")
+
+    print("\n=== FINAL ANALYSIS ===")
     print(raw_output)
 
     parsed = parse_output(raw_output)
@@ -352,12 +525,7 @@ def run():
 
     store_sectioned_memories(user_question, parsed)
 
-    t4 = time.perf_counter()
-
-    print("Memory retrieval:", t2 - t1)
-    print("LLM generation:", t3 - t2)
-    print("Memory storage:", t4 - t3)
-    print("TOTAL:", t4 - start)
+    print("\nTOTAL TIME:", time.perf_counter() - start)
 
 
 if __name__ == "__main__":
