@@ -124,7 +124,7 @@ class InvestmentHolding(Base):
     """
     __tablename__ = "investment_holdings"
 
-    id            = Column(String,  primary_key=True)        # UUID from main.py
+    id            = Column(String,  primary_key=True)
     user_id       = Column(String,  nullable=False, index=True)
     symbol        = Column(String,  nullable=False)          # e.g. "AAPL", "BTC", "VAS.AX"
     asset_type    = Column(String,  nullable=False)          # stock | crypto | etf | fund | real_estate
