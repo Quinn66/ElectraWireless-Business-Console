@@ -630,6 +630,32 @@ def portfolio_analysis(req: dict = Body(...)):
     return result
 
 
+# ── Users ─────────────────────────────────────────────────────────────────────
+
+class UserCreateRequest(BaseModel):
+    account_type: str   # user | industry | government
+
+
+@app.post("/users", status_code=201)
+def create_user(req: UserCreateRequest, db: Session = Depends(get_db)):
+    user = models.User(
+        id=str(uuid4()),
+        account_type=req.account_type,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "account_type": user.account_type}
+
+
+@app.get("/users/{user_id}")
+def get_user(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 # ── Feature 3: Investment Onboarding ──────────────────────────────────────────
 
 FEATURE_3_INPUT_PATH = Path(__file__).parent / "Llama Input" / "Feature_3_input.json"
@@ -642,25 +668,117 @@ class InvestmentOnboardingRequest(BaseModel):
     communicationStyle:  str   # simple | technical
     investmentGoal:      str   # growth | income | preservation | balanced
     timeHorizon:         str   # short | medium | long
+    user_id:             str = "demo-user"
 
 
 @app.post("/investments/onboarding")
-def submit_investment_onboarding(req: InvestmentOnboardingRequest):
-    with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session = Depends(get_db)):
+    existing = db.query(models.InvestmentOnboardingProfile).filter(
+        models.InvestmentOnboardingProfile.user_id == req.user_id
+    ).first()
 
-    data["onboarding"] = {
-        "available":           True,
-        "age":                 req.age,
-        "experienceLevel":     req.experienceLevel,
-        "financialBackground": req.financialBackground,
-        "communicationStyle":  req.communicationStyle,
-        "investmentGoal":      req.investmentGoal,
-        "timeHorizon":         req.timeHorizon,
-        "completedAt":         datetime.now(timezone.utc).isoformat(),
-    }
+    if existing:
+        existing.age                  = req.age
+        existing.experience_level     = req.experienceLevel
+        existing.financial_background = req.financialBackground
+        existing.communication_style  = req.communicationStyle
+        existing.investment_goal      = req.investmentGoal
+        existing.time_horizon         = req.timeHorizon
+    else:
+        profile = models.InvestmentOnboardingProfile(
+            user_id              = req.user_id,
+            age                  = req.age,
+            experience_level     = req.experienceLevel,
+            financial_background = req.financialBackground,
+            communication_style  = req.communicationStyle,
+            investment_goal      = req.investmentGoal,
+            time_horizon         = req.timeHorizon,
+        )
+        db.add(profile)
 
-    with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    db.commit()
 
-    return {"status": "ok", "onboarding": data["onboarding"]}
+    # Also keep the JSON file updated so existing Llama prompt builder keeps working
+    try:
+        with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["onboarding"] = {
+            "available":           True,
+            "age":                 req.age,
+            "experienceLevel":     req.experienceLevel,
+            "financialBackground": req.financialBackground,
+            "communicationStyle":  req.communicationStyle,
+            "investmentGoal":      req.investmentGoal,
+            "timeHorizon":         req.timeHorizon,
+            "completedAt":         datetime.now(timezone.utc).isoformat(),
+        }
+        with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass  # non-fatal — DB is the source of truth now
+
+    return {"status": "ok", "user_id": req.user_id}
+
+
+@app.get("/investments/onboarding/{user_id}")
+def get_investment_onboarding(user_id: str, db: Session = Depends(get_db)):
+    profile = db.query(models.InvestmentOnboardingProfile).filter(
+        models.InvestmentOnboardingProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="No onboarding profile found")
+    return profile
+
+
+# ── Feature 1: Forecast Config ────────────────────────────────────────────────
+
+class ForecastConfigRequest(BaseModel):
+    starting_mrr:    float
+    growth_rate:     float
+    churn_rate:      float
+    cogs_percent:    float
+    marketing_spend: float
+    payroll:         float
+    months:          int
+    user_id:         str = "demo-user"
+
+
+@app.post("/forecast/config")
+def save_forecast_config(req: ForecastConfigRequest, db: Session = Depends(get_db)):
+    existing = db.query(models.ForecastConfig).filter(
+        models.ForecastConfig.user_id == req.user_id
+    ).first()
+
+    if existing:
+        existing.starting_mrr    = req.starting_mrr
+        existing.growth_rate     = req.growth_rate
+        existing.churn_rate      = req.churn_rate
+        existing.cogs_percent    = req.cogs_percent
+        existing.marketing_spend = req.marketing_spend
+        existing.payroll         = req.payroll
+        existing.months          = req.months
+    else:
+        config = models.ForecastConfig(
+            user_id         = req.user_id,
+            starting_mrr    = req.starting_mrr,
+            growth_rate     = req.growth_rate,
+            churn_rate      = req.churn_rate,
+            cogs_percent    = req.cogs_percent,
+            marketing_spend = req.marketing_spend,
+            payroll         = req.payroll,
+            months          = req.months,
+        )
+        db.add(config)
+
+    db.commit()
+    return {"status": "ok", "user_id": req.user_id}
+
+
+@app.get("/forecast/config/{user_id}")
+def get_forecast_config(user_id: str, db: Session = Depends(get_db)):
+    config = db.query(models.ForecastConfig).filter(
+        models.ForecastConfig.user_id == user_id
+    ).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="No forecast config found")
+    return config

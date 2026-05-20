@@ -11,7 +11,7 @@ import type { Transaction } from "@/store/personalFinanceStore";
 import { autoCategory, inferType } from "@/lib/categories";
 import type { ParsedData } from "@/lib/importUtils";
 
-const BASE_URL = (import.meta as Record<string, unknown> & { env: Record<string, string> }).env.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL = ((import.meta as unknown) as { env: Record<string, string> }).env.VITE_API_URL ?? "http://localhost:8000";
 
 export const pfApi = axios.create({ baseURL: BASE_URL });
 

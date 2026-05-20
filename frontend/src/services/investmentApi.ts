@@ -277,3 +277,55 @@ export async function fetchInvestmentAIInsights(
   );
   return res.data;
 }
+
+// ── Forecast Config persistence ───────────────────────────────────────────────
+
+export interface ForecastConfigPayload {
+  starting_mrr:    number;
+  growth_rate:     number;
+  churn_rate:      number;
+  cogs_percent:    number;
+  marketing_spend: number;
+  payroll:         number;
+  months:          number;
+  user_id?:        string;
+}
+
+export async function saveForecastConfig(config: ForecastConfigPayload): Promise<void> {
+  await investmentApiClient.post("/forecast/config", { ...config, user_id: "demo-user" });
+}
+
+export async function loadForecastConfig(): Promise<ForecastConfigPayload | null> {
+  try {
+    const res = await investmentApiClient.get<ForecastConfigPayload>("/forecast/config/demo-user");
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// ── Investment Onboarding persistence ─────────────────────────────────────────
+
+export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPayload | null> {
+  try {
+    const res = await investmentApiClient.get<{
+      age:                  number;
+      experience_level:     string;
+      financial_background: string;
+      communication_style:  string;
+      investment_goal:      string;
+      time_horizon:         string;
+    }>("/investments/onboarding/demo-user");
+    const d = res.data;
+    return {
+      age:                 d.age,
+      experienceLevel:     d.experience_level     as InvestmentOnboardingPayload["experienceLevel"],
+      financialBackground: d.financial_background as InvestmentOnboardingPayload["financialBackground"],
+      communicationStyle:  d.communication_style  as InvestmentOnboardingPayload["communicationStyle"],
+      investmentGoal:      d.investment_goal      as InvestmentOnboardingPayload["investmentGoal"],
+      timeHorizon:         d.time_horizon         as InvestmentOnboardingPayload["timeHorizon"],
+    };
+  } catch {
+    return null;
+  }
+}
