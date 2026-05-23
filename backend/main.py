@@ -697,7 +697,7 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from Feature3.OldInsights.oldInsights import (
+from Feature3.F3Insights import (
     build_prompt as build_portfolio_prompt,
     get_analysis as get_portfolio_analysis,
     parse_output as parse_portfolio_output,
@@ -881,7 +881,8 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
                     market_context["historical_performance"] = hist_perf
 
             # Finnhub news for mentioned tickers + general market
-            news = fetch_news(tickers[:5] if tickers else [])
+            news_tickers = tickers[:5] if tickers else portfolio_syms[:5]
+            news = fetch_news(news_tickers)
             if news.get("company") or news.get("market"):
                 market_context["news"] = news
 
@@ -899,7 +900,7 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
         except Exception as e:
             print(f"[memory] Retrieval failed (non-fatal): {e}")
 
-    prompt = build_portfolio_prompt(data, user_question, memories=memories)
+    prompt = build_portfolio_prompt(data, memories=memories, user_question=user_question)
     raw    = get_portfolio_analysis(prompt)
     result = parse_portfolio_output(raw)
 
