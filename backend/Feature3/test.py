@@ -1,6 +1,5 @@
 import json
 import re
-
 import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 
@@ -101,6 +100,9 @@ Write a short portfolio summary.
 - Max 5 bullets
 
 [SECTION: QUESTION_RESPONSE]
+Answer the following question without repeating the question
+{user_question}
+
 If a question was provided:
 Answer it directly in under 120 words.
 
@@ -350,6 +352,7 @@ def run():
     print("LLM generation:", t3 - t2)
     print("Memory storage:", t4 - t3)
     print("TOTAL:", t4 - start)
+
 
 if __name__ == "__main__":
     run()

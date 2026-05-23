@@ -1,40 +1,34 @@
 {
-  "summary": "The portfolio has a total value of $12,500, with a profit of $2,500 over the last 6 months, resulting in a 25% return. The cash balance is $1,500, and the diversification score is 62.",
+  "summary": "The portfolio has a total value of $12,500 with a 25% return over the last 6 months. The cash balance is $1,500, and the diversification score is 62.",
   "pros": [
-    "High return over the last 6 months",
-    "Portfolio has gained value in 4 out of the last 6 months",
-    "Cash balance is sufficient",
-    "Diversification score is above average",
-    "Top holdings (AAPL and BTC) have performed well"
+    "The portfolio has a 25% return over the last 6 months, indicating a positive performance.",
+    "Bitcoin (BTC) is the top gainer with a 38.1% return.",
+    "Apple Inc. (AAPL) has a 30.33% return.",
+    "The portfolio has a cash balance of $1,500.",
+    "The diversification score is 62, indicating some diversification."
   ],
   "cons": [
-    "High crypto concentration (70% of the portfolio is in BTC)",
-    "Low diversification score (62/100)",
-    "Portfolio dipped in April",
-    "ETF (VOO) has underperformed",
-    "No bonds or other fixed-income assets"
+    "The portfolio has a high concentration of crypto assets, with 69.6% of the portfolio in BTC.",
+    "The diversification score is 62, indicating a need for more diversification.",
+    "The portfolio dipped in April, falling 4.1% from March to April.",
+    "The Vanguard S&P 500 ETF (VOO) has a -3.2% return.",
+    "The portfolio has a high risk grade of \"B\"."
   ],
   "next_steps": [
-    "Reduce crypto concentration to below 25%",
-    "Add 2-3 uncorrelated positions to improve diversification",
-    "Consider adding bonds or other fixed-income assets",
-    "Monitor and adjust the portfolio regularly",
-    "Review and adjust the portfolio's asset allocation regularly"
+    "Reduce the concentration of crypto assets to below 25%.",
+    "Add 2-3 uncorrelated positions to improve diversification.",
+    "Consider rebalancing the portfolio to reduce the impact of the April dip.",
+    "Review and adjust the investment goal and time horizon.",
+    "Monitor the portfolio regularly to ensure it remains aligned with the investment goal."
   ],
-  "question_response": "To improve performance, consider rebalancing the portfolio to maintain target allocations and reducing crypto concentration to below 25%.",
+  "question_response": "The portfolio has several strengths, including a positive return over the last 6 months, but also several weaknesses, including a high concentration of crypto assets and a low diversification score.",
   "sources": [
-    "totalValue",
-    "totalCost",
-    "profitLoss",
-    "returnPercentage",
-    "cashBalance",
-    "diversificationScore",
-    "allocation.byAssetType",
-    "allocation.bySymbol",
-    "allocation.topConcentration",
-    "monthlySnapshots",
+    "summary",
+    "holdings",
+    "allocation",
     "topGainers",
     "topLosers",
-    "alerts"
+    "alerts",
+    "personal_finance_context"
   ]
 }
