@@ -208,20 +208,26 @@ class InvestmentOnboardingProfile(Base):
     """
     Persists the investment onboarding answers for a user (Feature 3).
     One row per user — upserted on each completed onboarding.
-    Previously written to Feature_3_input.json; now stored in the DB so
-    all teams and features can read it.
+    Mirrored to Feature_3_input.json for the Llama prompt builder.
+
+    investment_strategies / asset_interests are JSON-encoded string arrays
+    (SQLite has no native list type); the API layer encodes/decodes them.
+    investment_goal is retained as a nullable column for older callers but
+    is no longer collected by the onboarding form.
     """
     __tablename__ = "investment_onboarding_profiles"
 
-    id                   = Column(Integer, primary_key=True, autoincrement=True)
-    user_id              = Column(String,  nullable=False, unique=True, index=True)
-    age                  = Column(Integer, nullable=False)
-    experience_level     = Column(String,  nullable=False)   # beginner | intermediate | advanced
-    financial_background = Column(String,  nullable=False)   # low | moderate | high
-    communication_style  = Column(String,  nullable=False)   # simple | technical
-    investment_goal      = Column(String,  nullable=False)   # growth | income | preservation | balanced
-    time_horizon         = Column(String,  nullable=False)   # short | medium | long
-    completed_at         = Column(DateTime, default=func.now(), onupdate=func.now())
+    id                    = Column(Integer, primary_key=True, autoincrement=True)
+    user_id               = Column(String,  nullable=False, unique=True, index=True)
+    age                   = Column(Integer, nullable=False)
+    experience_level      = Column(String,  nullable=False)   # beginner | intermediate | advanced
+    financial_background  = Column(String,  nullable=False)   # low | moderate | high
+    communication_style   = Column(String,  nullable=False)   # simple | technical
+    investment_goal       = Column(String,  nullable=True)    # legacy: growth | income | preservation | balanced
+    investment_strategies = Column(String,  nullable=True)    # JSON list[str]
+    time_horizon          = Column(String,  nullable=False)   # daily | weekly | monthly | annually | indefinitely
+    asset_interests       = Column(String,  nullable=True)    # JSON list[str]
+    completed_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
 class ForecastConfig(Base):

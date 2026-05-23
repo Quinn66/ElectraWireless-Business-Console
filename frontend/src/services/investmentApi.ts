@@ -66,19 +66,71 @@ export async function fetchInsights(): Promise<InvestmentInsight[]> {
   return res.data;
 }
 
+// ── Investment Onboarding payload + persistence ───────────────────────────────
+
 export interface InvestmentOnboardingPayload {
-  age:                 number;
-  experienceLevel:     "beginner" | "intermediate" | "advanced";
-  financialBackground: "low" | "moderate" | "high";
-  communicationStyle:  "simple" | "technical";
-  investmentGoal:      "growth" | "income" | "preservation" | "balanced";
-  timeHorizon:         "short" | "medium" | "long";
+  age:                  number;
+  experienceLevel:      "beginner" | "intermediate" | "advanced";
+  financialBackground:  "low" | "moderate" | "high";
+  communicationStyle:   "simple" | "technical";
+  investmentStrategies: Array<"day_trading" | "index" | "growth" | "income" | "buy_and_hold" | "dollar_cost_average">;
+  timeHorizon:          "daily" | "weekly" | "monthly" | "annually" | "indefinitely";
+  assetInterests:       Array<"stock" | "crypto" | "etf">;
+}
+
+export interface InvestmentOnboardingRecord extends InvestmentOnboardingPayload {
+  available:   boolean;
+  completedAt: string;
 }
 
 export async function submitInvestmentOnboarding(
-  payload: InvestmentOnboardingPayload
-): Promise<void> {
-  await investmentApiClient.post("/investments/onboarding", payload);
+  payload: InvestmentOnboardingPayload,
+): Promise<InvestmentOnboardingRecord> {
+  const res = await investmentApiClient.post<{ status: string; onboarding: InvestmentOnboardingRecord }>(
+    "/investments/onboarding",
+    payload,
+  );
+  return res.data.onboarding;
+}
+
+export async function fetchInvestmentOnboarding(): Promise<InvestmentOnboardingRecord | null> {
+  const res = await investmentApiClient.get<Partial<InvestmentOnboardingRecord> & { available?: boolean }>(
+    "/investments/onboarding",
+  );
+  const data = res.data;
+  if (!data || data.available !== true || !data.completedAt) return null;
+  return data as InvestmentOnboardingRecord;
+}
+
+export async function resetInvestmentOnboarding(): Promise<void> {
+  await investmentApiClient.delete("/investments/onboarding");
+}
+
+export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPayload | null> {
+  // DB-backed read by user_id (kept for callers that want the per-user record).
+  try {
+    const res = await investmentApiClient.get<{
+      age:                   number;
+      experience_level:      string;
+      financial_background:  string;
+      communication_style:   string;
+      investment_strategies: string[];
+      time_horizon:          string;
+      asset_interests:       string[];
+    }>("/investments/onboarding/demo-user");
+    const d = res.data;
+    return {
+      age:                  d.age,
+      experienceLevel:      d.experience_level     as InvestmentOnboardingPayload["experienceLevel"],
+      financialBackground:  d.financial_background as InvestmentOnboardingPayload["financialBackground"],
+      communicationStyle:   d.communication_style  as InvestmentOnboardingPayload["communicationStyle"],
+      investmentStrategies: (d.investment_strategies ?? []) as InvestmentOnboardingPayload["investmentStrategies"],
+      timeHorizon:          d.time_horizon         as InvestmentOnboardingPayload["timeHorizon"],
+      assetInterests:       (d.asset_interests ?? []) as InvestmentOnboardingPayload["assetInterests"],
+    };
+  } catch {
+    return null;
+  }
 }
 
 export interface MarketPrice {
@@ -192,6 +244,15 @@ export async function uploadHoldingsCsv(
   return res.data;
 }
 
+export async function loadDemoHoldings(): Promise<{
+  imported: number; symbols: string[]; errors: string[];
+}> {
+  const res = await investmentApiClient.post<{
+    imported: number; symbols: string[]; errors: string[];
+  }>("/investments/holdings/load-demo");
+  return res.data;
+}
+
 // ── AI Insights (portfolio analysis via Llama) ────────────────────────────────
 
 export interface InvestmentAIResponse {
@@ -227,20 +288,26 @@ export interface InvestmentAIRequest {
     return_percentage: number | null;
   }>;
   onboarding: {
-    available:           boolean;
-    age:                 number;
-    experienceLevel:     string;
-    financialBackground: string;
-    communicationStyle:  string;
-    investmentGoal:      string;
-    timeHorizon:         string;
+    available:            boolean;
+    completedAt:          string | null;
+    age:                  number;
+    experienceLevel:      string;
+    financialBackground:  string;
+    communicationStyle:   string;
+    investmentStrategies: string[];
+    timeHorizon:          string;
+    assetInterests:       string[];
   };
+}
+
+export interface InvestmentAIOnboardingInput extends InvestmentOnboardingPayload {
+  completedAt: string | null;
 }
 
 export function buildInvestmentAIPayload(
   question:   string,
   holdings:   InvestmentHolding[],
-  onboarding: InvestmentOnboardingPayload,
+  onboarding: InvestmentAIOnboardingInput,
   goals:      string = "",
   period:     string = "Current portfolio",
   summary:    PortfolioSummary | null = null,
@@ -285,13 +352,15 @@ export function buildInvestmentAIPayload(
       };
     }),
     onboarding: {
-      available:           true,
-      age:                 onboarding.age,
-      experienceLevel:     onboarding.experienceLevel,
-      financialBackground: onboarding.financialBackground,
-      communicationStyle:  onboarding.communicationStyle,
-      investmentGoal:      onboarding.investmentGoal,
-      timeHorizon:         onboarding.timeHorizon,
+      available:            onboarding.completedAt !== null,
+      completedAt:          onboarding.completedAt,
+      age:                  onboarding.age,
+      experienceLevel:      onboarding.experienceLevel,
+      financialBackground:  onboarding.financialBackground,
+      communicationStyle:   onboarding.communicationStyle,
+      investmentStrategies: onboarding.investmentStrategies,
+      timeHorizon:          onboarding.timeHorizon,
+      assetInterests:       onboarding.assetInterests,
     },
   };
 }
@@ -327,32 +396,6 @@ export async function loadForecastConfig(): Promise<ForecastConfigPayload | null
   try {
     const res = await investmentApiClient.get<ForecastConfigPayload>("/forecast/config/demo-user");
     return res.data;
-  } catch {
-    return null;
-  }
-}
-
-// ── Investment Onboarding persistence ─────────────────────────────────────────
-
-export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPayload | null> {
-  try {
-    const res = await investmentApiClient.get<{
-      age:                  number;
-      experience_level:     string;
-      financial_background: string;
-      communication_style:  string;
-      investment_goal:      string;
-      time_horizon:         string;
-    }>("/investments/onboarding/demo-user");
-    const d = res.data;
-    return {
-      age:                 d.age,
-      experienceLevel:     d.experience_level     as InvestmentOnboardingPayload["experienceLevel"],
-      financialBackground: d.financial_background as InvestmentOnboardingPayload["financialBackground"],
-      communicationStyle:  d.communication_style  as InvestmentOnboardingPayload["communicationStyle"],
-      investmentGoal:      d.investment_goal      as InvestmentOnboardingPayload["investmentGoal"],
-      timeHorizon:         d.time_horizon         as InvestmentOnboardingPayload["timeHorizon"],
-    };
   } catch {
     return null;
   }
