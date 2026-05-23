@@ -30,5 +30,53 @@
     "sector": "Technology",
     "industry": "Semiconductors",
     "current_price": 215.33
+  },
+  {
+    "ticker": "AMD",
+    "start_price": 215.05,
+    "end_price": 467.51,
+    "change_abs": 252.46,
+    "change_pct": 117.4,
+    "data_points": 124,
+    "volatility_pct": 67.47,
+    "fifty_two_week_high": 467.510009765625,
+    "fifty_two_week_low": 190.9499969482422,
+    "market_cap": 762322092032,
+    "pe_ratio": 156.35786,
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "current_price": 467.51
+  },
+  {
+    "ticker": "AAPL",
+    "start_price": 275.41,
+    "end_price": 308.82,
+    "change_abs": 33.41,
+    "change_pct": 12.13,
+    "data_points": 124,
+    "volatility_pct": 22.19,
+    "fifty_two_week_high": 308.82000732421875,
+    "fifty_two_week_low": 246.2425079345703,
+    "market_cap": 4535749181440,
+    "pe_ratio": 37.432728,
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "current_price": 308.82
+  },
+  {
+    "ticker": "VOO",
+    "start_price": 611.28,
+    "end_price": 685.55,
+    "change_abs": 74.27,
+    "change_pct": 12.15,
+    "data_points": 124,
+    "volatility_pct": 12.78,
+    "fifty_two_week_high": 687.72998046875,
+    "fifty_two_week_low": 580.9299926757812,
+    "market_cap": null,
+    "pe_ratio": 28.041073,
+    "sector": null,
+    "industry": null,
+    "current_price": 685.55
   }
 ]

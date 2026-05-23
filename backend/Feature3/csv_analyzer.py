@@ -2,11 +2,79 @@ import pandas as pd
 import json
 import numpy as np
 import yfinance as yf
+from prophet import Prophet
+import os
 
 OUTPUT_FILE = "ydata/csv_analysis_output.json"
-
+OUTPUT_FILE_PROPHET = "ydata/csv_prediction_output_analysis.json"
 TEST_TICKERS = ["AMD", "NVDA"]
 
+def project_investment_prophet(symbol: str, amount: float, years: float) -> dict | None:
+    try:
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period="2y", auto_adjust=True)
+
+        if df.empty or len(df) < 30:
+            return None
+
+        data = df.reset_index()[["Date", "Close"]].rename(
+            columns={"Date": "ds", "Close": "y"}
+        )
+
+        # FIX timezone issue
+        data["ds"] = pd.to_datetime(data["ds"]).dt.tz_localize(None)
+
+        model = Prophet(
+            daily_seasonality=False,
+            weekly_seasonality=True,
+            yearly_seasonality=True
+        )
+
+        model.fit(data)
+
+        future_days = int(years * 365)
+        future = model.make_future_dataframe(periods=future_days)
+
+        forecast = model.predict(future)
+
+        current_price = float(data["y"].iloc[-1])
+        projected_price = float(forecast["yhat"].iloc[-1])
+
+        units = amount / current_price
+        projected_value = units * projected_price
+
+        result = {
+            "symbol": symbol,
+            "invested": round(amount, 2),
+            "units_bought": round(units, 4),
+            "current_price": round(current_price, 2),
+            "projected_price": round(projected_price, 2),
+            "projected_years": years,
+            "projected_value": round(projected_value, 2),
+            "projected_gain": round(projected_value - amount, 2),
+            "projected_gain_pct": round(((projected_value - amount) / amount) * 100, 2),
+            "model": "prophet"
+        }
+
+        # ================= SAVE ONLY TO PROPHET FILE =================
+        os.makedirs(os.path.dirname(OUTPUT_FILE_PROPHET), exist_ok=True)
+
+        try:
+            with open(OUTPUT_FILE_PROPHET, "r") as f:
+                existing = json.load(f)
+        except:
+            existing = []
+
+        existing.append(result)
+
+        with open(OUTPUT_FILE_PROPHET, "w") as f:
+            json.dump(existing, f, indent=2)
+
+        return result
+
+    except Exception as e:
+        print(f"[ERROR Prophet Projection {symbol}]: {e}")
+        return None
 
 # ================= CORE ANALYSIS =================
 def analyze_ticker(symbol: str) -> dict | None:
@@ -105,7 +173,24 @@ def run(tickers):
 if __name__ == "__main__":
     print("🧪 Running YFinance Analyzer Test...")
 
+    # --- existing ticker analysis test ---
     output = run(TEST_TICKERS)
 
-    print("\n📊 RESULTS:")
+    print("\n📊 ANALYSIS RESULTS:")
     print(json.dumps(output, indent=2))
+
+    # ================= PROPHET PROJECTION TEST =================
+    print("\n🚀 Running Prophet Projection Test...")
+
+    test_symbol = "NVDA"
+    test_amount = 1000
+    test_years = 3
+
+    projection = project_investment_prophet(
+        symbol=test_symbol,
+        amount=test_amount,
+        years=test_years
+    )
+
+    print("\n📈 PROJECTION RESULT:")
+    print(json.dumps(projection, indent=2))

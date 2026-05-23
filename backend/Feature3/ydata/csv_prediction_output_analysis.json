@@ -1,0 +1,38 @@
+[
+  {
+    "symbol": "SPY",
+    "invested": 1000,
+    "units_bought": 1.3411,
+    "current_price": 745.64,
+    "projected_price": 1427.6,
+    "projected_years": 3.0,
+    "projected_value": 1914.6,
+    "projected_gain": 914.6,
+    "projected_gain_pct": 91.46,
+    "model": "prophet"
+  },
+  {
+    "symbol": "NVDA",
+    "invested": 1000,
+    "units_bought": 4.644,
+    "current_price": 215.33,
+    "projected_price": 772.13,
+    "projected_years": 3.0,
+    "projected_value": 3585.78,
+    "projected_gain": 2585.78,
+    "projected_gain_pct": 258.58,
+    "model": "prophet"
+  },
+  {
+    "symbol": "AMD",
+    "invested": 1000,
+    "units_bought": 2.139,
+    "current_price": 467.51,
+    "projected_price": 1466.16,
+    "projected_years": 3.0,
+    "projected_value": 3136.1,
+    "projected_gain": 2136.1,
+    "projected_gain_pct": 213.61,
+    "model": "prophet"
+  }
+]

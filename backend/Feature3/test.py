@@ -4,7 +4,7 @@ import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 import os
 from groq import Groq
-from csv_analyzer import run as analyze_ticker
+from csv_analyzer import run as analyze_ticker, project_investment_prophet
 
 DATA_DIR = "ydata"
 
@@ -29,6 +29,8 @@ EXPECTED_SECTIONS = [
     "sources"
 ]
 
+DEFAULT_INVESTMENT = 1000
+
 # ================= LOAD INPUT =================
 def load_input():
     try:
@@ -44,7 +46,53 @@ def load_input():
     return None
 
 # 
-def extract_stocks_only(data, user_question=None):
+def parse_predictions(text: str):
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+
+    predictions = []
+    i = 0
+
+    while i < len(lines):
+        if lines[i].startswith("["):
+            i += 1
+            continue
+
+        if i + 2 < len(lines):
+            ticker = lines[i]
+            flag = lines[i + 1].upper()
+            timeframe = lines[i + 2]
+
+            predictions.append({
+                "ticker": ticker,
+                "predict": flag == "YES",
+                "years": extract_years(timeframe)
+            })
+
+            i += 3
+        else:
+            break
+
+    return predictions
+
+
+def extract_years(text: str):
+    import re
+    match = re.search(r"-?\d+", text)
+    return float(match.group()) if match else 3.0
+# 
+
+def run_prophet_predictions(predictions, default_amount=DEFAULT_INVESTMENT):
+    for p in predictions:
+        if not p["predict"]:
+            continue
+
+        project_investment_prophet(
+            symbol=p["ticker"],
+            amount=default_amount,
+            years=p["years"]
+        )
+# 
+def extract_intent(data, user_question=None):
 
     prompt = f"""
 You are a STRICT stock ticker extraction system.
@@ -52,11 +100,16 @@ You are a STRICT stock ticker extraction system.
 USER QUESTION:
 {user_question}
 
-TASK:
+PORTFOLIO HOLDINGS (DO NOT TREAT AS QUERY INPUT):
+{json.dumps(data.get("holdings", []), indent=2)}
+TASK: 1
 Convert all mentioned companies into VALID Yahoo Finance ticker symbols.
+TASK: 2
+Convert all mentioned companies in portfolio holdings into VALID Yahoo Finance ticker symbols.
 
 RULES:
 - Output ONLY valid Yahoo Finance tickers
+- Do not include non stock or etfs
 - NEVER output company names
 - NEVER output misspellings
 - If unsure, guess the correct major ticker
@@ -64,10 +117,33 @@ RULES:
 - One ticker per line
 - No explanations
 
+
 FORMAT:
 [SECTION: STOCKS]
 <TICKER>
 <TICKER>
+
+TASK 3:
+For each detected ticker, determine if the user is asking about:
+- future projection (YES)
+- past performance or general analysis (NO)
+
+Also extract timeframe:
+RULES:
+- If user says "in X years", output "X years"
+- If user says "over next X years", output "X years"
+- If user says "X years ago", output "-X years"
+- If no timeframe is mentioned, state No timeframe given
+
+OUTPUT FORMAT:
+[SECTION: PREDICTIONS]
+<TICKER>
+<YES | NO>
+<TIMEFRAME>
+
+FORMAT RULES:
+- No Notes
+- only exact output format
 """
 
     res = client.chat.completions.create(
@@ -402,7 +478,7 @@ def run():
     user_question = data.get("question", None)
 
     # STEP 2: STOCK EXTRACTION
-    stock_section = extract_stocks_only(data, user_question)
+    stock_section = extract_intent(data, user_question)
 
     print("\n=== STOCK EXTRACTION ===")
     print(stock_section)
@@ -411,6 +487,11 @@ def run():
     print("\n🔧 YFINANCE LIVE MODE:")
     csv_analysis_data = analyze_ticker(stocks)
 
+    predictions = parse_predictions(stock_section)
+    active_predictions = [p for p in predictions if p["predict"]]
+    if active_predictions:
+        print("\n🚀 Running Prophet Predictions...\n")
+        run_prophet_predictions(active_predictions)
     # ================= MEMORY RETRIEVAL =================
     user_question = data.get("question", None)
 

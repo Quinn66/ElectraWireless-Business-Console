@@ -1,29 +1,29 @@
 {
-  "summary": "The portfolio has a total value of $12,500 with a 25% return over the last 6 months. The cash balance is $1,500, and the diversification score is 62.",
+  "summary": "The portfolio has a total value of $12,500, with a return percentage of 25% over the last 6 months. The top gainers are BTC and AAPL, while the top loser is VOO. The portfolio has a high concentration of crypto assets, with 70% of the portfolio in BTC, exceeding the 25% concentration threshold.",
   "pros": [
-    "The portfolio has a strong return of 25% over the last 6 months.",
-    "The top gainer is Bitcoin (BTC) with a return of 38.1%.",
-    "The portfolio has a relatively low diversification score of 62, indicating room for improvement.",
-    "The cash balance is $1,500, providing liquidity for potential investments.",
-    "The portfolio has a moderate risk grade of \"B\"."
+    "The portfolio has a strong return percentage of 25% over the last 6 months.",
+    "BTC and AAPL are performing well, with return percentages of 38.1% and 30.33%, respectively.",
+    "The portfolio has a relatively low diversification score of 62/100.",
+    "The cash balance is $1,500, providing some liquidity.",
+    "The portfolio has a risk grade of \"B\", indicating a moderate level of risk."
   ],
   "cons": [
-    "The portfolio is heavily concentrated in Bitcoin (BTC) with a weight of 69.6%, exceeding the 25% concentration threshold.",
-    "The diversification score is low, indicating a lack of diversification.",
-    "The portfolio has a moderate volatility of 18.4%.",
-    "The top loser is Vanguard S&P 500 ETF (VOO) with a return of -3.2%.",
-    "The portfolio has a relatively low cash balance of $1,500."
+    "The portfolio has a high concentration of crypto assets, with 70% of the portfolio in BTC.",
+    "The diversification score is relatively low at 62/100.",
+    "VOO is performing poorly, with a return percentage of -3.2%.",
+    "The portfolio has a high volatility of 18.4%, indicating a high level of risk.",
+    "The top concentration is in BTC, which may be a risk if the crypto market declines."
   ],
   "next_steps": [
-    "Consider adding 2-3 uncorrelated positions to improve diversification.",
-    "Reduce the concentration in Bitcoin (BTC) to below 25%.",
-    "Consider adding positions in stocks or ETFs with lower volatility.",
-    "Review and adjust the portfolio's risk grade.",
-    "Consider adding a position in Vanguard S&P 500 ETF (VOO) to reduce the portfolio's volatility."
+    "Reduce the concentration of crypto assets to below 25% by selling or hedging BTC.",
+    "Add 2-3 uncorrelated positions to improve diversification.",
+    "Consider adding positions in stronger performers like NVDA and AMD.",
+    "Review and adjust investment strategies to align with goals and risk tolerance.",
+    "Consider increasing the cash balance to 10-20% of the portfolio."
   ],
-  "question_response": "To compare the performance of SPY and NVDA, we can look at their change_pct values. SPY has a change_pct of 12.14%, while NVDA has a change_pct of 17.97%. NVDA has performed stronger than SPY over the last 6 months. Considering the portfolio's current composition and the performance of these two stocks, adding NVDA to the portfolio could be a good option, as it has a stronger performance trend.",
+  "question_response": "Based on the performance trends of the stocks in question, it is recommended to consider adding NVDA and AMD to the portfolio, as they have stronger performance trends compared to SPY and NVDA. However, it is essential to consider the overall portfolio performance and risk tolerance before making any additions.",
   "sources": [
     "Portfolio JSON",
-    "Stock market data for SPY and NVDA"
+    "Stock market data analysis"
   ]
 }
