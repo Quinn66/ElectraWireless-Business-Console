@@ -1,19 +1,19 @@
 [
   {
-    "ticker": "AMD",
-    "start_price": 215.05,
-    "end_price": 467.51,
-    "change_abs": 252.46,
-    "change_pct": 117.4,
+    "ticker": "SPY",
+    "start_price": 664.94,
+    "end_price": 745.64,
+    "change_abs": 80.7,
+    "change_pct": 12.14,
     "data_points": 124,
-    "volatility_pct": 67.47,
-    "fifty_two_week_high": 467.510009765625,
-    "fifty_two_week_low": 190.9499969482422,
-    "market_cap": 762322092032,
-    "pe_ratio": 156.35786,
-    "sector": "Technology",
-    "industry": "Semiconductors",
-    "current_price": 467.51
+    "volatility_pct": 12.79,
+    "fifty_two_week_high": 748.1699829101562,
+    "fifty_two_week_low": 631.969970703125,
+    "market_cap": null,
+    "pe_ratio": 28.011396,
+    "sector": null,
+    "industry": null,
+    "current_price": 745.64
   },
   {
     "ticker": "NVDA",

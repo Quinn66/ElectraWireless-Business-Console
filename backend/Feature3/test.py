@@ -2,10 +2,8 @@ import json
 import re
 import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
-import yfinance as yf
 import os
 from groq import Groq
-import pandas as pd
 from csv_analyzer import run as analyze_ticker
 
 DATA_DIR = "ydata"
@@ -49,27 +47,27 @@ def load_input():
 def extract_stocks_only(data, user_question=None):
 
     prompt = f"""
-You are a stock extraction system.
+You are a STRICT stock ticker extraction system.
 
 USER QUESTION:
 {user_question}
 
 TASK:
-Extract all stock names mentioned in the user question and convert them into Yahoo Finance ticker symbols.
-If the user is not speaking about stocks or no stocks are mentioned output NONE
+Convert all mentioned companies into VALID Yahoo Finance ticker symbols.
 
 RULES:
-- If none → NONE
-- Output ONLY this format
-- One stock per line
-
+- Output ONLY valid Yahoo Finance tickers
+- NEVER output company names
+- NEVER output misspellings
+- If unsure, guess the correct major ticker
+- If no stocks → output NONE
+- One ticker per line
 - No explanations
+
 FORMAT:
 [SECTION: STOCKS]
-If a stock is mentioned in the question list out the ticker name of the stock in this exact format
-(stock name)
-a stock does not need to appear in the portfolio to mention it here
-one stock per line
+<TICKER>
+<TICKER>
 """
 
     res = client.chat.completions.create(

@@ -3,27 +3,27 @@
   "pros": [
     "The portfolio has a strong return of 25% over the last 6 months.",
     "The top gainer is Bitcoin (BTC) with a return of 38.1%.",
-    "The portfolio has a relatively low diversification score of 62.",
-    "The cash balance is $1,500, providing liquidity.",
-    "The portfolio has a risk grade of \"B\"."
+    "The portfolio has a relatively low diversification score of 62, indicating room for improvement.",
+    "The cash balance is $1,500, providing liquidity for potential investments.",
+    "The portfolio has a moderate risk grade of \"B\"."
   ],
   "cons": [
-    "The portfolio has a high concentration in Bitcoin (BTC) at 69.6%.",
-    "The diversification score is relatively low at 62.",
-    "The portfolio has a high volatility of 18.4%.",
+    "The portfolio is heavily concentrated in Bitcoin (BTC) with a weight of 69.6%, exceeding the 25% concentration threshold.",
+    "The diversification score is low, indicating a lack of diversification.",
+    "The portfolio has a moderate volatility of 18.4%.",
     "The top loser is Vanguard S&P 500 ETF (VOO) with a return of -3.2%.",
-    "The portfolio has a risk grade of \"B\"."
+    "The portfolio has a relatively low cash balance of $1,500."
   ],
   "next_steps": [
-    "Consider reducing the concentration in Bitcoin (BTC) to below 25%.",
-    "Add 2-3 uncorrelated positions to improve diversification.",
-    "Consider adding positions in AMD or NVDA, as they have strong performance trends.",
+    "Consider adding 2-3 uncorrelated positions to improve diversification.",
+    "Reduce the concentration in Bitcoin (BTC) to below 25%.",
+    "Consider adding positions in stocks or ETFs with lower volatility.",
     "Review and adjust the portfolio's risk grade.",
-    "Consider adding a position in Vanguard S&P 500 ETF (VOO) to reduce volatility."
+    "Consider adding a position in Vanguard S&P 500 ETF (VOO) to reduce the portfolio's volatility."
   ],
-  "question_response": "Both AMD and NVDA have strong performance trends, with AMD's stock price increasing by 117.4% and NVDA's stock price increasing by 17.97% over the last 6 months. Considering the portfolio's high concentration in Bitcoin (BTC) and the relatively low diversification score, adding a position in either AMD or NVDA could be a good diversification strategy.",
+  "question_response": "To compare the performance of SPY and NVDA, we can look at their change_pct values. SPY has a change_pct of 12.14%, while NVDA has a change_pct of 17.97%. NVDA has performed stronger than SPY over the last 6 months. Considering the portfolio's current composition and the performance of these two stocks, adding NVDA to the portfolio could be a good option, as it has a stronger performance trend.",
   "sources": [
     "Portfolio JSON",
-    "STOCK MARKET DATA ANALYSIS"
+    "Stock market data for SPY and NVDA"
   ]
 }
