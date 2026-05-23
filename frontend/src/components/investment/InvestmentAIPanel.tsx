@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Sparkles, TrendingUp, TrendingDown, ListChecks, MessageCircle } from "lucide-react";
+import { Loader2, Sparkles, TrendingUp, TrendingDown, ListChecks, MessageCircle, UserCircle } from "lucide-react";
 import { useInvestmentContextStore } from "@/store/investmentContextStore";
 import { buildInvestmentAIPayload, fetchInvestmentAIInsights } from "@/services/investmentApi";
 import type { InvestmentHolding, InvestmentAIResponse, PortfolioSummary } from "@/services/investmentApi";
@@ -82,7 +82,7 @@ export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentH
       const payload = buildInvestmentAIPayload("", holdings, {
         age:                  onboarding.age,
         experienceLevel:      onboarding.experienceLevel,
-        financialBackground:  onboarding.financialBackground,
+        investmentCapital:    onboarding.investmentCapital,
         communicationStyle:   onboarding.communicationStyle,
         investmentStrategies: onboarding.investmentStrategies,
         timeHorizon:          onboarding.timeHorizon,
@@ -214,6 +214,12 @@ export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentH
           {/* Result */}
           {result && (
             <>
+              {result.profile_context && (
+                <SectionCard accent="primary" icon={<UserCircle size={13} />} title="Your Profile">
+                  {result.profile_context}
+                </SectionCard>
+              )}
+
               {result.summary && (
                 <SectionCard accent="primary" icon={<Sparkles size={13} />} title="Summary">
                   {result.summary}

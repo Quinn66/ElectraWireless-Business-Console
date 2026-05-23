@@ -80,7 +80,34 @@ def _fix_holdings_id_type() -> None:
     models.InvestmentHolding.__table__.create(bind=engine)
 
 
+def _migrate_financial_background_to_investment_capital() -> None:
+    """Rename investment_onboarding_profiles.financial_background → investment_capital.
+    Old rows stored low/moderate/high strings; map them to default dollar values so
+    the column can be read as an integer after the rename."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "investment_onboarding_profiles" not in inspector.get_table_names():
+        return
+    cols = {c["name"] for c in inspector.get_columns("investment_onboarding_profiles")}
+    if "investment_capital" in cols or "financial_background" not in cols:
+        return  # fresh table or already migrated
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE investment_onboarding_profiles "
+            "SET financial_background = CASE LOWER(financial_background) "
+            "  WHEN 'low'      THEN '10000' "
+            "  WHEN 'moderate' THEN '50000' "
+            "  WHEN 'high'     THEN '200000' "
+            "  ELSE financial_background END"
+        ))
+        conn.execute(text(
+            "ALTER TABLE investment_onboarding_profiles "
+            "RENAME COLUMN financial_background TO investment_capital"
+        ))
+
+
 _backfill_onboarding_columns()
+_migrate_financial_background_to_investment_capital()
 _fix_holdings_id_type()
 def scheduled_price_refresh():
     """
@@ -683,6 +710,98 @@ from Feature3.market_research import (
 )
 
 
+def _build_profile_context(onboarding: dict) -> str:
+    """Compose a deterministic one-liner summary of the user's onboarding profile
+    so the literal values are always visible in the AI response, regardless of
+    whether the LLM referenced them in its narrative."""
+    if not onboarding or not onboarding.get("available"):
+        return ""
+    parts: list[str] = []
+    age = onboarding.get("age")
+    if age:
+        parts.append(f"Age {age}")
+    exp = onboarding.get("experienceLevel")
+    if exp:
+        parts.append(f"{exp} investor")
+    cap = onboarding.get("investmentCapital")
+    if cap is not None:
+        try:
+            parts.append(f"${int(cap):,} capital")
+        except (TypeError, ValueError):
+            pass
+    horizon = onboarding.get("timeHorizon")
+    if horizon:
+        parts.append(f"{horizon} horizon")
+    strategies = onboarding.get("investmentStrategies") or []
+    if strategies:
+        parts.append(f"strategy: {', '.join(strategies)}")
+    interests = onboarding.get("assetInterests") or []
+    if interests:
+        parts.append(f"interested in: {', '.join(interests)}")
+    style = onboarding.get("communicationStyle")
+    if style:
+        parts.append(f"prefers {style} explanations")
+    return " · ".join(parts)
+
+
+def _answer_profile_question(question: str, onboarding: dict) -> Optional[str]:
+    """For direct lookups like "what is my X", return the literal onboarding value
+    so a small LLM can't reinterpret factual questions as portfolio summaries.
+
+    Returns None when the question isn't a recognised profile lookup, so the
+    LLM's own answer is used."""
+    if not question or not onboarding or not onboarding.get("available"):
+        return None
+
+    q = question.lower().strip().rstrip("?").strip()
+    # Require a clear "my <field>" framing to avoid false positives on
+    # portfolio questions (e.g. "what is my portfolio worth").
+    if "my " not in q:
+        return None
+
+    # (matchers, formatter) — matchers are checked as substrings against the
+    # lowercased question; first matching field wins.
+    fields = [
+        (("experience level", "experience"), lambda v: f"Your experience level is {v}."),
+        (("investment capital", "capital", "net worth"),
+            lambda v: f"Your stated investment capital is ${int(v):,}."),
+        (("age",),                       lambda v: f"You're {v} years old."),
+        (("communication style", "tone"),lambda v: f"Your preferred communication style is {v}."),
+        (("investment strategies", "strategies", "strategy"),
+            lambda v: f"Your stated investment strategies are: {', '.join(v) if isinstance(v, list) else v}."),
+        (("time horizon", "horizon"),    lambda v: f"Your time horizon is {v}."),
+        (("asset interests", "interests", "asset classes"),
+            lambda v: f"Your asset interests are: {', '.join(v) if isinstance(v, list) else v}."),
+    ]
+    key_map = {
+        "experience level":     "experienceLevel",
+        "experience":           "experienceLevel",
+        "investment capital":   "investmentCapital",
+        "capital":              "investmentCapital",
+        "net worth":            "investmentCapital",
+        "age":                  "age",
+        "communication style":  "communicationStyle",
+        "tone":                 "communicationStyle",
+        "investment strategies":"investmentStrategies",
+        "strategies":           "investmentStrategies",
+        "strategy":             "investmentStrategies",
+        "time horizon":         "timeHorizon",
+        "horizon":              "timeHorizon",
+        "asset interests":      "assetInterests",
+        "interests":            "assetInterests",
+        "asset classes":        "assetInterests",
+    }
+
+    for matchers, fmt in fields:
+        for m in matchers:
+            if m in q:
+                value = onboarding.get(key_map[m])
+                if value in (None, "", []):
+                    return None
+                return fmt(value)
+    return None
+
+
 @app.post("/pf/portfolio-analysis")
 def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
     data          = req.get("data", {}) or {}
@@ -784,6 +903,27 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
     raw    = get_portfolio_analysis(prompt)
     result = parse_portfolio_output(raw)
 
+    onboarding_payload = data.get("onboarding") or {}
+
+    # Always surface the user's profile in the response so the literal onboarding
+    # values are visible even when the LLM doesn't weave them into the narrative.
+    result["profile_context"] = _build_profile_context(onboarding_payload)
+
+    # Force "onboarding" into sources when an onboarding profile was available —
+    # the LLM frequently forgets to list it even when it shaped the response.
+    if onboarding_payload.get("available"):
+        sources = result.get("sources") or []
+        if not any("onboard" in (s or "").lower() for s in sources):
+            sources.append("onboarding")
+            result["sources"] = sources
+
+    # Deterministic override for direct profile lookups — the 8b LLM otherwise
+    # tends to answer "what is my <profile field>" with a portfolio summary.
+    if user_question:
+        profile_answer = _answer_profile_question(user_question, onboarding_payload)
+        if profile_answer:
+            result["question_response"] = profile_answer
+
     # Store this exchange in memory after responding
     if user_question:
         try:
@@ -833,7 +973,7 @@ FEATURE_3_INPUT_PATH = Path(__file__).parent / "Llama Input" / "Feature_3_input.
 class InvestmentOnboardingRequest(BaseModel):
     age:                  int
     experienceLevel:      str            # beginner | intermediate | advanced
-    financialBackground:  str            # low | moderate | high
+    investmentCapital:    int            # dollar amount, 0 – 500,000
     communicationStyle:   str            # simple | technical
     investmentStrategies: list[str]      # subset of: day_trading | index | growth | income | buy_and_hold | dollar_cost_average
     timeHorizon:          str            # daily | weekly | monthly | annually | indefinitely
@@ -846,7 +986,7 @@ ONBOARDING_RESET_STATE = {
     "available":            False,
     "age":                  30,
     "experienceLevel":      "beginner",
-    "financialBackground":  "moderate",
+    "investmentCapital":    50000,
     "communicationStyle":   "simple",
     "investmentStrategies": ["buy_and_hold"],
     "timeHorizon":          "monthly",
@@ -861,7 +1001,7 @@ def _onboarding_record(req: InvestmentOnboardingRequest, completed_at: str) -> d
         "available":            True,
         "age":                  req.age,
         "experienceLevel":      req.experienceLevel,
-        "financialBackground":  req.financialBackground,
+        "investmentCapital":    req.investmentCapital,
         "communicationStyle":   req.communicationStyle,
         "investmentStrategies": req.investmentStrategies,
         "timeHorizon":          req.timeHorizon,
@@ -883,7 +1023,7 @@ def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session =
     if existing:
         existing.age                   = req.age
         existing.experience_level      = req.experienceLevel
-        existing.financial_background  = req.financialBackground
+        existing.investment_capital    = req.investmentCapital
         existing.communication_style   = req.communicationStyle
         existing.investment_strategies = strategies_json
         existing.time_horizon          = req.timeHorizon
@@ -901,7 +1041,7 @@ def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session =
             user_id               = req.user_id,
             age                   = req.age,
             experience_level      = req.experienceLevel,
-            financial_background  = req.financialBackground,
+            investment_capital    = req.investmentCapital,
             communication_style   = req.communicationStyle,
             investment_goal       = legacy_goal,
             investment_strategies = strategies_json,
@@ -970,7 +1110,7 @@ def get_investment_onboarding_by_user(user_id: str, db: Session = Depends(get_db
         "user_id":               profile.user_id,
         "age":                   profile.age,
         "experience_level":      profile.experience_level,
-        "financial_background":  profile.financial_background,
+        "investment_capital":    profile.investment_capital,
         "communication_style":   profile.communication_style,
         "investment_goal":       profile.investment_goal,
         "investment_strategies": json.loads(profile.investment_strategies) if profile.investment_strategies else [],
