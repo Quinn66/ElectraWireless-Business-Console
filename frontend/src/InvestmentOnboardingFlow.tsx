@@ -8,33 +8,22 @@ import {
 } from "@/components/onboarding/primitives";
 import {
   useInvestmentContextStore,
+  INVESTMENT_ONBOARDING_DEFAULTS,
   type ExperienceLevel,
   type FinancialBackground,
   type CommunicationStyle,
-  type InvestmentGoal,
+  type InvestmentStrategy,
   type TimeHorizon,
+  type AssetInterest,
+  type InvestmentOnboardingValues,
 } from "@/store/investmentContextStore";
-import { submitInvestmentOnboarding, uploadHoldingsCsv } from "@/services/investmentApi";
+import { submitInvestmentOnboarding, uploadHoldingsCsv, loadDemoHoldings } from "@/services/investmentApi";
 
 // ─── Types & defaults ─────────────────────────────────────────────────────────
 
-interface OBState {
-  age: number;
-  experienceLevel: ExperienceLevel;
-  financialBackground: FinancialBackground;
-  communicationStyle: CommunicationStyle;
-  investmentGoal: InvestmentGoal;
-  timeHorizon: TimeHorizon;
-}
+type OBState = InvestmentOnboardingValues;
 
-const DEFAULT: OBState = {
-  age: 30,
-  experienceLevel: "beginner",
-  financialBackground: "moderate",
-  communicationStyle: "simple",
-  investmentGoal: "balanced",
-  timeHorizon: "medium",
-};
+const DEFAULT: OBState = INVESTMENT_ONBOARDING_DEFAULTS;
 
 // ─── ChoiceGroup ──────────────────────────────────────────────────────────────
 
@@ -58,6 +47,47 @@ function ChoiceGroup<T extends string>({ label, value, options, onChange, column
             <button
               key={opt.value}
               onClick={() => onChange(opt.value)}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all duration-150 font-sans ${
+                on
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "bg-transparent border-border text-muted-foreground hover:border-muted-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── MultiChoiceGroup ─────────────────────────────────────────────────────────
+
+interface MultiChoiceGroupProps<T extends string> {
+  label: string;
+  hint?: string;
+  values: T[];
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (vals: T[]) => void;
+  columns?: 2 | 3 | 4;
+}
+
+function MultiChoiceGroup<T extends string>({ label, hint, values, options, onChange, columns = 3 }: MultiChoiceGroupProps<T>) {
+  const gridCls = columns === 4 ? "grid-cols-4" : columns === 2 ? "grid-cols-2" : "grid-cols-3";
+  const toggle = (v: T) =>
+    onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v]);
+  return (
+    <div className="mb-4">
+      <label className="text-muted-foreground text-sm font-semibold block mb-1">{label}</label>
+      {hint && <p className="text-muted-foreground text-xs mb-2">{hint}</p>}
+      <div className={`grid ${gridCls} gap-2`}>
+        {options.map((opt) => {
+          const on = values.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              onClick={() => toggle(opt.value)}
               className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all duration-150 font-sans ${
                 on
                   ? "bg-primary/10 border-primary text-primary"
@@ -173,28 +203,45 @@ function GoalsStep({ state, patch }: StepProps) {
         title="Investment Goals"
         sub="What outcome are you optimizing for?"
       />
-      <ChoiceGroup<InvestmentGoal>
-        label="Primary Goal"
-        value={state.investmentGoal}
-        columns={4}
+      <MultiChoiceGroup<InvestmentStrategy>
+        label="Investment Strategies"
+        hint="Pick one or more — Elly will weigh suggestions toward the styles you choose."
+        values={state.investmentStrategies}
+        columns={3}
         options={[
-          { value: "growth",       label: "Growth" },
-          { value: "income",       label: "Income" },
-          { value: "preservation", label: "Preservation" },
-          { value: "balanced",     label: "Balanced" },
+          { value: "day_trading",         label: "Day Trading" },
+          { value: "index",               label: "Index" },
+          { value: "growth",              label: "Growth" },
+          { value: "income",              label: "Income" },
+          { value: "buy_and_hold",        label: "Buy and Hold" },
+          { value: "dollar_cost_average", label: "Dollar-Cost Average" },
         ]}
-        onChange={(v) => patch({ investmentGoal: v })}
+        onChange={(v) => patch({ investmentStrategies: v })}
       />
       <ChoiceGroup<TimeHorizon>
         label="Time Horizon"
         value={state.timeHorizon}
         columns={3}
         options={[
-          { value: "short",  label: "Short term"  },
-          { value: "medium", label: "Medium term" },
-          { value: "long",   label: "Long term"   },
+          { value: "daily",        label: "Daily"        },
+          { value: "weekly",       label: "Weekly"       },
+          { value: "monthly",      label: "Monthly"      },
+          { value: "annually",     label: "Annually"     },
+          { value: "indefinitely", label: "Indefinitely" },
         ]}
         onChange={(v) => patch({ timeHorizon: v })}
+      />
+      <MultiChoiceGroup<AssetInterest>
+        label="Asset Interests"
+        hint="Which asset types are you interested in? Select all that apply — Elly will tailor suggestions to these."
+        values={state.assetInterests}
+        columns={3}
+        options={[
+          { value: "stock",  label: "Stocks" },
+          { value: "crypto", label: "Crypto" },
+          { value: "etf",    label: "ETFs"   },
+        ]}
+        onChange={(v) => patch({ assetInterests: v })}
       />
     </div>
   );
@@ -238,7 +285,7 @@ function CsvImportStep({ onUploaded }: CsvImportStepProps) {
         currentStep={4}
         of={4}
         title="Import Your Portfolio"
-        sub="Upload a CSV to populate your dashboard instantly. You can also skip and add holdings manually."
+        sub="Upload a CSV to populate your dashboard, or skip to start with a demo portfolio you can edit."
       />
 
       <div
@@ -302,16 +349,44 @@ export default function InvestmentOnboardingFlow({ onComplete, onBack }: Investm
   const [step, setStep] = useState(1);
   const [state, setState] = useState<OBState>(DEFAULT);
   const [csvUploaded, setCsvUploaded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const patch = (p: Partial<OBState>) => setState((prev) => ({ ...prev, ...p }));
 
   const setAll = useInvestmentContextStore((s) => s.setAll);
 
-  function handleComplete() {
-    setAll(state);
-    submitInvestmentOnboarding(state).catch((err) => {
-      console.error("Failed to persist investment onboarding:", err);
-    });
+  const strategiesEmpty = state.investmentStrategies.length === 0;
+  const interestsEmpty  = state.assetInterests.length === 0;
+  const step3Invalid    = strategiesEmpty || interestsEmpty;
+
+  async function handleComplete() {
+    if (submitting) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const tasks: Promise<unknown>[] = [submitInvestmentOnboarding(state)];
+      // If the user skipped the CSV step, seed the demo portfolio so they
+      // land on the dashboard with sample data instead of an empty list.
+      if (!csvUploaded) {
+        tasks.push(loadDemoHoldings().catch(() => undefined));
+      }
+      const [saved] = await Promise.all(tasks) as [Awaited<ReturnType<typeof submitInvestmentOnboarding>>, ...unknown[]];
+      setAll({ ...state, completedAt: saved.completedAt });
+      onComplete();
+    } catch {
+      // Cache the values locally so the AI panel still works while the user
+      // figures out the backend; the explicit "Skip" action below lets them
+      // exit the flow without retrying.
+      setAll({ ...state, completedAt: new Date().toISOString() });
+      setSubmitError("Couldn't reach the server. Click Retry to try again, or Skip to continue without server sync.");
+      setSubmitting(false);
+    }
+  }
+
+  function handleSkipSync() {
+    setAll({ ...state, completedAt: new Date().toISOString() });
     onComplete();
   }
 
@@ -325,6 +400,28 @@ export default function InvestmentOnboardingFlow({ onComplete, onBack }: Investm
         {step === 3 && <GoalsStep           state={state} patch={patch} />}
         {step === 4 && <CsvImportStep onUploaded={() => setCsvUploaded(true)} />}
 
+        {step === 3 && step3Invalid && (
+          <p className="mt-3 text-xs text-amber-700/90 font-medium">
+            {strategiesEmpty && interestsEmpty
+              ? "Pick at least one strategy and one asset interest to continue."
+              : strategiesEmpty
+                ? "Pick at least one investment strategy to continue."
+                : "Pick at least one asset interest to continue."}
+          </p>
+        )}
+
+        {step === 4 && submitError && (
+          <div className="mt-3">
+            <p className="text-xs text-amber-700/90 font-medium">{submitError}</p>
+            <button
+              onClick={handleSkipSync}
+              className="mt-2 text-xs text-muted-foreground underline hover:text-foreground transition-colors duration-150"
+            >
+              Skip sync and finish →
+            </button>
+          </div>
+        )}
+
         {step === 1 && (
           <NavRow onBack={onBack} onNext={() => setStep(2)} nextLabel="Next →" />
         )}
@@ -332,13 +429,24 @@ export default function InvestmentOnboardingFlow({ onComplete, onBack }: Investm
           <NavRow onBack={() => setStep(1)} onNext={() => setStep(3)} nextLabel="Next →" />
         )}
         {step === 3 && (
-          <NavRow onBack={() => setStep(2)} onNext={() => setStep(4)} nextLabel="Next →" />
+          <NavRow
+            onBack={() => setStep(2)}
+            onNext={() => setStep(4)}
+            nextLabel="Next →"
+            nextDisabled={step3Invalid}
+          />
         )}
         {step === 4 && (
           <NavRow
             onBack={() => setStep(3)}
             onNext={handleComplete}
-            nextLabel={csvUploaded ? "Finish →" : "Skip →"}
+            nextLabel={
+              submitting       ? "Saving…"
+              : submitError    ? "Retry →"
+              : csvUploaded    ? "Finish →"
+              :                  "Skip →"
+            }
+            nextDisabled={submitting}
           />
         )}
       </div>

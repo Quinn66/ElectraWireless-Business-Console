@@ -13,6 +13,8 @@ Phases covered in this file:
 
 import csv
 import io
+import uuid
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -24,6 +26,8 @@ from portfolio_analytics import (
     compute_allocation,
     calculate_diversification_score,
 )
+
+DEMO_PORTFOLIO_PATH = Path(__file__).parent / "Sample_data" / "demo_portfolio.csv"
 
 router = APIRouter(prefix="/investments", tags=["Investments"])
 
@@ -70,20 +74,19 @@ def delete_all_holdings(db: Session = Depends(get_db)):
     return {"message": "All investment data cleared"}
 
 
-@router.post("/holdings/upload")
-def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """CSV bulk import of holdings. Replaces any previously CSV-imported holdings.
-    Required columns: symbol, asset_type, quantity, buy_price. Optional: purchase_date."""
-    # Clear previous CSV import so re-uploading replaces rather than appends
+def _ingest_holdings_csv(contents: str, db: Session) -> dict:
+    """Parse CSV text and insert rows as holdings for the demo user.
+
+    Replaces any previously CSV-imported holdings so re-imports overwrite
+    rather than append. Shared by /holdings/upload and /holdings/load-demo.
+    """
     db.query(models.InvestmentHolding).filter(
         models.InvestmentHolding.user_id == "demo-user",
         models.InvestmentHolding.source  == "csv",
     ).delete()
     db.commit()
 
-    contents = file.file.read().decode("utf-8")
     reader = csv.DictReader(io.StringIO(contents))
-
     required = {"symbol", "asset_type", "quantity", "buy_price"}
     imported = 0
     symbols: list[str] = []
@@ -97,6 +100,7 @@ def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_
             continue
         try:
             holding = models.InvestmentHolding(
+                id=            str(uuid.uuid4()),
                 user_id=       "demo-user",
                 symbol=        row["symbol"].upper(),
                 asset_type=    row["asset_type"].lower(),
@@ -117,6 +121,24 @@ def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_
         market_data.refresh_all_prices(db)
 
     return {"imported": imported, "symbols": symbols, "errors": errors}
+
+
+@router.post("/holdings/upload")
+def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """CSV bulk import of holdings. Replaces any previously CSV-imported holdings.
+    Required columns: symbol, asset_type, quantity, buy_price. Optional: purchase_date."""
+    contents = file.file.read().decode("utf-8")
+    return _ingest_holdings_csv(contents, db)
+
+
+@router.post("/holdings/load-demo")
+def load_demo_holdings(db: Session = Depends(get_db)):
+    """Seed the demo user's portfolio from Sample_data/demo_portfolio.csv.
+    Used when the user skips CSV import during onboarding."""
+    if not DEMO_PORTFOLIO_PATH.exists():
+        raise HTTPException(status_code=500, detail="demo_portfolio.csv not found on server")
+    contents = DEMO_PORTFOLIO_PATH.read_text(encoding="utf-8")
+    return _ingest_holdings_csv(contents, db)
 
 
 # ── Market-wide Movers ────────────────────────────────────────────────────────

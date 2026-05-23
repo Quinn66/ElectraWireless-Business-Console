@@ -114,12 +114,14 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
         const holdings   = await fetchHoldings();
         const onboarding = useInvestmentContextStore.getState();
         const payload    = buildInvestmentAIPayload(q, holdings, {
-          age:                 onboarding.age,
-          experienceLevel:     onboarding.experienceLevel,
-          financialBackground: onboarding.financialBackground,
-          communicationStyle:  onboarding.communicationStyle,
-          investmentGoal:      onboarding.investmentGoal,
-          timeHorizon:         onboarding.timeHorizon,
+          age:                  onboarding.age,
+          experienceLevel:      onboarding.experienceLevel,
+          financialBackground:  onboarding.financialBackground,
+          communicationStyle:   onboarding.communicationStyle,
+          investmentStrategies: onboarding.investmentStrategies,
+          timeHorizon:          onboarding.timeHorizon,
+          assetInterests:       onboarding.assetInterests,
+          completedAt:          onboarding.completedAt,
         });
         setInvestmentResult(await fetchInvestmentAIInsights(payload));
       } else {

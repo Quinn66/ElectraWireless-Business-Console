@@ -1,5 +1,7 @@
 import json
+import re
 from pathlib import Path
+from typing import Optional
 from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
 from datetime import date as date_today, datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +19,7 @@ from forecast import (
 )
 
 from upload_parser import parse_uploaded_financial_file
-from LlamaModel import get_web_context, parse_output
-from contextLlamaTest import get_analysis
+from contextLlamaTest import get_analysis, parse_output
 from CsvDetectFull import detect_anomalies
 from dotenv import load_dotenv
 load_dotenv()
@@ -34,6 +35,53 @@ app = FastAPI(title="ElectraWireless Business Console API")
 
 # Create all PF tables on startup if they don't already exist
 Base.metadata.create_all(bind=engine)
+
+# Idempotent migration: backfill new investment_onboarding_profiles columns on
+# pre-existing SQLite DBs (create_all does not ALTER existing tables).
+def _backfill_onboarding_columns() -> None:
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "investment_onboarding_profiles" not in inspector.get_table_names():
+        return
+    existing_cols = {c["name"] for c in inspector.get_columns("investment_onboarding_profiles")}
+    to_add = [
+        ("investment_strategies", "TEXT"),
+        ("asset_interests",       "TEXT"),
+    ]
+    with engine.begin() as conn:
+        for name, sqltype in to_add:
+            if name not in existing_cols:
+                conn.execute(text(f"ALTER TABLE investment_onboarding_profiles ADD COLUMN {name} {sqltype}"))
+
+
+def _fix_holdings_id_type() -> None:
+    """investment_holdings.id was historically created as INTEGER but the model
+    now uses String (UUID). SQLite has no in-place type change, so when the
+    column is INTEGER and the table is empty we drop + recreate so the schema
+    matches; if it has rows we leave it and log a warning (user must clear
+    holdings before the schema can be fixed)."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "investment_holdings" not in inspector.get_table_names():
+        return
+    id_col = next((c for c in inspector.get_columns("investment_holdings") if c["name"] == "id"), None)
+    if not id_col or "INT" not in str(id_col["type"]).upper():
+        return  # already String / TEXT
+
+    with engine.begin() as conn:
+        row_count = conn.execute(text("SELECT COUNT(*) FROM investment_holdings")).scalar() or 0
+        if row_count > 0:
+            print(f"[migration] investment_holdings.id is INTEGER but model expects String. "
+                  f"{row_count} rows present — leaving as-is. Reset holdings to apply the fix.")
+            return
+        conn.execute(text("DROP TABLE investment_holdings"))
+
+    # Recreate via SQLAlchemy with the correct String id type.
+    models.InvestmentHolding.__table__.create(bind=engine)
+
+
+_backfill_onboarding_columns()
+_fix_holdings_id_type()
 def scheduled_price_refresh():
     """
     Called automatically by the scheduler every 15 min during market hours.
@@ -169,7 +217,38 @@ def analyze(req: AnalyzeRequest):
         "payroll":         req.payroll,
         "months":          req.months,
     }
-    analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast, current_params)
+
+    # Fetch live market data and news for any tickers mentioned in the question
+    market_context = {}
+    if req.question:
+        try:
+            tickers = detect_tickers(req.question)
+            if tickers:
+                ticker_data = {}
+                for sym in tickers[:5]:
+                    td = fetch_ticker_data(sym)
+                    if td:
+                        ticker_data[sym] = td
+                if ticker_data:
+                    market_context["ticker_data"] = ticker_data
+
+                amount, hyp_ticker = parse_hypothetical(req.question)
+                if amount and hyp_ticker:
+                    td = market_context.get("ticker_data", {}).get(hyp_ticker) or fetch_ticker_data(hyp_ticker)
+                    if td:
+                        years_match = re.search(r'(\d+)', str(req.months))
+                        years       = float(years_match.group(1)) / 12 if years_match else 1.0
+                        projection  = project_investment(hyp_ticker, amount, years, td)
+                        if projection:
+                            market_context["hypothetical_projection"] = projection
+
+                news = fetch_news(tickers[:5])
+                if news.get("company") or news.get("market"):
+                    market_context["news"] = news
+        except Exception as e:
+            print(f"[market_research] analyze endpoint failed (non-fatal): {e}")
+
+    analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast, current_params, market_context or None)
     return parse_output(analysis)
 
 
@@ -591,18 +670,107 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from Feature3.oldInsights import (
+from Feature3.OldInsights.oldInsights import (
     build_prompt as build_portfolio_prompt,
     get_analysis as get_portfolio_analysis,
     parse_output as parse_portfolio_output,
 )
 from Feature3.F3Insight_memory import store_memories_batch, retrieve_memories_by_intent
+from Feature3.market_research import (
+    detect_tickers, fetch_ticker_data, fetch_news,
+    parse_hypothetical, project_investment,
+    detect_historical_year, calculate_historical_performance,
+)
 
 
 @app.post("/pf/portfolio-analysis")
-def portfolio_analysis(req: dict = Body(...)):
+def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
     data          = req.get("data", {}) or {}
     user_question = (data.get("question") or "").strip() or None
+
+    # Refresh live prices then enrich holdings in the payload with current_price / P&L
+    try:
+        market_data.refresh_all_prices(db)
+        holdings_in = data.get("holdings", [])
+        if holdings_in:
+            symbols = list({h["symbol"].upper() for h in holdings_in if h.get("symbol")})
+            price_rows = db.query(models.MarketPrice).filter(
+                models.MarketPrice.symbol.in_(symbols)
+            ).all()
+            price_map = {row.symbol: row.current_price for row in price_rows if row.current_price}
+            for h in holdings_in:
+                sym = h.get("symbol", "").upper()
+                cp  = price_map.get(sym)
+                if cp is not None:
+                    qty          = h.get("quantity", 0)
+                    cost         = h.get("costBasis") or (qty * h.get("buy_price", 0))
+                    cur_val      = qty * cp
+                    pnl          = cur_val - cost
+                    h["current_price"]     = cp
+                    h["current_value"]     = round(cur_val, 2)
+                    h["profit_loss"]       = round(pnl, 2)
+                    h["return_percentage"] = round((pnl / cost * 100) if cost else 0, 2)
+            summary_in = data.get("summary", {})
+            total_current = sum(
+                (h.get("current_value") or h.get("costBasis") or 0) for h in holdings_in
+            )
+            total_cost = summary_in.get("totalCost", 0)
+            summary_in["totalCurrentValue"] = round(total_current, 2)
+            summary_in["totalPnL"]          = round(total_current - total_cost, 2)
+            summary_in["totalReturnPct"]    = round(
+                ((total_current - total_cost) / total_cost * 100) if total_cost else 0, 2
+            )
+    except Exception as e:
+        print(f"[prices] Refresh/enrich failed (non-fatal): {e}")
+
+    # Market research — ticker data + news + hypothetical projections
+    market_context = {}
+    if user_question:
+        try:
+            portfolio_syms = [h.get("symbol", "") for h in data.get("holdings", [])]
+            tickers = detect_tickers(user_question, portfolio_symbols=portfolio_syms)
+
+            # Fetch yfinance data for tickers mentioned in the question
+            if tickers:
+                ticker_data = {}
+                for sym in tickers[:5]:
+                    td = fetch_ticker_data(sym)
+                    if td:
+                        ticker_data[sym] = td
+                if ticker_data:
+                    market_context["ticker_data"] = ticker_data
+
+            # Hypothetical projection: "what if I invested $X in Y?"
+            amount, hyp_ticker = parse_hypothetical(user_question)
+            if amount and hyp_ticker:
+                td = market_context.get("ticker_data", {}).get(hyp_ticker) or fetch_ticker_data(hyp_ticker)
+                if td:
+                    time_horizon = data.get("onboarding", {}).get("timeHorizon", "5 years")
+                    years_match  = re.search(r'(\d+)', str(time_horizon))
+                    years        = float(years_match.group(1)) if years_match else 5.0
+                    projection   = project_investment(hyp_ticker, amount, years, td)
+                    if projection:
+                        market_context["hypothetical_projection"] = projection
+
+            # Historical scenario: "how would my portfolio have performed if I bought in 2020?"
+            hist_year = detect_historical_year(user_question)
+            if hist_year:
+                hist_perf = calculate_historical_performance(
+                    data.get("holdings", []), hist_year
+                )
+                if hist_perf:
+                    market_context["historical_performance"] = hist_perf
+
+            # Finnhub news for mentioned tickers + general market
+            news = fetch_news(tickers[:5] if tickers else [])
+            if news.get("company") or news.get("market"):
+                market_context["news"] = news
+
+        except Exception as e:
+            print(f"[market_research] Failed (non-fatal): {e}")
+
+    if market_context:
+        data["market_context"] = market_context
 
     # Retrieve relevant past memories before building the prompt
     memories = []
@@ -631,37 +799,236 @@ def portfolio_analysis(req: dict = Body(...)):
     return result
 
 
+# ── Users ─────────────────────────────────────────────────────────────────────
+
+class UserCreateRequest(BaseModel):
+    account_type: str   # user | industry | government
+
+
+@app.post("/users", status_code=201)
+def create_user(req: UserCreateRequest, db: Session = Depends(get_db)):
+    user = models.User(
+        id=str(uuid4()),
+        account_type=req.account_type,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "account_type": user.account_type}
+
+
+@app.get("/users/{user_id}")
+def get_user(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 # ── Feature 3: Investment Onboarding ──────────────────────────────────────────
 
 FEATURE_3_INPUT_PATH = Path(__file__).parent / "Llama Input" / "Feature_3_input.json"
 
 
 class InvestmentOnboardingRequest(BaseModel):
-    age:                 int
-    experienceLevel:     str   # beginner | intermediate | advanced
-    financialBackground: str   # low | moderate | high
-    communicationStyle:  str   # simple | technical
-    investmentGoal:      str   # growth | income | preservation | balanced
-    timeHorizon:         str   # short | medium | long
+    age:                  int
+    experienceLevel:      str            # beginner | intermediate | advanced
+    financialBackground:  str            # low | moderate | high
+    communicationStyle:   str            # simple | technical
+    investmentStrategies: list[str]      # subset of: day_trading | index | growth | income | buy_and_hold | dollar_cost_average
+    timeHorizon:          str            # daily | weekly | monthly | annually | indefinitely
+    assetInterests:       list[str]      # subset of: stock | crypto | etf
+    investmentGoal:       Optional[str] = None   # legacy single-goal field; optional
+    user_id:              str = "demo-user"
+
+
+ONBOARDING_RESET_STATE = {
+    "available":            False,
+    "age":                  30,
+    "experienceLevel":      "beginner",
+    "financialBackground":  "moderate",
+    "communicationStyle":   "simple",
+    "investmentStrategies": ["buy_and_hold"],
+    "timeHorizon":          "monthly",
+    "assetInterests":       ["stock", "crypto", "etf"],
+    "completedAt":          None,
+}
+
+
+def _onboarding_record(req: InvestmentOnboardingRequest, completed_at: str) -> dict:
+    """Shape of the onboarding object persisted to Feature_3_input.json."""
+    return {
+        "available":            True,
+        "age":                  req.age,
+        "experienceLevel":      req.experienceLevel,
+        "financialBackground":  req.financialBackground,
+        "communicationStyle":   req.communicationStyle,
+        "investmentStrategies": req.investmentStrategies,
+        "timeHorizon":          req.timeHorizon,
+        "assetInterests":       req.assetInterests,
+        "completedAt":          completed_at,
+    }
 
 
 @app.post("/investments/onboarding")
-def submit_investment_onboarding(req: InvestmentOnboardingRequest):
-    with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session = Depends(get_db)):
+    completed_at = datetime.now(timezone.utc).isoformat()
+    strategies_json = json.dumps(req.investmentStrategies)
+    interests_json  = json.dumps(req.assetInterests)
 
-    data["onboarding"] = {
-        "available":           True,
-        "age":                 req.age,
-        "experienceLevel":     req.experienceLevel,
-        "financialBackground": req.financialBackground,
-        "communicationStyle":  req.communicationStyle,
-        "investmentGoal":      req.investmentGoal,
-        "timeHorizon":         req.timeHorizon,
-        "completedAt":         datetime.now(timezone.utc).isoformat(),
+    existing = db.query(models.InvestmentOnboardingProfile).filter(
+        models.InvestmentOnboardingProfile.user_id == req.user_id
+    ).first()
+
+    if existing:
+        existing.age                   = req.age
+        existing.experience_level      = req.experienceLevel
+        existing.financial_background  = req.financialBackground
+        existing.communication_style   = req.communicationStyle
+        existing.investment_strategies = strategies_json
+        existing.time_horizon          = req.timeHorizon
+        existing.asset_interests       = interests_json
+        # Only overwrite investment_goal when the client explicitly sent one;
+        # the column is NOT NULL on legacy DBs, so writing None here would fail.
+        if req.investmentGoal is not None:
+            existing.investment_goal = req.investmentGoal
+    else:
+        # Backfill the legacy NOT NULL column with the first chosen strategy
+        # (or "balanced") so inserts succeed even when the form no longer asks
+        # for a single goal.
+        legacy_goal = req.investmentGoal or (req.investmentStrategies[0] if req.investmentStrategies else "balanced")
+        profile = models.InvestmentOnboardingProfile(
+            user_id               = req.user_id,
+            age                   = req.age,
+            experience_level      = req.experienceLevel,
+            financial_background  = req.financialBackground,
+            communication_style   = req.communicationStyle,
+            investment_goal       = legacy_goal,
+            investment_strategies = strategies_json,
+            time_horizon          = req.timeHorizon,
+            asset_interests       = interests_json,
+        )
+        db.add(profile)
+
+    db.commit()
+
+    record = _onboarding_record(req, completed_at)
+
+    # Mirror to JSON so the Llama prompt builder still has it.
+    try:
+        with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["onboarding"] = record
+        with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass  # non-fatal — DB is the source of truth
+
+    return {"status": "ok", "user_id": req.user_id, "onboarding": record}
+
+
+@app.get("/investments/onboarding")
+def get_investment_onboarding_json():
+    """Legacy file-backed read used by the frontend's fetchInvestmentOnboarding()."""
+    try:
+        with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {"available": False}
+    return data.get("onboarding", {"available": False})
+
+
+@app.delete("/investments/onboarding")
+def reset_investment_onboarding(db: Session = Depends(get_db), user_id: str = "demo-user"):
+    """Clear the persisted onboarding profile for a user and reset the JSON mirror."""
+    db.query(models.InvestmentOnboardingProfile).filter(
+        models.InvestmentOnboardingProfile.user_id == user_id
+    ).delete()
+    db.commit()
+
+    try:
+        with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["onboarding"] = dict(ONBOARDING_RESET_STATE)
+        with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+    return {"status": "ok", "onboarding": dict(ONBOARDING_RESET_STATE)}
+
+
+@app.get("/investments/onboarding/{user_id}")
+def get_investment_onboarding_by_user(user_id: str, db: Session = Depends(get_db)):
+    profile = db.query(models.InvestmentOnboardingProfile).filter(
+        models.InvestmentOnboardingProfile.user_id == user_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="No onboarding profile found")
+
+    return {
+        "user_id":               profile.user_id,
+        "age":                   profile.age,
+        "experience_level":      profile.experience_level,
+        "financial_background":  profile.financial_background,
+        "communication_style":   profile.communication_style,
+        "investment_goal":       profile.investment_goal,
+        "investment_strategies": json.loads(profile.investment_strategies) if profile.investment_strategies else [],
+        "time_horizon":          profile.time_horizon,
+        "asset_interests":       json.loads(profile.asset_interests) if profile.asset_interests else [],
+        "completed_at":          profile.completed_at.isoformat() if profile.completed_at else None,
     }
 
-    with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
 
-    return {"status": "ok", "onboarding": data["onboarding"]}
+# ── Feature 1: Forecast Config ────────────────────────────────────────────────
+
+class ForecastConfigRequest(BaseModel):
+    starting_mrr:    float
+    growth_rate:     float
+    churn_rate:      float
+    cogs_percent:    float
+    marketing_spend: float
+    payroll:         float
+    months:          int
+    user_id:         str = "demo-user"
+
+
+@app.post("/forecast/config")
+def save_forecast_config(req: ForecastConfigRequest, db: Session = Depends(get_db)):
+    existing = db.query(models.ForecastConfig).filter(
+        models.ForecastConfig.user_id == req.user_id
+    ).first()
+
+    if existing:
+        existing.starting_mrr    = req.starting_mrr
+        existing.growth_rate     = req.growth_rate
+        existing.churn_rate      = req.churn_rate
+        existing.cogs_percent    = req.cogs_percent
+        existing.marketing_spend = req.marketing_spend
+        existing.payroll         = req.payroll
+        existing.months          = req.months
+    else:
+        config = models.ForecastConfig(
+            user_id         = req.user_id,
+            starting_mrr    = req.starting_mrr,
+            growth_rate     = req.growth_rate,
+            churn_rate      = req.churn_rate,
+            cogs_percent    = req.cogs_percent,
+            marketing_spend = req.marketing_spend,
+            payroll         = req.payroll,
+            months          = req.months,
+        )
+        db.add(config)
+
+    db.commit()
+    return {"status": "ok", "user_id": req.user_id}
+
+
+@app.get("/forecast/config/{user_id}")
+def get_forecast_config(user_id: str, db: Session = Depends(get_db)):
+    config = db.query(models.ForecastConfig).filter(
+        models.ForecastConfig.user_id == user_id
+    ).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="No forecast config found")
+    return config
