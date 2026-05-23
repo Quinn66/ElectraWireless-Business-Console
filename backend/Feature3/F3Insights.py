@@ -2,11 +2,9 @@ import json
 import re
 import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
-import yfinance as yf
 import os
 from groq import Groq
-import pandas as pd
-from csv_analyzer import run as analyze_stock_csvs
+from csv_analyzer import run as analyze_ticker
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -58,27 +56,27 @@ def load_input():
 def extract_stocks_only(data, user_question=None):
 
     prompt = f"""
-You are a stock extraction system.
+You are a STRICT stock ticker extraction system.
 
 USER QUESTION:
 {user_question}
 
 TASK:
-Extract all stock names mentioned in the user question and convert them into Yahoo Finance ticker symbols.
-If the user is not speaking about stocks or no stocks are mentioned output NONE
+Convert all mentioned companies into VALID Yahoo Finance ticker symbols.
 
 RULES:
-- If none → NONE
-- Output ONLY this format
-- One stock per line
-
+- Output ONLY valid Yahoo Finance tickers
+- NEVER output company names
+- NEVER output misspellings
+- If unsure, guess the correct major ticker
+- If no stocks → output NONE
+- One ticker per line
 - No explanations
+
 FORMAT:
 [SECTION: STOCKS]
-If a stock is mentioned in the question list out the ticker name of the stock in this exact format
-(stock name)
-a stock does not need to appear in the portfolio to mention it here
-one stock per line
+<TICKER>
+<TICKER>
 """
 
     res = client.chat.completions.create(
@@ -125,78 +123,6 @@ def normalize_ticker(t):
 
     return t
 
-
-def run_yfinance(stock_list):
-    results = []
-    csv_files_used = []
-
-    print("\n🔧 YFINANCE (CSV CACHED MODE):")
-
-    for s in stock_list:
-        ticker = normalize_ticker(s)
-
-        csv_path = os.path.join(DATA_DIR, f"{ticker}_6mo.csv")
-
-        try:
-            # ================= ENSURE FILE EXISTS =================
-            if not os.path.exists(csv_path):
-                print(f"⬇️ Downloading {ticker} ...")
-
-                data = yf.download(
-                    ticker,
-                    period="6mo",
-                    interval="1d",
-                    progress=False
-                )
-
-                if data.empty:
-                    raise ValueError("No data returned from yfinance")
-
-                data.to_csv(csv_path)
-
-            # track ALL files used (not just downloaded ones)
-            csv_files_used.append(csv_path)
-
-            # ================= READ LOCAL CSV =================
-            df = pd.read_csv(csv_path, skiprows=[1])
-
-            df.columns = [str(c).strip() for c in df.columns]
-
-            if "Close" not in df.columns:
-                raise ValueError(f"Missing Close column in {ticker}")
-
-            close = pd.to_numeric(df["Close"], errors="coerce").dropna()
-
-            if len(close) < 2:
-                raise ValueError(f"Not enough valid Close data for {ticker}")
-
-            current_price = float(close.iloc[-1])
-            start_price = float(close.iloc[0])
-
-            change = current_price - start_price
-            change_pct = (change / start_price) * 100 if start_price != 0 else 0
-
-            print("-", ticker)
-
-            results.append({
-                "stock": ticker,
-                "price": round(current_price, 2),
-                "change_6m": round(change, 2),
-                "change_6m_pct": round(change_pct, 2),
-                "source": "csv_cache"
-            })
-
-        except Exception as e:
-            results.append({
-                "stock": ticker,
-                "price": None,
-                "change_6m": None,
-                "change_6m_pct": None,
-                "error": str(e)
-            })
-
-    return results, csv_files_used
-# 
 # ================= BUILD PROMPT =================
 def build_prompt(data, memories=None, user_question=None):
     question_block = ""
@@ -473,13 +399,8 @@ def portfolio_analysis(request: PortfolioRequest):
     print(stock_section)
 
     stocks = extract_stock_lines(stock_section)
-
-    # STEP 3: SECOND OUTPUT (yfinance placeholder)
-    stock_data, downloaded_files = run_yfinance(stocks)
     
-    analyze_stock_csvs(downloaded_files)
-    print("\n=== YFINANCE OUTPUT ===")
-    print(stock_data)
+    csv_analysis_data = analyze_ticker(stocks)
 
     # ================= MEMORY RETRIEVAL =================
     user_question = data.get("question", None)

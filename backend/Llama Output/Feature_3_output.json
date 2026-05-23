@@ -3,27 +3,27 @@
   "pros": [
     "The portfolio has a strong return of 25% over the last 6 months.",
     "The top gainer is Bitcoin (BTC) with a return of 38.1%.",
-    "The portfolio has a moderate diversification score of 62.",
-    "The cash balance is $1,500, providing liquidity.",
+    "The portfolio has a relatively low diversification score of 62, indicating room for improvement.",
+    "The cash balance is $1,500, providing liquidity for potential investments.",
     "The portfolio has a moderate risk grade of \"B\"."
   ],
   "cons": [
-    "The portfolio has a high concentration of crypto assets, with 70% of the portfolio in BTC.",
-    "The diversification score is relatively low at 62.",
+    "The portfolio is heavily concentrated in Bitcoin (BTC) with a weight of 69.6%, exceeding the 25% concentration threshold.",
+    "The diversification score is low, indicating a lack of diversification.",
     "The portfolio has a moderate volatility of 18.4%.",
-    "The top loser is VOO with a return of -3.2%.",
-    "The portfolio dipped in April before recovering in May."
+    "The top loser is Vanguard S&P 500 ETF (VOO) with a return of -3.2%.",
+    "The portfolio has a relatively low cash balance of $1,500."
   ],
   "next_steps": [
-    "Consider reducing the concentration of crypto assets to below 25%.",
-    "Add 2-3 uncorrelated positions to improve diversification.",
-    "Consider adding a position in a stable asset to reduce volatility.",
-    "Monitor the portfolio's performance and rebalance as needed.",
-    "Review the portfolio's risk grade and adjust the asset allocation accordingly."
+    "Consider adding 2-3 uncorrelated positions to improve diversification.",
+    "Reduce the concentration in Bitcoin (BTC) to below 25%.",
+    "Consider adding positions in stocks or ETFs with lower volatility.",
+    "Review and adjust the portfolio's risk grade.",
+    "Consider adding a position in Vanguard S&P 500 ETF (VOO) to reduce the portfolio's volatility."
   ],
-  "question_response": "You should consider adding AMD to your portfolio, as it has a stronger performance trend than NVDA, with a 100.98% change in price over the last 6 months compared to NVDA's 22.14% change. However, it's essential to evaluate your overall portfolio goals and risk tolerance before making any additions.",
+  "question_response": "To compare the performance of SPY and NVDA, we can look at their change_pct values. SPY has a change_pct of 12.14%, while NVDA has a change_pct of 17.97%. NVDA has performed stronger than SPY over the last 6 months. Considering the portfolio's current composition and the performance of these two stocks, adding NVDA to the portfolio could be a good option, as it has a stronger performance trend.",
   "sources": [
     "Portfolio JSON",
-    "Stock market data for AMD and NVDA"
+    "Stock market data for SPY and NVDA"
   ]
 }
