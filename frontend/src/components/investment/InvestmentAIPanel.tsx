@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Loader2, Sparkles, TrendingUp, TrendingDown, ListChecks, MessageCircle } from "lucide-react";
 import { useInvestmentContextStore } from "@/store/investmentContextStore";
 import { buildInvestmentAIPayload, fetchInvestmentAIInsights } from "@/services/investmentApi";
-import type { InvestmentHolding, InvestmentAIResponse } from "@/services/investmentApi";
+import type { InvestmentHolding, InvestmentAIResponse, PortfolioSummary } from "@/services/investmentApi";
 import { C_PRIMARY, C_SUCCESS, C_ERROR, C_WARNING, C_BORDER } from "@/lib/colors";
 
 type SectionAccent = "primary" | "success" | "error" | "warning";
@@ -61,7 +61,7 @@ function BulletList({ items, color }: { items: string[]; color: string }) {
   );
 }
 
-export function InvestmentAIPanel({ holdings }: { holdings: InvestmentHolding[] }) {
+export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentHolding[]; summary: PortfolioSummary | null }) {
   const onboarding = useInvestmentContextStore();
 
   const [open,    setOpen]    = useState(true);
@@ -86,7 +86,7 @@ export function InvestmentAIPanel({ holdings }: { holdings: InvestmentHolding[] 
         communicationStyle:  onboarding.communicationStyle,
         investmentGoal:      onboarding.investmentGoal,
         timeHorizon:         onboarding.timeHorizon,
-      });
+      }, "", "Current portfolio", summary);
       setResult(await fetchInvestmentAIInsights(payload));
     } catch {
       setError("Could not generate analysis — is the backend running on port 8000?");
