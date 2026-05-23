@@ -87,7 +87,7 @@ export function Slider({ label, value, min, max, step, format, parse, onChange, 
   }
 
   return (
-    <div className={`mb-3 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
+    <div className={`mb-6 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
       {hint && <p className="text-muted-foreground text-xs mb-0.5">{hint}</p>}
       {label !== "" && (
         <div className="flex justify-between items-center mb-1">

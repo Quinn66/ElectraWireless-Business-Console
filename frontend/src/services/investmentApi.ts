@@ -71,7 +71,7 @@ export async function fetchInsights(): Promise<InvestmentInsight[]> {
 export interface InvestmentOnboardingPayload {
   age:                  number;
   experienceLevel:      "beginner" | "intermediate" | "advanced";
-  financialBackground:  "low" | "moderate" | "high";
+  investmentCapital:    number;
   communicationStyle:   "simple" | "technical";
   investmentStrategies: Array<"day_trading" | "index" | "growth" | "income" | "buy_and_hold" | "dollar_cost_average">;
   timeHorizon:          "daily" | "weekly" | "monthly" | "annually" | "indefinitely";
@@ -112,7 +112,7 @@ export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPa
     const res = await investmentApiClient.get<{
       age:                   number;
       experience_level:      string;
-      financial_background:  string;
+      investment_capital:    number;
       communication_style:   string;
       investment_strategies: string[];
       time_horizon:          string;
@@ -122,7 +122,7 @@ export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPa
     return {
       age:                  d.age,
       experienceLevel:      d.experience_level     as InvestmentOnboardingPayload["experienceLevel"],
-      financialBackground:  d.financial_background as InvestmentOnboardingPayload["financialBackground"],
+      investmentCapital:    d.investment_capital,
       communicationStyle:   d.communication_style  as InvestmentOnboardingPayload["communicationStyle"],
       investmentStrategies: (d.investment_strategies ?? []) as InvestmentOnboardingPayload["investmentStrategies"],
       timeHorizon:          d.time_horizon         as InvestmentOnboardingPayload["timeHorizon"],
@@ -262,6 +262,7 @@ export interface InvestmentAIResponse {
   next_steps:        string[];
   question_response: string;
   sources:           string[];
+  profile_context:   string;
 }
 
 export interface InvestmentAIRequest {
@@ -292,7 +293,7 @@ export interface InvestmentAIRequest {
     completedAt:          string | null;
     age:                  number;
     experienceLevel:      string;
-    financialBackground:  string;
+    investmentCapital:    number;
     communicationStyle:   string;
     investmentStrategies: string[];
     timeHorizon:          string;
@@ -356,7 +357,7 @@ export function buildInvestmentAIPayload(
       completedAt:          onboarding.completedAt,
       age:                  onboarding.age,
       experienceLevel:      onboarding.experienceLevel,
-      financialBackground:  onboarding.financialBackground,
+      investmentCapital:    onboarding.investmentCapital,
       communicationStyle:   onboarding.communicationStyle,
       investmentStrategies: onboarding.investmentStrategies,
       timeHorizon:          onboarding.timeHorizon,

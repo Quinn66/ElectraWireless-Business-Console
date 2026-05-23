@@ -116,11 +116,142 @@ def _build_market_context_block(market_context: dict) -> str:
     return "\n".join(lines)
 
 
+# ================= ONBOARDING PROFILE → DIRECTIVES =================
+_STYLE_DIRECTIVES = {
+    "technical": (
+        "Write as an investment analyst. Use precise financial vocabulary "
+        "(CAGR, annualised volatility, concentration risk, Sharpe-style framing, "
+        "drawdown, rebalancing thresholds, weighting deltas). Quantify wherever "
+        "possible — prefer numbers, ratios, and percentages over generic phrasing."
+    ),
+    "simple": (
+        "Explain in plain, conversational English. Avoid jargon; when a financial "
+        "term is unavoidable, define it in one short clause. Prefer analogies and "
+        "round numbers over precise decimals."
+    ),
+}
+
+_EXPERIENCE_DIRECTIVES = {
+    "beginner":     "Assume the user is new to investing. Build context before recommendations.",
+    "intermediate": "Assume working knowledge of asset classes and portfolio basics.",
+    "advanced":     "Assume the user understands portfolio theory, risk metrics, and market mechanics. Skip definitions.",
+}
+
+def _capital_directive(amount):
+    """Map the user's stated investment capital ($ value, 0 – 500,000) to a
+    framing directive for the LLM. The tiers loosely mirror the previous
+    low / moderate / high buckets but scale with reported capital."""
+    try:
+        value = float(amount)
+    except (TypeError, ValueError):
+        return None
+    if value < 25_000:
+        tier = "limited"
+        guidance = (
+            "Treat the user as having limited investable capital. Emphasise "
+            "fundamentals (emergency fund, low-cost broad-market exposure) and "
+            "avoid recommending capital-intensive strategies."
+        )
+    elif value < 150_000:
+        tier = "moderate"
+        guidance = (
+            "Assume standard personal-finance literacy and a moderate capital "
+            "base. Diversification and tax-aware framing are appropriate."
+        )
+    else:
+        tier = "substantial"
+        guidance = (
+            "Assume a substantial capital base and strong personal-finance "
+            "literacy. Advanced allocation, risk-budgeting, and tax framing "
+            "are fair game."
+        )
+    return f"reported capital ${value:,.0f} ({tier}): {guidance}"
+
+
+def _build_onboarding_block(onboarding):
+    """Translate the onboarding profile into explicit instructions for the LLM.
+
+    Returned text is empty when no profile is available, so the prompt degrades
+    gracefully for users who skipped onboarding."""
+    if not onboarding or not onboarding.get("available"):
+        return ""
+
+    style       = (onboarding.get("communicationStyle") or "").lower()
+    experience  = (onboarding.get("experienceLevel")    or "").lower()
+    capital     = onboarding.get("investmentCapital")
+    strategies  = onboarding.get("investmentStrategies") or []
+    horizon     = onboarding.get("timeHorizon") or ""
+    interests   = onboarding.get("assetInterests") or []
+    age         = onboarding.get("age")
+
+    lines = [
+        "=== USER PROFILE (from onboarding) — adapt every section to this ===",
+        "When the user asks about THEIR profile (experience level, age, investment "
+        "capital, strategies, horizon, asset interests, communication style), the "
+        "literal facts below are the ground truth — quote them verbatim in "
+        "QUESTION_RESPONSE. Do not paraphrase, restate as ranges, or substitute "
+        "portfolio totals for these values.",
+        "",
+        "PROFILE FACTS (verbatim):",
+        f"- age: {age if age is not None else 'unspecified'}",
+        f"- experienceLevel: {experience or 'unspecified'}",
+        f"- investmentCapital: ${(capital or 0):,}",
+        f"- communicationStyle: {style or 'unspecified'}",
+        f"- investmentStrategies: {', '.join(strategies) if strategies else 'unspecified'}",
+        f"- timeHorizon: {horizon or 'unspecified'}",
+        f"- assetInterests: {', '.join(interests) if interests else 'unspecified'}",
+        "",
+        "PROFILE-DRIVEN STYLE DIRECTIVES:",
+    ]
+
+    style_directive = _STYLE_DIRECTIVES.get(style)
+    if style_directive:
+        lines.append(f"Communication style ({style}): {style_directive}")
+
+    exp_directive = _EXPERIENCE_DIRECTIVES.get(experience)
+    if exp_directive:
+        lines.append(f"Experience ({experience}): {exp_directive}")
+
+    cap_directive = _capital_directive(capital)
+    if cap_directive:
+        lines.append(f"Investment capital — {cap_directive}")
+
+    if strategies:
+        lines.append(
+            f"Stated strategies: {', '.join(strategies)}. Bias NEXT_STEPS toward "
+            "suggestions compatible with these styles; do not push moves that "
+            "contradict them (e.g., no day-trading tactics for a buy_and_hold or "
+            "index investor)."
+        )
+
+    if horizon:
+        lines.append(
+            f"Time horizon: '{horizon}'. Frame recommendations accordingly — short "
+            "horizons emphasise liquidity and volatility; long horizons emphasise "
+            "compounding and drawdown tolerance."
+        )
+
+    if interests:
+        lines.append(
+            f"Asset interests: {', '.join(interests)}. Prefer suggestions within "
+            "these classes; do not push assets the user did not select."
+        )
+
+    lines.append(
+        "You MAY include at most ONE bullet in NEXT_STEPS that falls outside the "
+        "user's stated strategy or asset interests if it is genuinely material — "
+        "prefix that bullet with 'Outside your stated style:' so it is clearly flagged."
+    )
+
+    return "\n".join(lines)
+
+
 def build_prompt(data, user_question=None, memories=None):
 
-    question_block      = ""
-    memory_block        = ""
+    question_block       = ""
+    memory_block         = ""
     market_context_block = ""
+    onboarding_block     = ""
 
     if user_question:
         question_block = f"""
@@ -141,16 +272,29 @@ MEMORY CONTEXT (previous conversations with this user — use this to personalis
     if market_context:
         market_context_block = _build_market_context_block(market_context)
 
+    onboarding_profile = data.get("onboarding") or {}
+    onboarding_directives = _build_onboarding_block(onboarding_profile)
+    if onboarding_directives:
+        onboarding_block = f"\n{onboarding_directives}\n"
+
+    # Tone rule defers to the onboarding profile when one is available; otherwise
+    # fall back to the historical "plain English" default.
+    tone_rule = (
+        "Keep responses concise. Tone, depth, and vocabulary MUST follow the USER PROFILE above."
+        if onboarding_directives
+        else "Keep responses concise and use plain English"
+    )
+
     # Strip raw JSON down — exclude heavy fields the LLM doesn't need
     portfolio_json = {k: v for k, v in data.items() if k != "market_context"}
 
     return f"""
 You are a financial portfolio assistant with access to live market data and recent news.
-
+{onboarding_block}
 IMPORTANT RULES:
 - Use the portfolio JSON, live market data, and news provided below
 - Do NOT invent data or prices
-- Keep responses concise and use plain English
+- {tone_rule}
 - Do NOT include disclaimers
 - Bullet points must start with "-"
 - If market data or news is present, reference it directly in your answer
@@ -169,24 +313,40 @@ STRICT OUTPUT FORMAT:
 - No markdown headings
 
 [SECTION: SUMMARY]
-Write a short portfolio summary (2-3 sentences).
+Write a short portfolio summary (2-3 sentences) in the tone dictated by the USER PROFILE.
+Open with one clause that names the user's experience level AND one other profile fact
+(strategy, horizon, OR capital) — e.g. "As a beginner buy-and-hold investor with
+$50,000 of capital, your portfolio …". Use the literal values from PROFILE FACTS.
 
 [SECTION: PROS]
 - List portfolio strengths
 - Max 5 bullets
+- At least one bullet must reference how a strength aligns with a PROFILE FACTS value
+  (strategy, horizon, asset interest, capital, or experience level)
 
 [SECTION: CONS]
 - List portfolio weaknesses or risks
 - Max 5 bullets
+- At least one bullet must reference how a weakness conflicts with a PROFILE FACTS value
+  (e.g. exposure exceeds the user's capital, strategy mismatch, horizon mismatch)
 
 [SECTION: NEXT_STEPS]
 - List practical recommendations based on the portfolio and any market data provided
 - Max 5 bullets
 - Must always include at least 1 bullet
+- Every bullet must respect the user's stated strategies, time horizon, asset interests,
+  and capital — name the specific PROFILE FACTS value the bullet is honouring
+  (e.g. "(fits buy_and_hold)", "(within $50,000 capital)")
 
 [SECTION: QUESTION_RESPONSE]
-If a question was provided, answer it directly using the live market data and news above.
-Reference specific headlines or data points where relevant.
+If a question was provided, answer it directly. Choose your source based on what the
+question is asking about:
+- Profile questions ("what is my experience level / age / capital / strategy / horizon / interests")
+  → quote the matching PROFILE FACTS value verbatim from the USER PROFILE block.
+  Do NOT answer with a portfolio summary or paraphrase the value.
+- Portfolio questions → use the PORTFOLIO DATA, live market data, and news; reference
+  specific holdings, headlines, or data points where relevant.
+- Hypotheticals → use any provided projection numbers exactly.
 Keep under 200 words.
 
 Otherwise write:
@@ -194,6 +354,7 @@ No question provided.
 
 [SECTION: SOURCES]
 - List which portfolio fields were used
+- If the USER PROFILE shaped the response, include "onboarding" in this list
 """
 
 
@@ -270,7 +431,8 @@ def parse_output(text):
         "cons": clean_bullets(sections.get("cons", "")),
         "next_steps": clean_bullets(sections.get("next_steps", "")),
         "question_response": sections.get("question_response", ""),
-        "sources": clean_bullets(sections.get("sources", ""))
+        "sources": clean_bullets(sections.get("sources", "")),
+        "profile_context": "",   # populated downstream by main.py
     }
 
     return structured

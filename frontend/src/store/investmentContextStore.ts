@@ -2,16 +2,19 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type ExperienceLevel     = "beginner" | "intermediate" | "advanced";
-export type FinancialBackground = "low" | "moderate" | "high";
 export type CommunicationStyle  = "simple" | "technical";
 export type InvestmentStrategy  = "day_trading" | "index" | "growth" | "income" | "buy_and_hold" | "dollar_cost_average";
 export type TimeHorizon         = "daily" | "weekly" | "monthly" | "annually" | "indefinitely";
 export type AssetInterest       = "stock" | "crypto" | "etf";
 
+export const INVESTMENT_CAPITAL_MIN  = 0;
+export const INVESTMENT_CAPITAL_MAX  = 500_000;
+export const INVESTMENT_CAPITAL_STEP = 1_000;
+
 export interface InvestmentOnboardingValues {
   age: number;
   experienceLevel: ExperienceLevel;
-  financialBackground: FinancialBackground;
+  investmentCapital: number;
   communicationStyle: CommunicationStyle;
   investmentStrategies: InvestmentStrategy[];
   timeHorizon: TimeHorizon;
@@ -25,7 +28,7 @@ export interface InvestmentContextState extends InvestmentOnboardingValues {
 
   setAge: (v: number) => void;
   setExperienceLevel: (v: ExperienceLevel) => void;
-  setFinancialBackground: (v: FinancialBackground) => void;
+  setInvestmentCapital: (v: number) => void;
   setCommunicationStyle: (v: CommunicationStyle) => void;
   setInvestmentStrategies: (v: InvestmentStrategy[]) => void;
   setTimeHorizon: (v: TimeHorizon) => void;
@@ -39,7 +42,7 @@ export interface InvestmentContextState extends InvestmentOnboardingValues {
 export const INVESTMENT_ONBOARDING_DEFAULTS: InvestmentOnboardingValues = {
   age: 30,
   experienceLevel:      "beginner",
-  financialBackground:  "moderate",
+  investmentCapital:    50_000,
   communicationStyle:   "simple",
   investmentStrategies: ["buy_and_hold"],
   timeHorizon:          "monthly",
@@ -54,7 +57,7 @@ export const useInvestmentContextStore = create<InvestmentContextState>()(
       ...INITIAL_STATE,
       setAge:                  (v) => set({ age: v }),
       setExperienceLevel:      (v) => set({ experienceLevel: v }),
-      setFinancialBackground:  (v) => set({ financialBackground: v }),
+      setInvestmentCapital:    (v) => set({ investmentCapital: v }),
       setCommunicationStyle:   (v) => set({ communicationStyle: v }),
       setInvestmentStrategies: (v) => set({ investmentStrategies: v }),
       setTimeHorizon:          (v) => set({ timeHorizon: v }),
@@ -68,7 +71,7 @@ export const useInvestmentContextStore = create<InvestmentContextState>()(
       partialize: (state) => ({
         age:                  state.age,
         experienceLevel:      state.experienceLevel,
-        financialBackground:  state.financialBackground,
+        investmentCapital:    state.investmentCapital,
         communicationStyle:   state.communicationStyle,
         investmentStrategies: state.investmentStrategies,
         timeHorizon:          state.timeHorizon,

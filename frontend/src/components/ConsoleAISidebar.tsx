@@ -116,7 +116,7 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
         const payload    = buildInvestmentAIPayload(q, holdings, {
           age:                  onboarding.age,
           experienceLevel:      onboarding.experienceLevel,
-          financialBackground:  onboarding.financialBackground,
+          investmentCapital:    onboarding.investmentCapital,
           communicationStyle:   onboarding.communicationStyle,
           investmentStrategies: onboarding.investmentStrategies,
           timeHorizon:          onboarding.timeHorizon,
@@ -242,6 +242,16 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
               )}
               {investmentResult && (
                 <>
+                  {investmentResult.profile_context && (
+                    <div className="rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
+                      <div className="text-[9.5px] font-bold tracking-[0.08em] uppercase text-primary mb-0.5">
+                        Your Profile
+                      </div>
+                      <p className="m-0 text-[10.5px] text-[hsl(242_44%_35%)] leading-[1.55]">
+                        {investmentResult.profile_context}
+                      </p>
+                    </div>
+                  )}
                   <p className="m-0 text-xs text-[hsl(242_44%_35%)] leading-[1.65]">
                     {investmentResult.question_response &&
                       investmentResult.question_response.toLowerCase().trim() !== "no question provided."

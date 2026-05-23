@@ -19,13 +19,30 @@ collection = client.get_or_create_collection(
 
 def generate_embeddings(texts):
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": EMBED_MODEL,
-            "input": texts
-        }
-    )
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": EMBED_MODEL,
+                "input": texts
+            },
+            timeout=30,
+        )
+    except requests.exceptions.ConnectionError as e:
+        raise RuntimeError(
+            f"Ollama is not reachable at {OLLAMA_URL}. "
+            "Start it with `ollama serve` (or launch the Ollama app)."
+        ) from e
+
+    if response.status_code == 404 or (
+        response.status_code >= 400
+        and "not found" in response.text.lower()
+        and "model" in response.text.lower()
+    ):
+        raise RuntimeError(
+            f"Embedding model '{EMBED_MODEL}' is not installed in Ollama. "
+            f"Run: `ollama pull {EMBED_MODEL}`"
+        )
 
     response.raise_for_status()
 
@@ -34,7 +51,7 @@ def generate_embeddings(texts):
     if "embeddings" in data:
         return data["embeddings"]
 
-    print("❌ Unexpected embedding response:")
+    print("[memory] Unexpected embedding response:")
     print(data)
 
     return []
@@ -81,7 +98,7 @@ ASSISTANT:
     embeddings = generate_embeddings(documents)
 
     if not embeddings:
-        print("❌ Failed to generate embeddings")
+        print("[memory] Failed to generate embeddings")
         return
 
     # ONE database insert
@@ -92,9 +109,9 @@ ASSISTANT:
         metadatas=metadatas
     )
 
-    print(f"✅ Stored {len(documents)} memories")
+    print(f"[memory] Stored {len(documents)} memories")
     total = collection.count()
-    print(f"📦 Total memories in DB: {total}")
+    print(f"[memory] Total memories in DB: {total}")
 
 # ================= FILTERED RETRIEVAL =================
 
@@ -107,7 +124,7 @@ def retrieve_memories_by_intent(query, intent="general", n_results=10):
     query_embedding = generate_embedding(query)
 
     if not query_embedding:
-        print("❌ Empty query embedding")
+        print("[memory] Empty query embedding")
         return []
 
     query_embedding = [float(x) for x in query_embedding]

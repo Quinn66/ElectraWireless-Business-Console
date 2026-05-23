@@ -9,8 +9,10 @@ import {
 import {
   useInvestmentContextStore,
   INVESTMENT_ONBOARDING_DEFAULTS,
+  INVESTMENT_CAPITAL_MIN,
+  INVESTMENT_CAPITAL_MAX,
+  INVESTMENT_CAPITAL_STEP,
   type ExperienceLevel,
-  type FinancialBackground,
   type CommunicationStyle,
   type InvestmentStrategy,
   type TimeHorizon,
@@ -38,7 +40,7 @@ interface ChoiceGroupProps<T extends string> {
 function ChoiceGroup<T extends string>({ label, value, options, onChange, columns = 3 }: ChoiceGroupProps<T>) {
   const gridCls = columns === 4 ? "grid-cols-4" : columns === 2 ? "grid-cols-2" : "grid-cols-3";
   return (
-    <div className="mb-4">
+    <div className="mb-6">
       <label className="text-muted-foreground text-sm font-semibold block mb-2">{label}</label>
       <div className={`grid ${gridCls} gap-2`}>
         {options.map((opt) => {
@@ -78,7 +80,7 @@ function MultiChoiceGroup<T extends string>({ label, hint, values, options, onCh
   const toggle = (v: T) =>
     onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v]);
   return (
-    <div className="mb-4">
+    <div className="mb-6">
       <label className="text-muted-foreground text-sm font-semibold block mb-1">{label}</label>
       {hint && <p className="text-muted-foreground text-xs mb-2">{hint}</p>}
       <div className={`grid ${gridCls} gap-2`}>
@@ -136,16 +138,14 @@ function PersonalContextStep({ state, patch }: StepProps) {
         ]}
         onChange={(v) => patch({ experienceLevel: v })}
       />
-      <ChoiceGroup<FinancialBackground>
-        label="Financial Background"
-        value={state.financialBackground}
-        columns={3}
-        options={[
-          { value: "low",      label: "Low" },
-          { value: "moderate", label: "Moderate" },
-          { value: "high",     label: "High" },
-        ]}
-        onChange={(v) => patch({ financialBackground: v })}
+      <Slider
+        label="Investment Capital"
+        value={state.investmentCapital}
+        min={INVESTMENT_CAPITAL_MIN}
+        max={INVESTMENT_CAPITAL_MAX}
+        step={INVESTMENT_CAPITAL_STEP}
+        format={(v) => `$${v.toLocaleString("en-US")}`}
+        onChange={(v) => patch({ investmentCapital: v })}
       />
     </div>
   );
@@ -360,32 +360,41 @@ export default function InvestmentOnboardingFlow({ onComplete, onBack }: Investm
   const interestsEmpty  = state.assetInterests.length === 0;
   const step3Invalid    = strategiesEmpty || interestsEmpty;
 
+  async function seedDemoIfSkipped(): Promise<void> {
+    if (csvUploaded) return;
+    try {
+      const res = await loadDemoHoldings();
+      if (!res || res.imported === 0) {
+        console.warn("[onboarding] Demo portfolio load returned 0 imports:", res);
+      }
+    } catch (err) {
+      console.warn("[onboarding] Demo portfolio load failed:", err);
+    }
+  }
+
   async function handleComplete() {
     if (submitting) return;
 
     setSubmitting(true);
     setSubmitError(null);
+
+    // Seed the demo portfolio BEFORE navigating so the dashboard sees the
+    // holdings on its first fetch instead of mounting against an empty table.
+    await seedDemoIfSkipped();
+
     try {
-      const tasks: Promise<unknown>[] = [submitInvestmentOnboarding(state)];
-      // If the user skipped the CSV step, seed the demo portfolio so they
-      // land on the dashboard with sample data instead of an empty list.
-      if (!csvUploaded) {
-        tasks.push(loadDemoHoldings().catch(() => undefined));
-      }
-      const [saved] = await Promise.all(tasks) as [Awaited<ReturnType<typeof submitInvestmentOnboarding>>, ...unknown[]];
+      const saved = await submitInvestmentOnboarding(state);
       setAll({ ...state, completedAt: saved.completedAt });
       onComplete();
     } catch {
-      // Cache the values locally so the AI panel still works while the user
-      // figures out the backend; the explicit "Skip" action below lets them
-      // exit the flow without retrying.
       setAll({ ...state, completedAt: new Date().toISOString() });
       setSubmitError("Couldn't reach the server. Click Retry to try again, or Skip to continue without server sync.");
       setSubmitting(false);
     }
   }
 
-  function handleSkipSync() {
+  async function handleSkipSync() {
+    await seedDemoIfSkipped();
     setAll({ ...state, completedAt: new Date().toISOString() });
     onComplete();
   }

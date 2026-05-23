@@ -189,20 +189,18 @@
   "onboarding": {
     "available": true,
     "age": 30,
-    "experienceLevel": "intermediate",
-    "financialBackground": "low",
-    "communicationStyle": "technical",
+    "experienceLevel": "beginner",
+    "investmentCapital": 50000,
+    "communicationStyle": "simple",
     "investmentStrategies": [
-      "buy_and_hold",
-      "income",
-      "day_trading",
-      "index"
+      "buy_and_hold"
     ],
-    "timeHorizon": "indefinitely",
+    "timeHorizon": "monthly",
     "assetInterests": [
       "stock",
-      "crypto"
+      "crypto",
+      "etf"
     ],
-    "completedAt": "2026-05-23T02:26:38.229615+00:00"
+    "completedAt": "2026-05-23T04:45:05.643674+00:00"
   }
 }

@@ -221,7 +221,7 @@ class InvestmentOnboardingProfile(Base):
     user_id               = Column(String,  nullable=False, unique=True, index=True)
     age                   = Column(Integer, nullable=False)
     experience_level      = Column(String,  nullable=False)   # beginner | intermediate | advanced
-    financial_background  = Column(String,  nullable=False)   # low | moderate | high
+    investment_capital    = Column(Integer, nullable=False)   # dollar amount, 0 – 500,000
     communication_style   = Column(String,  nullable=False)   # simple | technical
     investment_goal       = Column(String,  nullable=True)    # legacy: growth | income | preservation | balanced
     investment_strategies = Column(String,  nullable=True)    # JSON list[str]
