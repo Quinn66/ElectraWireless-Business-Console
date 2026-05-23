@@ -1,76 +1,94 @@
 import pandas as pd
 import json
-import os
+import numpy as np
+import yfinance as yf
 
 OUTPUT_FILE = "ydata/csv_analysis_output.json"
 
-TEST_FILE_PATHS = [
-    r"ydata\AMD_6mo.csv",
-    r"ydata\NVDA_6mo.csv"
-]
+TEST_TICKERS = ["AMD", "NVDA"]
+
+
 # ================= CORE ANALYSIS =================
-def analyze_csv(path):
-    # ================= READ WITH 2-ROW HEADER FIX =================
-    df = pd.read_csv(path, skiprows=[1])
+def analyze_ticker(symbol: str) -> dict | None:
+    try:
+        ticker = yf.Ticker(symbol)
 
-    # ================= FIX COLUMN NAMES =================
-    df.columns = [str(c).strip() for c in df.columns]
+        # ================= PRICE HISTORY =================
+        df = ticker.history(period="6mo", auto_adjust=True)
 
-    # first column is actually DATE (not "Price")
-    df = df.rename(columns={df.columns[0]: "Date"})
+        if df.empty:
+            print(f"❌ No data for {symbol}")
+            return None
 
-    # ================= PARSE DATE SAFELY =================
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-    df = df.dropna(subset=["Date"])
+        close = df["Close"].dropna()
 
-    # ================= ENSURE CLOSE IS NUMERIC =================
-    if "Close" not in df.columns:
-        print(f"❌ Missing Close column in {path}")
+        if len(close) < 2:
+            print(f"❌ Not enough data for {symbol}")
+            return None
+
+        start = float(close.iloc[0])
+        end = float(close.iloc[-1])
+
+        change_abs = end - start
+        change_pct = (change_abs / start) * 100
+
+        # ================= VOLATILITY =================
+        daily_returns = close.pct_change().dropna()
+        volatility_pct = (
+            float(daily_returns.std() * np.sqrt(252) * 100)
+            if not daily_returns.empty
+            else None
+        )
+
+        # ================= PRICE RANGE =================
+        high = float(close.max())
+        low = float(close.min())
+
+        # ================= FUNDAMENTALS =================
+        info = ticker.info or {}
+
+        return {
+            "ticker": symbol,
+
+            # price movement
+            "start_price": round(start, 2),
+            "end_price": round(end, 2),
+            "change_abs": round(change_abs, 2),
+            "change_pct": round(change_pct, 2),
+
+            # dataset info
+            "data_points": int(len(close)),
+
+            # risk / stats
+            "volatility_pct": round(volatility_pct, 2) if volatility_pct else None,
+            "fifty_two_week_high": high,
+            "fifty_two_week_low": low,
+
+            # fundamentals
+            "market_cap": info.get("marketCap"),
+            "pe_ratio": info.get("trailingPE"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+
+            # convenience
+            "current_price": round(end, 2),
+        }
+
+    except Exception as e:
+        print(f"[ERROR] {symbol}: {e}")
         return None
 
-    close = pd.to_numeric(df["Close"], errors="coerce").dropna()
 
-    if len(close) < 2:
-        print(f"❌ Not enough valid Close data in {path}")
-        return None
-
-    start = float(close.iloc[0])
-    end = float(close.iloc[-1])
-
-    return {
-        "ticker": os.path.basename(path).replace("_6mo.csv", ""),
-        "start_price": start,
-        "end_price": end,
-        "change_abs": end - start,
-        "change_pct": ((end - start) / start) * 100,
-        "data_points": int(len(close))
-    }
-
-
-# ================= NEW RUN FUNCTION (NO DIRECTORY LOGIC) =================
-def run(file_paths):
-    """
-    Expects a LIST of full CSV file paths
-    Example:
-    [
-        "ydata/AMD_6mo.csv",
-        "ydata/NVDA_6mo.csv"
-    ]
-    """
-
+# ================= RUN FUNCTION =================
+def run(tickers):
     results = []
 
-    if not file_paths:
-        print("❌ No files provided")
+    if not tickers:
+        print("❌ No tickers provided")
         return []
 
-    for path in file_paths:
-
-        if not os.path.exists(path):
-            print(f"❌ File not found: {path}")
-            continue
-
-        data = analyze_csv(path)
+    for symbol in tickers:
+        data = analyze_ticker(symbol)
 
         if data:
             results.append(data)
@@ -85,10 +103,9 @@ def run(file_paths):
 
 # ================= MANUAL TEST =================
 if __name__ == "__main__":
+    print("🧪 Running YFinance Analyzer Test...")
 
-    print("🧪 Running CSV Analyzer Test...")
-
-    output = run(TEST_FILE_PATHS)
+    output = run(TEST_TICKERS)
 
     print("\n📊 RESULTS:")
     print(json.dumps(output, indent=2))

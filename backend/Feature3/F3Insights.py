@@ -6,7 +6,7 @@ import yfinance as yf
 import os
 from groq import Groq
 import pandas as pd
-from csv_analyzer import run as analyze_stock_csvs
+from csv_analyzer import run as analyze_ticker
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -128,75 +128,25 @@ def normalize_ticker(t):
 
 def run_yfinance(stock_list):
     results = []
-    csv_files_used = []
-
-    print("\n🔧 YFINANCE (CSV CACHED MODE):")
-
+    print("\n🔧 YFINANCE LIVE MODE:")
     for s in stock_list:
         ticker = normalize_ticker(s)
-
-        csv_path = os.path.join(DATA_DIR, f"{ticker}_6mo.csv")
-
         try:
-            # ================= ENSURE FILE EXISTS =================
-            if not os.path.exists(csv_path):
-                print(f"⬇️ Downloading {ticker} ...")
+            data = analyze_ticker(ticker)
 
-                data = yf.download(
-                    ticker,
-                    period="6mo",
-                    interval="1d",
-                    progress=False
-                )
-
-                if data.empty:
-                    raise ValueError("No data returned from yfinance")
-
-                data.to_csv(csv_path)
-
-            # track ALL files used (not just downloaded ones)
-            csv_files_used.append(csv_path)
-
-            # ================= READ LOCAL CSV =================
-            df = pd.read_csv(csv_path, skiprows=[1])
-
-            df.columns = [str(c).strip() for c in df.columns]
-
-            if "Close" not in df.columns:
-                raise ValueError(f"Missing Close column in {ticker}")
-
-            close = pd.to_numeric(df["Close"], errors="coerce").dropna()
-
-            if len(close) < 2:
-                raise ValueError(f"Not enough valid Close data for {ticker}")
-
-            current_price = float(close.iloc[-1])
-            start_price = float(close.iloc[0])
-
-            change = current_price - start_price
-            change_pct = (change / start_price) * 100 if start_price != 0 else 0
-
+            if not data:
+                raise ValueError("No data returned")
             print("-", ticker)
-
-            results.append({
-                "stock": ticker,
-                "price": round(current_price, 2),
-                "change_6m": round(change, 2),
-                "change_6m_pct": round(change_pct, 2),
-                "source": "csv_cache"
-            })
+            results.append(data)
 
         except Exception as e:
             results.append({
-                "stock": ticker,
-                "price": None,
-                "change_6m": None,
-                "change_6m_pct": None,
+                "ticker": ticker,
                 "error": str(e)
             })
 
-    return results, csv_files_used
-# 
+    return results
+
 # ================= BUILD PROMPT =================
 def build_prompt(data, memories=None, user_question=None):
     question_block = ""
@@ -473,13 +423,8 @@ def portfolio_analysis(request: PortfolioRequest):
     print(stock_section)
 
     stocks = extract_stock_lines(stock_section)
-
-    # STEP 3: SECOND OUTPUT (yfinance placeholder)
-    stock_data, downloaded_files = run_yfinance(stocks)
     
-    analyze_stock_csvs(downloaded_files)
-    print("\n=== YFINANCE OUTPUT ===")
-    print(stock_data)
+    csv_analysis_data = analyze_ticker(stocks)
 
     # ================= MEMORY RETRIEVAL =================
     user_question = data.get("question", None)
