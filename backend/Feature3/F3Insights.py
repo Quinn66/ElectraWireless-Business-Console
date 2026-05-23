@@ -1,10 +1,16 @@
 import json
 import re
 import time
-from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
+try:
+    from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
+except ImportError:
+    from Feature3.F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 import os
 from groq import Groq
-from csv_analyzer import run as analyze_ticker
+try:
+    from csv_analyzer import run as analyze_ticker
+except ImportError:
+    from Feature3.csv_analyzer import run as analyze_ticker
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -123,43 +129,130 @@ def normalize_ticker(t):
 
     return t
 
+# ================= MARKET CONTEXT BLOCK =================
+def _build_market_context_block(market_context: dict) -> str:
+    if not market_context:
+        return ""
+
+    lines = ["\n=== LIVE MARKET DATA ==="]
+
+    for sym, td in (market_context.get("ticker_data") or {}).items():
+        lines.append(f"\n{sym}:")
+        if td.get("current_price"):
+            lines.append(f"  Current price:   ${td['current_price']}")
+        if td.get("one_year_cagr") is not None:
+            lines.append(f"  1-year CAGR:     {td['one_year_cagr']}%")
+        if td.get("volatility_pct") is not None:
+            lines.append(f"  Annualised vol:  {td['volatility_pct']}%")
+        if td.get("pe_ratio"):
+            lines.append(f"  P/E ratio:       {td['pe_ratio']}")
+        if td.get("sector"):
+            lines.append(f"  Sector:          {td['sector']}")
+        if td.get("fifty_two_week_high") and td.get("fifty_two_week_low"):
+            lines.append(f"  52-week range:   ${td['fifty_two_week_low']} – ${td['fifty_two_week_high']}")
+
+    projection = market_context.get("hypothetical_projection")
+    if projection:
+        yrs = projection['projected_years']
+        yrs_label = (
+            f"{round(yrs * 12, 1)} month{'s' if round(yrs * 12) != 1 else ''}"
+            if yrs < 1 else
+            f"{yrs} year{'s' if yrs != 1 else ''}"
+        )
+        lines.append(f"\n=== HYPOTHETICAL PROJECTION (over {yrs_label}) ===")
+        lines.append(f"If ${projection['invested']:,.2f} were invested in {projection['symbol']} today:")
+        lines.append(f"  Units bought:      {projection['units_bought']} @ ${projection['current_price']}")
+        lines.append(f"  Projected value:   ${projection['projected_value']:,.2f} after {yrs_label}")
+        lines.append(f"  Projected gain:    ${projection['projected_gain']:,.2f} ({projection['projected_gain_pct']:+.2f}%)")
+        lines.append(f"  Based on 1yr CAGR: {projection['based_on_cagr_pct']}%")
+        lines.append(f"  IMPORTANT: You MUST mention '{yrs_label}' when presenting this — never present as an instant return.")
+        lines.append(f"  Note: {projection['note']}")
+
+    hist = market_context.get("historical_performance")
+    if hist:
+        lines.append(f"\n=== HISTORICAL SCENARIO: IF BOUGHT IN {hist['year']} ===")
+        lines.append(f"Total cost if purchased in {hist['year']}: ${hist['total_cost_in_year']:,.2f}")
+        lines.append(f"Current value today:                      ${hist['total_current_value']:,.2f}")
+        lines.append(f"Total profit / loss:                      ${hist['total_profit_loss']:,.2f}")
+        lines.append(f"Total return:                             {hist['total_return_pct']:+.2f}%")
+        lines.append("\nPer-holding breakdown:")
+        for h in hist["holdings"]:
+            lines.append(
+                f"  {h['symbol']}: bought at ${h['price_in_year']} → now ${h['current_price']} "
+                f"({h['quantity']} units) | P&L: ${h['profit_loss']:,.2f} ({h['return_pct']:+.2f}%)"
+            )
+        if hist.get("skipped_symbols"):
+            lines.append(f"  (No data available for: {', '.join(hist['skipped_symbols'])})")
+
+    news = market_context.get("news", {})
+    company_news = news.get("company", {})
+    market_news  = news.get("market", [])
+
+    if company_news:
+        lines.append("\n=== RECENT COMPANY NEWS ===")
+        for sym, articles in company_news.items():
+            if articles:
+                lines.append(f"\n{sym} headlines:")
+                for a in articles:
+                    lines.append(f"  - {a['headline']}")
+                    if a.get("summary"):
+                        lines.append(f"    {a['summary'][:200]}")
+
+    if market_news:
+        lines.append("\n=== GENERAL MARKET NEWS ===")
+        for a in market_news:
+            lines.append(f"  - {a['headline']}")
+            if a.get("summary"):
+                lines.append(f"    {a['summary'][:200]}")
+
+    return "\n".join(lines)
+
+
 # ================= BUILD PROMPT =================
 def build_prompt(data, memories=None, user_question=None):
-    question_block = ""
+
+    memory_block        = ""
+    market_context_block = ""
+    priority_block      = ""
 
     if user_question:
-        question_block = f"""
-
-USER QUESTION:
-{user_question}
+        priority_block = f"""
+YOUR FIRST PRIORITY — ANSWER THIS QUESTION DIRECTLY:
+"{user_question}"
+Look at the portfolio data below and answer this specific question before doing anything else.
 """
-        
-    memory_block = ""
 
     if memories:
         memory_block = "\n\n".join(memories)
 
-    return f"""
-You are a financial portfolio assistant.
+    market_context = data.pop("market_context", None) or {}
+    if market_context:
+        market_context_block = _build_market_context_block(market_context)
 
+    portfolio_json = {k: v for k, v in data.items() if k != "market_context"}
+
+    return f"""
+You are a financial portfolio assistant with access to live market data and recent news.
+{priority_block}
 RELEVANT PAST CONVERSATIONS:
 {memory_block}
 
-Your task is to analyze the provided portfolio JSON.
-
 IMPORTANT RULES:
-- Use provided JSON AND STOCK MARKET DATA if available
-- Do NOT invent data
-- Keep responses concise
-- Use plain English
+- Use the portfolio JSON, live market data, and news provided below
+- Do NOT invent data or prices
+- Keep responses concise and use plain English
 - Do NOT include disclaimers
-- If information cannot be determined, say so
 - Bullet points must start with "-"
+- If market data or news is present, reference it directly in your answer
+- If a hypothetical projection is provided, use those exact numbers and always state the timeframe
+- When citing news, always state which company the headline is actually about
+- Only reference news directly relevant to the holdings — ignore unrelated general market headlines
+- The onboarding field contains investment strategies and asset interests — tailor recommendations to match
+- If strategy is buy_and_hold, favour long-term; if growth, favour high-growth; if income, favour dividends
 
-INPUT JSON:
-{json.dumps(data, indent=2)}
-
-{question_block}
+PORTFOLIO DATA:
+{json.dumps(portfolio_json, indent=2)}
+{market_context_block}
 
 STRICT OUTPUT FORMAT:
 - Section headers MUST match EXACTLY
@@ -167,7 +260,7 @@ STRICT OUTPUT FORMAT:
 - No markdown headings
 
 [SECTION: SUMMARY]
-Write a short portfolio summary.
+Write a short portfolio summary (2-3 sentences).
 
 [SECTION: PROS]
 - List portfolio strengths
@@ -178,16 +271,14 @@ Write a short portfolio summary.
 - Max 5 bullets
 
 [SECTION: NEXT_STEPS]
-- List practical recommendations
+- List practical recommendations based on portfolio and any market data provided
 - Max 5 bullets
+- Must always include at least 1 bullet
 
 [SECTION: QUESTION_RESPONSE]
-Answer the following question without repeating the question
-{user_question if user_question else "NO QUESTION PROVIDED"}
-Answer ONLY if QUESTION is not "NO QUESTION PROVIDED".
-If it is, respond with "No question provided."
-If a question was provided:
-Answer it directly in under 120 words.
+Answer the question "{user_question if user_question else ''}" directly using the portfolio data and market data above.
+Use specific numbers and holding names. Keep under 200 words.
+If no question was provided write: No question provided.
 
 [SECTION: SOURCES]
 - List which datasets were used if any
