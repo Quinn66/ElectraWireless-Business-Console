@@ -13,6 +13,7 @@ Phases covered in this file:
 
 import csv
 import io
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -97,6 +98,7 @@ def upload_holdings_csv(file: UploadFile = File(...), db: Session = Depends(get_
             continue
         try:
             holding = models.InvestmentHolding(
+                id=            str(uuid.uuid4()),
                 user_id=       "demo-user",
                 symbol=        row["symbol"].upper(),
                 asset_type=    row["asset_type"].lower(),

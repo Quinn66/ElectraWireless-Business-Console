@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useProjectionStore } from "@/store/projectionStore";
 import type { ProfilePreset } from "@/lib/profilePresets";
+import { saveForecastConfig } from "@/services/investmentApi";
 import ImportFinancialDataStep from "@/components/ImportFinancialDataStep";
 import type { ExtractedValues } from "@/lib/importUtils";
 import {
@@ -225,6 +226,17 @@ export default function OnboardingFlow({ onComplete, onBack, initialValues }: On
 
     saveCustomSnapshot();
     fetchProphetForecast();
+
+    saveForecastConfig({
+      starting_mrr:    importedValues?.startingMRR    ?? state.revenue,
+      growth_rate:     (importedValues?.growthRate    ?? state.growthRate) * 100,
+      churn_rate:      state.churnRate,
+      cogs_percent:    state.useCOGS    ? (importedValues?.cogsPercent    ?? state.cogsPercent)    * 100 : 0,
+      marketing_spend: state.useMarketing ? (importedValues?.marketingSpend ?? state.marketingSpend) : 0,
+      payroll:         state.usePayroll   ? (importedValues?.payroll        ?? state.payroll)        : 0,
+      months:          state.months,
+    }).catch(() => {});
+
     onComplete();
   }
 

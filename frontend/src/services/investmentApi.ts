@@ -208,16 +208,23 @@ export interface InvestmentAIRequest {
   Goals:    string;
   period:   string;
   summary: {
-    totalCost:   number;
-    cashBalance: number;
+    totalCost:         number;
+    cashBalance:       number;
+    totalCurrentValue: number | null;
+    totalPnL:          number | null;
+    totalReturnPct:    number | null;
   };
   holdings: Array<{
-    symbol:        string;
-    asset_type:    string;
-    quantity:      number;
-    buy_price:     number;
-    purchase_date: string;
-    costBasis:     number;
+    symbol:            string;
+    asset_type:        string;
+    quantity:          number;
+    buy_price:         number;
+    purchase_date:     string;
+    costBasis:         number;
+    current_price:     number | null;
+    current_value:     number | null;
+    profit_loss:       number | null;
+    return_percentage: number | null;
   }>;
   onboarding: {
     available:           boolean;
@@ -236,6 +243,7 @@ export function buildInvestmentAIPayload(
   onboarding: InvestmentOnboardingPayload,
   goals:      string = "",
   period:     string = "Current portfolio",
+  summary:    PortfolioSummary | null = null,
 ): InvestmentAIRequest {
   const cashBalance = holdings
     .filter((h) => h.asset_type === ("cash" as AssetType))
@@ -243,19 +251,39 @@ export function buildInvestmentAIPayload(
 
   const totalCost = holdings.reduce((s, h) => s + h.quantity * h.buy_price, 0);
 
+  const perfMap = new Map<string, AssetPerformance>();
+  if (summary) {
+    for (const a of summary.assets) {
+      perfMap.set(a.symbol.toUpperCase(), a);
+    }
+  }
+
   return {
     question,
     Goals:  goals,
     period,
-    summary: { totalCost, cashBalance },
-    holdings: holdings.map((h) => ({
-      symbol:        h.symbol,
-      asset_type:    h.asset_type,
-      quantity:      h.quantity,
-      buy_price:     h.buy_price,
-      purchase_date: h.purchase_date,
-      costBasis:     h.quantity * h.buy_price,
-    })),
+    summary: {
+      totalCost,
+      cashBalance,
+      totalCurrentValue: summary?.total_value ?? null,
+      totalPnL:          summary?.profit_loss ?? null,
+      totalReturnPct:    summary?.return_percentage ?? null,
+    },
+    holdings: holdings.map((h) => {
+      const perf = perfMap.get(h.symbol.toUpperCase());
+      return {
+        symbol:            h.symbol,
+        asset_type:        h.asset_type,
+        quantity:          h.quantity,
+        buy_price:         h.buy_price,
+        purchase_date:     h.purchase_date,
+        costBasis:         h.quantity * h.buy_price,
+        current_price:     perf?.current_price ?? null,
+        current_value:     perf?.current_value ?? null,
+        profit_loss:       perf?.profit_loss ?? null,
+        return_percentage: perf?.return_percentage ?? null,
+      };
+    }),
     onboarding: {
       available:           true,
       age:                 onboarding.age,
@@ -276,4 +304,56 @@ export async function fetchInvestmentAIInsights(
     { data: payload },
   );
   return res.data;
+}
+
+// ── Forecast Config persistence ───────────────────────────────────────────────
+
+export interface ForecastConfigPayload {
+  starting_mrr:    number;
+  growth_rate:     number;
+  churn_rate:      number;
+  cogs_percent:    number;
+  marketing_spend: number;
+  payroll:         number;
+  months:          number;
+  user_id?:        string;
+}
+
+export async function saveForecastConfig(config: ForecastConfigPayload): Promise<void> {
+  await investmentApiClient.post("/forecast/config", { ...config, user_id: "demo-user" });
+}
+
+export async function loadForecastConfig(): Promise<ForecastConfigPayload | null> {
+  try {
+    const res = await investmentApiClient.get<ForecastConfigPayload>("/forecast/config/demo-user");
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// ── Investment Onboarding persistence ─────────────────────────────────────────
+
+export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPayload | null> {
+  try {
+    const res = await investmentApiClient.get<{
+      age:                  number;
+      experience_level:     string;
+      financial_background: string;
+      communication_style:  string;
+      investment_goal:      string;
+      time_horizon:         string;
+    }>("/investments/onboarding/demo-user");
+    const d = res.data;
+    return {
+      age:                 d.age,
+      experienceLevel:     d.experience_level     as InvestmentOnboardingPayload["experienceLevel"],
+      financialBackground: d.financial_background as InvestmentOnboardingPayload["financialBackground"],
+      communicationStyle:  d.communication_style  as InvestmentOnboardingPayload["communicationStyle"],
+      investmentGoal:      d.investment_goal      as InvestmentOnboardingPayload["investmentGoal"],
+      timeHorizon:         d.time_horizon         as InvestmentOnboardingPayload["timeHorizon"],
+    };
+  } catch {
+    return null;
+  }
 }

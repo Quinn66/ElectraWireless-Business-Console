@@ -95,22 +95,6 @@ class PFBudget(Base):
     )
 
 
-class InvestmentHolding(Base):
-    """One investment holding belonging to a user (Phase 2 — Data Ingestion)."""
-
-    __tablename__ = "investment_holdings"
-
-    id            = Column(String,  primary_key=True)
-    user_id       = Column(String,  nullable=False, index=True)
-    symbol        = Column(String,  nullable=False)
-    asset_type    = Column(String,  nullable=False)   # stock | crypto | etf | fund | real_estate
-    quantity      = Column(Float,   nullable=False)
-    buy_price     = Column(Float,   nullable=False)
-    purchase_date = Column(String,  nullable=False)   # ISO yyyy-mm-dd
-    source        = Column(String,  nullable=False, default="manual")  # manual | csv
-    created_at    = Column(DateTime, default=func.now())
-
-
 class PFSnapshot(Base):
     """
     Point-in-time financial health snapshot computed from a user's transactions.
@@ -139,9 +123,8 @@ class InvestmentHolding(Base):
     e.g. 10 shares of AAPL bought at $150 on 2023-01-15
     """
     __tablename__ = "investment_holdings"
-    __table_args__ = {"extend_existing": True}
 
-    id            = Column(Integer, primary_key=True, autoincrement=True)
+    id            = Column(String,  primary_key=True)
     user_id       = Column(String,  nullable=False, index=True)
     symbol        = Column(String,  nullable=False)          # e.g. "AAPL", "BTC", "VAS.AX"
     asset_type    = Column(String,  nullable=False)          # stock | crypto | etf | fund | real_estate
@@ -149,6 +132,7 @@ class InvestmentHolding(Base):
     buy_price     = Column(Float,   nullable=False)          # price per unit at purchase
     purchase_date = Column(String,  nullable=True)           # ISO yyyy-mm-dd
     source        = Column(String,  nullable=False, default="manual")  # manual | csv
+    created_at    = Column(DateTime, default=func.now())
 
 
 class MarketPrice(Base):
@@ -202,3 +186,59 @@ class InvestmentInsight(Base):
     message      = Column(String,  nullable=False)
     severity     = Column(String,  nullable=False, default="info")  # info | warning | danger
     created_at   = Column(DateTime, default=func.now())
+
+
+# ─────────────────────────────────────────────
+# Shared infrastructure models
+# ─────────────────────────────────────────────
+
+class User(Base):
+    """
+    Central user record. Every other table's user_id references this.
+    account_type matches the LoginScreen selection: user | industry | government
+    """
+    __tablename__ = "users"
+
+    id           = Column(String,  primary_key=True)           # UUID assigned on first login
+    account_type = Column(String,  nullable=False)             # user | industry | government
+    created_at   = Column(DateTime, default=func.now())
+
+
+class InvestmentOnboardingProfile(Base):
+    """
+    Persists the investment onboarding answers for a user (Feature 3).
+    One row per user — upserted on each completed onboarding.
+    Previously written to Feature_3_input.json; now stored in the DB so
+    all teams and features can read it.
+    """
+    __tablename__ = "investment_onboarding_profiles"
+
+    id                   = Column(Integer, primary_key=True, autoincrement=True)
+    user_id              = Column(String,  nullable=False, unique=True, index=True)
+    age                  = Column(Integer, nullable=False)
+    experience_level     = Column(String,  nullable=False)   # beginner | intermediate | advanced
+    financial_background = Column(String,  nullable=False)   # low | moderate | high
+    communication_style  = Column(String,  nullable=False)   # simple | technical
+    investment_goal      = Column(String,  nullable=False)   # growth | income | preservation | balanced
+    time_horizon         = Column(String,  nullable=False)   # short | medium | long
+    completed_at         = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class ForecastConfig(Base):
+    """
+    Persists the business forecast onboarding inputs for a user (Feature 1).
+    One row per user — upserted whenever the user finishes the onboarding flow.
+    Replaces the Zustand-only store so configs survive page refresh.
+    """
+    __tablename__ = "forecast_configs"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    user_id         = Column(String,  nullable=False, unique=True, index=True)
+    starting_mrr    = Column(Float,   nullable=False, default=40100.0)
+    growth_rate     = Column(Float,   nullable=False, default=5.0)    # percentage
+    churn_rate      = Column(Float,   nullable=False, default=3.0)    # percentage
+    cogs_percent    = Column(Float,   nullable=False, default=22.0)   # percentage
+    marketing_spend = Column(Float,   nullable=False, default=4000.0)
+    payroll         = Column(Float,   nullable=False, default=22000.0)
+    months          = Column(Integer, nullable=False, default=12)
+    updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
