@@ -80,12 +80,14 @@ export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentH
     setError(null);
     try {
       const payload = buildInvestmentAIPayload("", holdings, {
-        age:                 onboarding.age,
-        experienceLevel:     onboarding.experienceLevel,
-        financialBackground: onboarding.financialBackground,
-        communicationStyle:  onboarding.communicationStyle,
-        investmentGoal:      onboarding.investmentGoal,
-        timeHorizon:         onboarding.timeHorizon,
+        age:                  onboarding.age,
+        experienceLevel:      onboarding.experienceLevel,
+        financialBackground:  onboarding.financialBackground,
+        communicationStyle:   onboarding.communicationStyle,
+        investmentStrategies: onboarding.investmentStrategies,
+        timeHorizon:          onboarding.timeHorizon,
+        assetInterests:       onboarding.assetInterests,
+        completedAt:          onboarding.completedAt,
       }, "", "Current portfolio", summary);
       setResult(await fetchInvestmentAIInsights(payload));
     } catch {

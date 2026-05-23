@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Optional
 from fastapi import FastAPI, File, HTTPException, UploadFile, Depends, Body
 from datetime import date as date_today, datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +35,53 @@ app = FastAPI(title="ElectraWireless Business Console API")
 
 # Create all PF tables on startup if they don't already exist
 Base.metadata.create_all(bind=engine)
+
+# Idempotent migration: backfill new investment_onboarding_profiles columns on
+# pre-existing SQLite DBs (create_all does not ALTER existing tables).
+def _backfill_onboarding_columns() -> None:
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "investment_onboarding_profiles" not in inspector.get_table_names():
+        return
+    existing_cols = {c["name"] for c in inspector.get_columns("investment_onboarding_profiles")}
+    to_add = [
+        ("investment_strategies", "TEXT"),
+        ("asset_interests",       "TEXT"),
+    ]
+    with engine.begin() as conn:
+        for name, sqltype in to_add:
+            if name not in existing_cols:
+                conn.execute(text(f"ALTER TABLE investment_onboarding_profiles ADD COLUMN {name} {sqltype}"))
+
+
+def _fix_holdings_id_type() -> None:
+    """investment_holdings.id was historically created as INTEGER but the model
+    now uses String (UUID). SQLite has no in-place type change, so when the
+    column is INTEGER and the table is empty we drop + recreate so the schema
+    matches; if it has rows we leave it and log a warning (user must clear
+    holdings before the schema can be fixed)."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "investment_holdings" not in inspector.get_table_names():
+        return
+    id_col = next((c for c in inspector.get_columns("investment_holdings") if c["name"] == "id"), None)
+    if not id_col or "INT" not in str(id_col["type"]).upper():
+        return  # already String / TEXT
+
+    with engine.begin() as conn:
+        row_count = conn.execute(text("SELECT COUNT(*) FROM investment_holdings")).scalar() or 0
+        if row_count > 0:
+            print(f"[migration] investment_holdings.id is INTEGER but model expects String. "
+                  f"{row_count} rows present — leaving as-is. Reset holdings to apply the fix.")
+            return
+        conn.execute(text("DROP TABLE investment_holdings"))
+
+    # Recreate via SQLAlchemy with the correct String id type.
+    models.InvestmentHolding.__table__.create(bind=engine)
+
+
+_backfill_onboarding_columns()
+_fix_holdings_id_type()
 def scheduled_price_refresh():
     """
     Called automatically by the scheduler every 15 min during market hours.
@@ -783,72 +831,153 @@ FEATURE_3_INPUT_PATH = Path(__file__).parent / "Llama Input" / "Feature_3_input.
 
 
 class InvestmentOnboardingRequest(BaseModel):
-    age:                 int
-    experienceLevel:     str   # beginner | intermediate | advanced
-    financialBackground: str   # low | moderate | high
-    communicationStyle:  str   # simple | technical
-    investmentGoal:      str   # growth | income | preservation | balanced
-    timeHorizon:         str   # short | medium | long
-    user_id:             str = "demo-user"
+    age:                  int
+    experienceLevel:      str            # beginner | intermediate | advanced
+    financialBackground:  str            # low | moderate | high
+    communicationStyle:   str            # simple | technical
+    investmentStrategies: list[str]      # subset of: day_trading | index | growth | income | buy_and_hold | dollar_cost_average
+    timeHorizon:          str            # daily | weekly | monthly | annually | indefinitely
+    assetInterests:       list[str]      # subset of: stock | crypto | etf
+    investmentGoal:       Optional[str] = None   # legacy single-goal field; optional
+    user_id:              str = "demo-user"
+
+
+ONBOARDING_RESET_STATE = {
+    "available":            False,
+    "age":                  30,
+    "experienceLevel":      "beginner",
+    "financialBackground":  "moderate",
+    "communicationStyle":   "simple",
+    "investmentStrategies": ["buy_and_hold"],
+    "timeHorizon":          "monthly",
+    "assetInterests":       ["stock", "crypto", "etf"],
+    "completedAt":          None,
+}
+
+
+def _onboarding_record(req: InvestmentOnboardingRequest, completed_at: str) -> dict:
+    """Shape of the onboarding object persisted to Feature_3_input.json."""
+    return {
+        "available":            True,
+        "age":                  req.age,
+        "experienceLevel":      req.experienceLevel,
+        "financialBackground":  req.financialBackground,
+        "communicationStyle":   req.communicationStyle,
+        "investmentStrategies": req.investmentStrategies,
+        "timeHorizon":          req.timeHorizon,
+        "assetInterests":       req.assetInterests,
+        "completedAt":          completed_at,
+    }
 
 
 @app.post("/investments/onboarding")
 def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session = Depends(get_db)):
+    completed_at = datetime.now(timezone.utc).isoformat()
+    strategies_json = json.dumps(req.investmentStrategies)
+    interests_json  = json.dumps(req.assetInterests)
+
     existing = db.query(models.InvestmentOnboardingProfile).filter(
         models.InvestmentOnboardingProfile.user_id == req.user_id
     ).first()
 
     if existing:
-        existing.age                  = req.age
-        existing.experience_level     = req.experienceLevel
-        existing.financial_background = req.financialBackground
-        existing.communication_style  = req.communicationStyle
-        existing.investment_goal      = req.investmentGoal
-        existing.time_horizon         = req.timeHorizon
+        existing.age                   = req.age
+        existing.experience_level      = req.experienceLevel
+        existing.financial_background  = req.financialBackground
+        existing.communication_style   = req.communicationStyle
+        existing.investment_strategies = strategies_json
+        existing.time_horizon          = req.timeHorizon
+        existing.asset_interests       = interests_json
+        # Only overwrite investment_goal when the client explicitly sent one;
+        # the column is NOT NULL on legacy DBs, so writing None here would fail.
+        if req.investmentGoal is not None:
+            existing.investment_goal = req.investmentGoal
     else:
+        # Backfill the legacy NOT NULL column with the first chosen strategy
+        # (or "balanced") so inserts succeed even when the form no longer asks
+        # for a single goal.
+        legacy_goal = req.investmentGoal or (req.investmentStrategies[0] if req.investmentStrategies else "balanced")
         profile = models.InvestmentOnboardingProfile(
-            user_id              = req.user_id,
-            age                  = req.age,
-            experience_level     = req.experienceLevel,
-            financial_background = req.financialBackground,
-            communication_style  = req.communicationStyle,
-            investment_goal      = req.investmentGoal,
-            time_horizon         = req.timeHorizon,
+            user_id               = req.user_id,
+            age                   = req.age,
+            experience_level      = req.experienceLevel,
+            financial_background  = req.financialBackground,
+            communication_style   = req.communicationStyle,
+            investment_goal       = legacy_goal,
+            investment_strategies = strategies_json,
+            time_horizon          = req.timeHorizon,
+            asset_interests       = interests_json,
         )
         db.add(profile)
 
     db.commit()
 
-    # Also keep the JSON file updated so existing Llama prompt builder keeps working
+    record = _onboarding_record(req, completed_at)
+
+    # Mirror to JSON so the Llama prompt builder still has it.
     try:
         with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
             data = json.load(f)
-        data["onboarding"] = {
-            "available":           True,
-            "age":                 req.age,
-            "experienceLevel":     req.experienceLevel,
-            "financialBackground": req.financialBackground,
-            "communicationStyle":  req.communicationStyle,
-            "investmentGoal":      req.investmentGoal,
-            "timeHorizon":         req.timeHorizon,
-            "completedAt":         datetime.now(timezone.utc).isoformat(),
-        }
+        data["onboarding"] = record
         with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
     except Exception:
-        pass  # non-fatal — DB is the source of truth now
+        pass  # non-fatal — DB is the source of truth
 
-    return {"status": "ok", "user_id": req.user_id}
+    return {"status": "ok", "user_id": req.user_id, "onboarding": record}
+
+
+@app.get("/investments/onboarding")
+def get_investment_onboarding_json():
+    """Legacy file-backed read used by the frontend's fetchInvestmentOnboarding()."""
+    try:
+        with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {"available": False}
+    return data.get("onboarding", {"available": False})
+
+
+@app.delete("/investments/onboarding")
+def reset_investment_onboarding(db: Session = Depends(get_db), user_id: str = "demo-user"):
+    """Clear the persisted onboarding profile for a user and reset the JSON mirror."""
+    db.query(models.InvestmentOnboardingProfile).filter(
+        models.InvestmentOnboardingProfile.user_id == user_id
+    ).delete()
+    db.commit()
+
+    try:
+        with FEATURE_3_INPUT_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["onboarding"] = dict(ONBOARDING_RESET_STATE)
+        with FEATURE_3_INPUT_PATH.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+    return {"status": "ok", "onboarding": dict(ONBOARDING_RESET_STATE)}
 
 
 @app.get("/investments/onboarding/{user_id}")
-def get_investment_onboarding(user_id: str, db: Session = Depends(get_db)):
+def get_investment_onboarding_by_user(user_id: str, db: Session = Depends(get_db)):
     profile = db.query(models.InvestmentOnboardingProfile).filter(
         models.InvestmentOnboardingProfile.user_id == user_id
     ).first()
     if not profile:
         raise HTTPException(status_code=404, detail="No onboarding profile found")
-    return profile
+
+    return {
+        "user_id":               profile.user_id,
+        "age":                   profile.age,
+        "experience_level":      profile.experience_level,
+        "financial_background":  profile.financial_background,
+        "communication_style":   profile.communication_style,
+        "investment_goal":       profile.investment_goal,
+        "investment_strategies": json.loads(profile.investment_strategies) if profile.investment_strategies else [],
+        "time_horizon":          profile.time_horizon,
+        "asset_interests":       json.loads(profile.asset_interests) if profile.asset_interests else [],
+        "completed_at":          profile.completed_at.isoformat() if profile.completed_at else None,
+    }
 
 
 # ── Feature 1: Forecast Config ────────────────────────────────────────────────

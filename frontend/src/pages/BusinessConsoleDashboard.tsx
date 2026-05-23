@@ -11,7 +11,8 @@ import OnboardingFlow from "@/OnboardingFlow";
 import InvestmentOnboardingFlow from "@/InvestmentOnboardingFlow";
 import { useProjectionStore } from "@/store/projectionStore";
 import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
-import { deleteAllHoldings } from "@/services/investmentApi";
+import { useInvestmentContextStore } from "@/store/investmentContextStore";
+import { deleteAllHoldings, resetInvestmentOnboarding } from "@/services/investmentApi";
 import { PROFILE_PRESETS, DEFAULT_PRESET } from "@/lib/profilePresets";
 import type { ProfilePreset } from "@/lib/profilePresets";
 
@@ -23,10 +24,11 @@ export function BusinessConsoleDashboard() {
   const [onboardStage, setOnboardStage]       = useState<OnboardStage>("idle");
   const [profilePreset, setProfilePreset]     = useState<ProfilePreset | null>(null);
   const [projectionOnboarded, setProjectionOnboarded] = useState(false);
-  const [investmentOnboarded, setInvestmentOnboarded] = useState(false);
 
-  const accountType  = useProjectionStore((s) => s.accountType);
-  const resetPF      = usePersonalFinanceStore((s) => s.reset);
+  const accountType         = useProjectionStore((s) => s.accountType);
+  const resetPF             = usePersonalFinanceStore((s) => s.reset);
+  const investmentOnboarded = useInvestmentContextStore((s) => s.completedAt !== null);
+  const resetInvestmentCtx  = useInvestmentContextStore((s) => s.reset);
 
   function handleOpenProjection() {
     setActiveTool("projection");
@@ -44,12 +46,19 @@ export function BusinessConsoleDashboard() {
 
   async function handleResetInvestment() {
     if (!window.confirm("This will delete all holdings, snapshots, and market prices. Are you sure?")) return;
+
+    // Local reset is independent of the backend — always re-trigger onboarding
+    // so the user can recover even when the server is unreachable.
+    resetInvestmentCtx();
+    setOnboardStage("investment-onboarding");
+
     try {
-      await deleteAllHoldings();
-      setInvestmentOnboarded(false);
-      setOnboardStage("investment-onboarding");
-    } catch {
-      window.alert("Failed to reset investment data — check the server is running.");
+      await Promise.all([
+        deleteAllHoldings(),
+        resetInvestmentOnboarding(),
+      ]);
+    } catch (err) {
+      console.warn("Local reset succeeded but server-side state could not be fully cleared:", err);
     }
   }
 
@@ -107,10 +116,7 @@ export function BusinessConsoleDashboard() {
       if (onboardStage === "investment-onboarding") {
         return (
           <InvestmentOnboardingFlow
-            onComplete={() => {
-              setOnboardStage("idle");
-              setInvestmentOnboarded(true);
-            }}
+            onComplete={() => setOnboardStage("idle")}
             onBack={() => {
               setOnboardStage("idle");
               setActiveTool("home");
