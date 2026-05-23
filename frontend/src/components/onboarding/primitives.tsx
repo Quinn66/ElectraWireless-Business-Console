@@ -87,7 +87,7 @@ export function Slider({ label, value, min, max, step, format, parse, onChange, 
   }
 
   return (
-    <div className={`mb-3 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
+    <div className={`mb-6 transition-opacity duration-200 ${disabled ? "opacity-30" : "opacity-100"}`}>
       {hint && <p className="text-muted-foreground text-xs mb-0.5">{hint}</p>}
       {label !== "" && (
         <div className="flex justify-between items-center mb-1">
@@ -161,9 +161,14 @@ export function Tip({ text, size = "md" }: TipProps) {
 
 // ─── NavRow ───────────────────────────────────────────────────────────────────
 
-export interface NavRowProps { onBack: () => void; onNext: () => void; nextLabel: string; }
+export interface NavRowProps {
+  onBack: () => void;
+  onNext: () => void;
+  nextLabel: string;
+  nextDisabled?: boolean;
+}
 
-export function NavRow({ onBack, onNext, nextLabel }: NavRowProps) {
+export function NavRow({ onBack, onNext, nextLabel, nextDisabled = false }: NavRowProps) {
   return (
     <div className="flex justify-between mt-5">
       <button
@@ -174,7 +179,8 @@ export function NavRow({ onBack, onNext, nextLabel }: NavRowProps) {
       </button>
       <button
         onClick={onNext}
-        className="bg-primary text-primary-foreground rounded-lg px-6 py-2.5 text-sm font-semibold hover:opacity-85 transition-opacity duration-150 font-sans"
+        disabled={nextDisabled}
+        className="bg-primary text-primary-foreground rounded-lg px-6 py-2.5 text-sm font-semibold hover:opacity-85 transition-opacity duration-150 font-sans disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50"
       >
         {nextLabel}
       </button>

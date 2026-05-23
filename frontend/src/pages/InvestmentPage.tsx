@@ -469,7 +469,7 @@ function PriceAlertsPanel({ assets }: { assets: AssetPerformance[] }) {
                   <div style={{ fontSize: 10.5, color: "#aaa", marginTop: 3 }}>
                     {`${a.quantity} units held · ${fmt$(a.current_value)} value · total return `}
                     <span style={{ color: totalRetColor, fontWeight: 600 }}>
-                      {a.return_percentage >= 0 ? "+" : ""}{(a.return_percentage * 100).toFixed(2)}%
+                      {a.return_percentage >= 0 ? "+" : ""}{a.return_percentage.toFixed(2)}%
                     </span>
                   </div>
                 </div>
@@ -1079,14 +1079,14 @@ function InsightsTab({ holdings }: { holdings: InvestmentHolding[] }) {
 
 // ── AI Scenarios tab ──────────────────────────────────────────────────────────
 
-function AITab({ holdings }: { holdings: InvestmentHolding[] }) {
+function AITab({ holdings, summary }: { holdings: InvestmentHolding[]; summary: PortfolioSummary | null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ fontSize: 12.5, color: "#666", margin: 0 }}>
         AI-powered scenario planning. Connects onboarding context (age, horizon, experience) into prompts.
       </p>
 
-      <InvestmentAIPanel holdings={holdings} />
+      <InvestmentAIPanel holdings={holdings} summary={summary} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <PlaceholderCard icon={<Sparkles size={15} />} title="Hypothetical Scenario"
@@ -1165,7 +1165,7 @@ export function InvestmentPage() {
                  onAdd={handleAdd} onDelete={handleDelete} onClearAll={handleClearAll} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
     insights:  <InsightsTab holdings={holdings} />,
-    ai:        <AITab holdings={holdings} />,
+    ai:        <AITab holdings={holdings} summary={summary} />,
   };
 
   return (

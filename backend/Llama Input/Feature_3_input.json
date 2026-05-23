@@ -190,10 +190,17 @@
     "available": true,
     "age": 30,
     "experienceLevel": "beginner",
-    "financialBackground": "moderate",
+    "investmentCapital": 50000,
     "communicationStyle": "simple",
-    "investmentGoal": "balanced",
-    "timeHorizon": "medium",
-    "completedAt": "2026-05-16T05:51:13.969803+00:00"
+    "investmentStrategies": [
+      "buy_and_hold"
+    ],
+    "timeHorizon": "monthly",
+    "assetInterests": [
+      "stock",
+      "crypto",
+      "etf"
+    ],
+    "completedAt": "2026-05-23T04:45:05.643674+00:00"
   }
 }
