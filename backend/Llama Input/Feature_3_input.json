@@ -193,14 +193,16 @@
     "investmentCapital": 50000,
     "communicationStyle": "simple",
     "investmentStrategies": [
-      "buy_and_hold"
+      "index",
+      "buy_and_hold",
+      "growth"
     ],
-    "timeHorizon": "monthly",
+    "timeHorizon": "annually",
     "assetInterests": [
       "stock",
       "crypto",
       "etf"
     ],
-    "completedAt": "2026-05-23T04:45:05.643674+00:00"
+    "completedAt": "2026-05-27T03:14:16.477497+00:00"
   }
 }

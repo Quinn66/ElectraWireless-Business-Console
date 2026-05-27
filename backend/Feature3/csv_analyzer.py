@@ -69,6 +69,8 @@ def analyze_ticker(symbol: str) -> dict | None:
             "pe_ratio": info.get("trailingPE"),
             "sector": info.get("sector"),
             "industry": info.get("industry"),
+            "exchange": info.get("exchange"),
+            "country": info.get("country"),
 
             # convenience
             "current_price": round(end, 2),

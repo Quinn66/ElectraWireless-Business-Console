@@ -274,6 +274,40 @@ def get_allocation(db: Session = Depends(get_db)):
     return compute_allocation(holding_dicts)
 
 
+@router.get("/geographic-exposure")
+def get_geographic_exposure(db: Session = Depends(get_db)):
+    from Feature3.market_research import fetch_geographic_exposure
+
+    holdings = db.query(models.InvestmentHolding).filter(
+        models.InvestmentHolding.user_id == "demo-user"
+    ).all()
+
+    price_map     = _build_price_map(holdings, db)
+    holding_dicts = [_holding_to_dict(h, price_map) for h in holdings]
+
+    def _val(h: dict) -> float:
+        p = h.get("current_price") or h["buy_price"]
+        return h["quantity"] * p
+
+    total_value = sum(_val(h) for h in holding_dicts)
+    for h in holding_dicts:
+        h["weight"] = (_val(h) / total_value * 100) if total_value else 0
+
+    exposure = fetch_geographic_exposure(holding_dicts)
+
+    by_geography = [
+        {
+            "region":     r["region"],
+            "symbols":    r["symbols"],
+            "value":      round(total_value * r["weight_pct"] / 100, 2),
+            "percentage": r["weight_pct"],
+        }
+        for r in exposure.get("by_region", [])
+    ]
+
+    return {"total_value": round(total_value, 2), "by_geography": by_geography}
+
+
 # ── Portfolio Snapshots ───────────────────────────────────────────────────────
 
 @router.get("/snapshots")

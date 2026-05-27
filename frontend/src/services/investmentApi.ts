@@ -225,6 +225,23 @@ export async function fetchMarketMovers(): Promise<MarketMovers> {
   return res.data;
 }
 
+export interface GeoExposureEntry {
+  region:     string;
+  symbols:    string[];
+  value:      number;
+  percentage: number;
+}
+
+export interface GeoExposureResponse {
+  total_value:  number;
+  by_geography: GeoExposureEntry[];
+}
+
+export async function fetchGeographicExposure(): Promise<GeoExposureResponse> {
+  const res = await investmentApiClient.get<GeoExposureResponse>("/investments/geographic-exposure");
+  return res.data;
+}
+
 export async function deleteAllHoldings(): Promise<void> {
   await investmentApiClient.delete("/investments/holdings");
 }
