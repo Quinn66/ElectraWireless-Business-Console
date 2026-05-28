@@ -1,29 +1,28 @@
 {
-  "summary": "The portfolio has a total value of $12,500, with a return percentage of 25% over the last 6 months. The top gainers are BTC and AAPL, while the top loser is VOO. The portfolio has a high concentration of crypto assets, with 70% of the portfolio in BTC, exceeding the 25% concentration threshold.",
+  "summary": "Your portfolio is currently valued at $12,500, with a total profit of $2,500 over the last 6 months. The portfolio has a diversification score of 62 and a risk grade of B.",
   "pros": [
-    "The portfolio has a strong return percentage of 25% over the last 6 months.",
-    "BTC and AAPL are performing well, with return percentages of 38.1% and 30.33%, respectively.",
-    "The portfolio has a relatively low diversification score of 62/100.",
-    "The cash balance is $1,500, providing some liquidity.",
-    "The portfolio has a risk grade of \"B\", indicating a moderate level of risk."
+    "The portfolio has a high return percentage of 25% over the last 6 months",
+    "The cash balance is $1,500, providing liquidity",
+    "The portfolio has a low day change percentage of 1.18%",
+    "The top gainer is BTC with a return percentage of 38.1%",
+    "The portfolio has a clear goal to reach $20,000 within 12 months"
   ],
   "cons": [
-    "The portfolio has a high concentration of crypto assets, with 70% of the portfolio in BTC.",
-    "The diversification score is relatively low at 62/100.",
-    "VOO is performing poorly, with a return percentage of -3.2%.",
-    "The portfolio has a high volatility of 18.4%, indicating a high level of risk.",
-    "The top concentration is in BTC, which may be a risk if the crypto market declines."
+    "The portfolio has a high concentration of crypto, with 69.6% in BTC",
+    "The diversification score is 62, indicating a need for more diversification",
+    "The portfolio has a high risk grade of B",
+    "The top loser is VOO with a return percentage of -3.2%",
+    "The portfolio dipped in April, with a 4.1% decrease in value"
   ],
   "next_steps": [
-    "Reduce the concentration of crypto assets to below 25% by selling or hedging BTC.",
-    "Add 2-3 uncorrelated positions to improve diversification.",
-    "Consider adding positions in stronger performers like NVDA and AMD.",
-    "Review and adjust investment strategies to align with goals and risk tolerance.",
-    "Consider increasing the cash balance to 10-20% of the portfolio."
+    "Rebalance the portfolio to reduce crypto concentration",
+    "Add more diversified assets to the portfolio",
+    "Consider adding stocks or ETFs to reduce risk",
+    "Monitor the portfolio's performance regularly",
+    "Adjust the portfolio to meet the goal of reaching $20,000 within 12 months"
   ],
-  "question_response": "Based on the performance trends of the stocks in question, it is recommended to consider adding NVDA and AMD to the portfolio, as they have stronger performance trends compared to SPY and NVDA. However, it is essential to consider the overall portfolio performance and risk tolerance before making any additions.",
+  "question_response": "Your portfolio is doing well overall, with a high return percentage of 25% over the last 6 months. However, it has a high concentration of crypto and a low diversification score, which may increase risk. To improve, consider rebalancing the portfolio and adding more diversified assets.",
   "sources": [
-    "Portfolio JSON",
-    "Stock market data analysis"
+    "The provided portfolio JSON data was used for analysis"
   ]
 }

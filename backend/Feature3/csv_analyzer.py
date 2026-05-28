@@ -146,6 +146,39 @@ def analyze_ticker(symbol: str) -> dict | None:
         print(f"[ERROR] {symbol}: {e}")
         return None
 
+def format_market_data(csv_analysis_data, csv_prediction_data):
+
+    analysis_lines = []
+    prediction_lines = []
+
+    # ===== ANALYSIS =====
+    for x in csv_analysis_data:
+        analysis_lines.append(
+            f"{x.get('ticker')} | "
+            f"chg={x.get('change_pct')}% | "
+            f"vol={x.get('volatility_pct')}% | "
+            f"pe={x.get('pe_ratio')} | "
+            f"mcap={x.get('market_cap')} | "
+            f"price={x.get('current_price')}"
+        )
+
+    # ===== PREDICTIONS =====
+    for p in csv_prediction_data:
+        prediction_lines.append(
+            f"{p.get('symbol')} | "
+            f"gain={p.get('projected_gain_pct')}% | "
+            f"proj={p.get('projected_price')} | "
+            f"yrs={p.get('projected_years')} | "
+            f"model={p.get('model')}"
+        )
+
+    market_analysis = (analysis_lines)
+    market_predictions = (prediction_lines)
+
+    return market_analysis, market_predictions
+
+
+
 
 # ================= RUN FUNCTION =================
 def run(tickers):

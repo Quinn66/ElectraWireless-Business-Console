@@ -4,7 +4,7 @@ import time
 from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 import os
 from groq import Groq
-from csv_analyzer import run as analyze_ticker, project_investment_prophet
+from csv_analyzer import run as analyze_ticker, project_investment_prophet, format_market_data
 
 DATA_DIR = "ydata"
 
@@ -190,43 +190,25 @@ def normalize_ticker(t):
 
     return t
 
-
-# def run_yfinance(stock_list):
-#     results = []
-#     print("\n🔧 YFINANCE LIVE MODE:")
-#     for s in stock_list:
-#         ticker = normalize_ticker(s)
-#         try:
-#             data = analyze_ticker(ticker)
-#             if not data:
-#                 raise ValueError("No data returned")
-#             print("-", ticker)
-#             results.append(data)
-#         except Exception as e:
-#             results.append({
-#                 "ticker": ticker,
-#                 "error": str(e)
-#             })
-
-#     return results
-# 
 # ================= BUILD PROMPT =================
-def build_prompt(data, memories=None, user_question=None):
-    question_block = ""
+def build_prompt(
+    data, memories=None, user_question=None, onboarding=None,
+    market_analysis_block="", market_prediction_block=""):
+    
+    memory_block = "\n\n".join(memories) if memories else ""
 
-    if user_question:
-        question_block = f"""
+    onboarding = onboarding or {}
 
-USER QUESTION:
-{user_question}
-"""
-        
-    memory_block = ""
-
-    if memories:
-        memory_block = "\n\n".join(memories)
+    onboarding_available = onboarding.get("available", False)
+    onboarding_age = onboarding.get("age", None)
+    onboarding_experience = onboarding.get("experienceLevel", "unknown")
+    onboarding_capital = onboarding.get("investmentCapital", 0)
+    onboarding_style = onboarding.get("communicationStyle", "normal")
+    onboarding_strategies = onboarding.get("investmentStrategies", [])
+    onboarding_strategy_text = ", ".join(str(s).replace("_", " ").title() for s in onboarding_strategies) if onboarding_strategies else "none"
 
     return f"""
+
 You are a financial portfolio assistant.
 
 RELEVANT PAST CONVERSATIONS:
@@ -243,15 +225,27 @@ IMPORTANT RULES:
 - If information cannot be determined, say so
 - Bullet points must start with "-"
 
-INPUT JSON:
+USER PORTFOLIO:
 {json.dumps(data, indent=2)}
-
-{question_block}
 
 STRICT OUTPUT FORMAT:
 - Section headers MUST match EXACTLY
 - No extra sections
 - No markdown headings
+
+[SECTION: PROFILE]
+- Available: {onboarding_available}
+- Age: {onboarding_age}
+- Experience Level: {onboarding_experience}
+- Investment Capital: ${onboarding_capital}
+- Communication Style: {onboarding_style}
+- Preferred Strategies: {onboarding_strategy_text}
+
+[SECTION: MARKET ANALYSIS]
+{market_analysis_block}
+
+[SECTION: MARKET PREDICTIONS]
+{market_prediction_block}
 
 [SECTION: SUMMARY]
 Write a short portfolio summary.
@@ -269,12 +263,16 @@ Write a short portfolio summary.
 - Max 5 bullets
 
 [SECTION: QUESTION_RESPONSE]
-Answer the following question without repeating the question
+Answer without repeating the question:
 {user_question if user_question else "NO QUESTION PROVIDED"}
-Answer ONLY if QUESTION is not "NO QUESTION PROVIDED".
-If it is, respond with "No question provided."
-If a question was provided:
-Answer it directly in under 120 words.
+Only answer if a question exists. If not, respond: "No question provided."
+Adapt to user level: {onboarding_experience}
+Beginner or Similar: simple terms, basic strategies and analysis only, no complex instruments
+Intermediate or Similar: moderate strategies and analysis with brief explanations
+Advanced or Similar: allow complex strategies and analysis but keep explanations clear
+Always match advice complexity to user understanding level
+Answer it directly in under 240 words.
+Any suggestions made must be within the limit of ${onboarding_capital}
 
 [SECTION: SOURCES]
 - List which datasets were used if any
@@ -283,10 +281,10 @@ Answer it directly in under 120 words.
 
 # ================= LOCAL OLLAMA =================
 def get_analysis(prompt):
-
+# 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "system",
@@ -371,6 +369,17 @@ def save_output(parsed_data):
 
     print(f"💾 Saved to {OUTPUT_FILE}")
 
+
+# 
+def build_market_data_block(csv_analysis_data, csv_prediction_data):
+    return f"""
+[MARKET_DATA: ANALYSIS]
+{json.dumps(csv_analysis_data, indent=2)}
+
+[MARKET_DATA: PREDICTIONS]
+{json.dumps(csv_prediction_data, indent=2)}
+"""
+# 
 
 def build_memory_fact(parsed):
 
@@ -468,18 +477,17 @@ def detect_intent(question):
 # ================= MAIN =================
 def run():
     start = time.perf_counter()
-
     data = load_input()
     if not data:
         return
-
     print("🔍 Generating analysis...\n")
-
+# ================= ONBOARDING EXTRACTION =================
+    onboarding = data.get("onboarding", {})
     user_question = data.get("question", None)
+    # extract from porfolio
 
     # STEP 2: STOCK EXTRACTION
     stock_section = extract_intent(data, user_question)
-
     print("\n=== STOCK EXTRACTION ===")
     print(stock_section)
 
@@ -514,28 +522,33 @@ def run():
     # STEP 4: MAIN LLM ANALYSIS
     # ================= LOAD CSV ANALYSIS JSON =================
     csv_analysis_path = os.path.join(DATA_DIR, "csv_analysis_output.json")
+    csv_prediction_path = os.path.join(DATA_DIR, "csv_prediction_output_analysis.json")
+
     csv_analysis_data = []
+    csv_prediction_data = []
 
     if os.path.exists(csv_analysis_path):
         with open(csv_analysis_path, "r", encoding="utf-8") as f:
             csv_analysis_data = json.load(f)
 
+    if os.path.exists(csv_prediction_path):
+        with open(csv_prediction_path, "r", encoding="utf-8") as f:
+            csv_prediction_data = json.load(f)
+
+    # COMPACT MARKET DATA BLOCK (NEW FORMATTER)
+    market_analysis_block, market_prediction_block = format_market_data(
+        csv_analysis_data,
+        csv_prediction_data
+    )
     # ================= BUILD FINAL PROMPT =================
     prompt = build_prompt(
         data,
         memories,
-        user_question
-    ) + f"""
-
-    STOCK MARKET DATA ANALYSIS:
-    {json.dumps(csv_analysis_data, indent=2)}
-
-    IMPORTANT:
-    - Use this stock market data when answering stock-related questions
-    - Compare stock performance using change_pct
-    - Mention stronger performers when relevant
-    - Use ticker performance trends when suggesting additions to portfolio
-    """
+        user_question,
+        onboarding,
+        market_analysis_block,
+        market_prediction_block
+    )
 
     raw_output = get_analysis(prompt)
 
