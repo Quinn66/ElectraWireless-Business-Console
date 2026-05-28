@@ -314,6 +314,9 @@ In QUESTION_RESPONSE:
     geo_block = _build_geographic_exposure_block(geo_exposure)
 
     # ================= EMERGENCY CASH RESERVE =================
+    # Prefer the user-declared emergencyCash (onboarding) over the PF-derived
+    # cashBalance (summary) — the onboarding value is the cushion the user
+    # explicitly says lives outside the portfolio.
     reserve_block = ""
     _onboarding = data.get("onboarding") or {}
     _summary = data.get("summary") or {}
@@ -321,7 +324,12 @@ In QUESTION_RESPONSE:
         _onboarding.get("monthlyExpenses")
         or _onboarding.get("monthly_expenses")
     )
-    cash_balance = _summary.get("cashBalance")
+    emergency_cash = (
+        _onboarding.get("emergencyCash")
+        if _onboarding.get("emergencyCash") not in (None, 0)
+        else None
+    )
+    cash_balance = emergency_cash if emergency_cash is not None else _summary.get("cashBalance")
 
     if monthly_expenses and cash_balance is not None:
         reserve_min = monthly_expenses * 3
@@ -341,6 +349,16 @@ Monthly expenses:          ${monthly_expenses:,.2f}
 Recommended reserve (3–6 months): ${reserve_min:,.2f} – ${reserve_max:,.2f}
 Current coverage:          {months_covered:.1f} months
 Status:                    {status}
+"""
+    elif emergency_cash is not None:
+        # Coverage analysis needs monthly_expenses (PF data) — without it we
+        # can't compute months covered, but we still must surface the cushion
+        # figure plainly so the LLM doesn't latch onto summary.cashBalance (= $0).
+        reserve_block = f"""
+=== EMERGENCY CASH RESERVE ===
+Emergency cash on hand:    ${emergency_cash:,.2f} (user-declared, held outside the market)
+Monthly expenses:          not available — connect Personal Finance to compute months of coverage
+When referencing the user's emergency cash, use this figure ${emergency_cash:,.2f}, NOT summary.cashBalance.
 """
 
     portfolio_json = {k: v for k, v in data.items() if k != "market_context"}
@@ -363,6 +381,7 @@ IMPORTANT RULES:
 - Only reference news directly relevant to the holdings — ignore unrelated general market headlines
 - The onboarding field contains the user's profile — always tailor advice to match it exactly
 - onboarding.investmentCapital is their total available capital in dollars — use it for specific dollar allocation amounts
+- onboarding.emergencyCash is the user's declared cash cushion held OUTSIDE the market — never recommend allocating it; treat it as separate from investmentCapital and use it (not investmentCapital) when discussing emergency reserve adequacy
 - onboarding.investmentStrategies drives the allocation style: buy_and_hold → stable long-term assets; growth → high-growth stocks; income → dividend ETFs; day_trading → liquid high-volatility assets; index → broad index ETFs; dollar_cost_average → staggered entries
 - onboarding.assetInterests lists which asset classes they want exposure to (stock, crypto, etf) — only recommend assets from this list
 - onboarding.timeHorizon is their trading frequency (daily/weekly/monthly/annually/indefinitely) — factor this into how actively they should manage positions

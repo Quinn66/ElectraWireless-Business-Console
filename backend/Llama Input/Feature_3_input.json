@@ -191,6 +191,7 @@
     "age": 30,
     "experienceLevel": "beginner",
     "investmentCapital": 50000,
+    "emergencyCash": 10000,
     "communicationStyle": "simple",
     "investmentStrategies": [
       "buy_and_hold"
@@ -201,6 +202,6 @@
       "crypto",
       "etf"
     ],
-    "completedAt": "2026-05-28T05:34:09.197189+00:00"
+    "completedAt": "2026-05-28T10:40:52.834577+00:00"
   }
 }

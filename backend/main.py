@@ -47,6 +47,7 @@ def _backfill_onboarding_columns() -> None:
     to_add = [
         ("investment_strategies", "TEXT"),
         ("asset_interests",       "TEXT"),
+        ("emergency_cash",        "INTEGER"),
     ]
     with engine.begin() as conn:
         for name, sqltype in to_add:
@@ -729,6 +730,12 @@ def _build_profile_context(onboarding: dict) -> str:
             parts.append(f"${int(cap):,} capital")
         except (TypeError, ValueError):
             pass
+    cash = onboarding.get("emergencyCash")
+    if cash is not None:
+        try:
+            parts.append(f"${int(cash):,} emergency cash")
+        except (TypeError, ValueError):
+            pass
     horizon = onboarding.get("timeHorizon")
     if horizon:
         parts.append(f"{horizon} horizon")
@@ -765,6 +772,8 @@ def _answer_profile_question(question: str, onboarding: dict) -> Optional[str]:
         (("experience level", "experience"), lambda v: f"Your experience level is {v}."),
         (("investment capital", "capital", "net worth"),
             lambda v: f"Your stated investment capital is ${int(v):,}."),
+        (("emergency cash", "cash cushion", "cushion", "emergency fund"),
+            lambda v: f"Your stated emergency cash is ${int(v):,}."),
         (("age",),                       lambda v: f"You're {v} years old."),
         (("communication style", "tone"),lambda v: f"Your preferred communication style is {v}."),
         (("investment strategies", "strategies", "strategy"),
@@ -779,6 +788,10 @@ def _answer_profile_question(question: str, onboarding: dict) -> Optional[str]:
         "investment capital":   "investmentCapital",
         "capital":              "investmentCapital",
         "net worth":            "investmentCapital",
+        "emergency cash":       "emergencyCash",
+        "cash cushion":         "emergencyCash",
+        "cushion":              "emergencyCash",
+        "emergency fund":       "emergencyCash",
         "age":                  "age",
         "communication style":  "communicationStyle",
         "tone":                 "communicationStyle",
@@ -975,6 +988,7 @@ class InvestmentOnboardingRequest(BaseModel):
     age:                  int
     experienceLevel:      str            # beginner | intermediate | advanced
     investmentCapital:    int            # dollar amount, 0 – 500,000
+    emergencyCash:        int            # dollar amount, 0 – 200,000; cash held outside the portfolio
     communicationStyle:   str            # simple | technical
     investmentStrategies: list[str]      # subset of: day_trading | index | growth | income | buy_and_hold | dollar_cost_average
     timeHorizon:          str            # daily | weekly | monthly | annually | indefinitely
@@ -988,6 +1002,7 @@ ONBOARDING_RESET_STATE = {
     "age":                  30,
     "experienceLevel":      "beginner",
     "investmentCapital":    50000,
+    "emergencyCash":        10000,
     "communicationStyle":   "simple",
     "investmentStrategies": ["buy_and_hold"],
     "timeHorizon":          "monthly",
@@ -1003,6 +1018,7 @@ def _onboarding_record(req: InvestmentOnboardingRequest, completed_at: str) -> d
         "age":                  req.age,
         "experienceLevel":      req.experienceLevel,
         "investmentCapital":    req.investmentCapital,
+        "emergencyCash":        req.emergencyCash,
         "communicationStyle":   req.communicationStyle,
         "investmentStrategies": req.investmentStrategies,
         "timeHorizon":          req.timeHorizon,
@@ -1025,6 +1041,7 @@ def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session =
         existing.age                   = req.age
         existing.experience_level      = req.experienceLevel
         existing.investment_capital    = req.investmentCapital
+        existing.emergency_cash        = req.emergencyCash
         existing.communication_style   = req.communicationStyle
         existing.investment_strategies = strategies_json
         existing.time_horizon          = req.timeHorizon
@@ -1043,6 +1060,7 @@ def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session =
             age                   = req.age,
             experience_level      = req.experienceLevel,
             investment_capital    = req.investmentCapital,
+            emergency_cash        = req.emergencyCash,
             communication_style   = req.communicationStyle,
             investment_goal       = legacy_goal,
             investment_strategies = strategies_json,
@@ -1112,6 +1130,7 @@ def get_investment_onboarding_by_user(user_id: str, db: Session = Depends(get_db
         "age":                   profile.age,
         "experience_level":      profile.experience_level,
         "investment_capital":    profile.investment_capital,
+        "emergency_cash":        profile.emergency_cash,
         "communication_style":   profile.communication_style,
         "investment_goal":       profile.investment_goal,
         "investment_strategies": json.loads(profile.investment_strategies) if profile.investment_strategies else [],
