@@ -15,6 +15,45 @@ except ImportError:
 FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "")
 FINNHUB_BASE    = "https://finnhub.io/api/v1"
 
+EXCHANGE_MAP = {
+    # United States
+    "NMS": "United States", "NYQ": "United States", "NGM": "United States",
+    "PCX": "United States", "BTS": "United States", "PNK": "United States",
+    "NCM": "United States", "NYSEArca": "United States",
+    # India
+    "NSE": "India", "BSE": "India",
+    # United Kingdom
+    "LSE": "United Kingdom", "IOB": "United Kingdom",
+    # Japan
+    "TYO": "Japan", "OSA": "Japan",
+    # China / Hong Kong
+    "SHH": "China", "SHZ": "China", "HKG": "Hong Kong",
+    # Germany
+    "FRA": "Germany", "XETRA": "Germany",
+    # Canada
+    "TOR": "Canada", "VAN": "Canada", "CNQ": "Canada",
+    # Australia
+    "ASX": "Australia",
+    # France
+    "PAR": "France",
+    # Switzerland
+    "EBS": "Switzerland",
+    # South Korea
+    "KSC": "South Korea", "KOE": "South Korea",
+    # Brazil
+    "SAO": "Brazil",
+    # Singapore
+    "SES": "Singapore",
+    # Netherlands
+    "AMS": "Netherlands",
+    # Sweden
+    "STO": "Sweden",
+    # Spain
+    "MCE": "Spain",
+    # Italy
+    "MIL": "Italy",
+}
+
 # Common words to exclude from ticker detection
 _SKIP_WORDS = {
     "I", "A", "AT", "BE", "BY", "DO", "GO", "IF", "IN", "IS", "IT", "ME",
@@ -307,4 +346,55 @@ def calculate_historical_performance(holdings: list[dict], year: int) -> dict | 
         "total_return_pct":   round(total_ret_pct, 2),
         "skipped_symbols":    skipped,
         "note": f"Prices taken from first available trading day of {year}. Past performance does not guarantee future results.",
+    }
+
+
+def fetch_geographic_exposure(holdings: list[dict]) -> dict:
+    """
+    For each portfolio holding, look up exchange via yfinance and map it to a
+    region using EXCHANGE_MAP. Returns a weight-based breakdown by region.
+    """
+    region_weights: dict[str, float] = {}
+    region_holdings: dict[str, list[str]] = {}
+    detail = []
+    skipped = []
+
+    for h in holdings:
+        symbol     = h.get("symbol", "").upper()
+        asset_type = h.get("asset_type", "")
+        weight     = h.get("weight") or 0
+
+        if asset_type == "cash":
+            continue
+
+        if asset_type == "crypto" or symbol in _CRYPTO_SUFFIX:
+            region = "Crypto (Global)"
+            region_weights[region] = region_weights.get(region, 0) + weight
+            region_holdings.setdefault(region, []).append(symbol)
+            detail.append({"symbol": symbol, "region": region, "exchange": "N/A", "weight": weight})
+            continue
+
+        try:
+            yf_sym   = _yf_symbol(symbol, asset_type)
+            info     = yf.Ticker(yf_sym).info or {}
+            exchange = info.get("exchange", "")
+            country  = info.get("country", "")
+            region   = EXCHANGE_MAP.get(exchange) or country or "Unknown"
+
+            region_weights[region] = region_weights.get(region, 0) + weight
+            region_holdings.setdefault(region, []).append(symbol)
+            detail.append({"symbol": symbol, "exchange": exchange, "region": region, "weight": weight})
+        except Exception as e:
+            print(f"[geo_exposure] Failed for {symbol}: {e}")
+            skipped.append(symbol)
+
+    sorted_regions = sorted(region_weights.items(), key=lambda x: x[1], reverse=True)
+
+    return {
+        "by_region": [
+            {"region": r, "weight_pct": round(w, 2), "symbols": region_holdings.get(r, [])}
+            for r, w in sorted_regions
+        ],
+        "detail":  detail,
+        "skipped": skipped,
     }

@@ -9,8 +9,10 @@ import os
 from groq import Groq
 try:
     from csv_analyzer import run as analyze_ticker
+    from market_research import fetch_geographic_exposure
 except ImportError:
     from Feature3.csv_analyzer import run as analyze_ticker
+    from Feature3.market_research import fetch_geographic_exposure
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -208,6 +210,22 @@ def _build_market_context_block(market_context: dict) -> str:
     return "\n".join(lines)
 
 
+# ================= GEOGRAPHIC EXPOSURE BLOCK =================
+def _build_geographic_exposure_block(exposure: dict) -> str:
+    if not exposure or not exposure.get("by_region"):
+        return ""
+
+    lines = ["\n=== GEOGRAPHIC EXPOSURE ==="]
+    for r in exposure["by_region"]:
+        symbols_str = ", ".join(r["symbols"])
+        lines.append(f"  {r['region']:<22} {r['weight_pct']:>6.1f}%  —  {symbols_str}")
+
+    if exposure.get("skipped"):
+        lines.append(f"  (Could not determine exposure for: {', '.join(exposure['skipped'])})")
+
+    return "\n".join(lines)
+
+
 # ================= BUILD PROMPT =================
 def build_prompt(data, memories=None, user_question=None):
 
@@ -221,6 +239,69 @@ YOUR FIRST PRIORITY — ANSWER THIS QUESTION DIRECTLY:
 "{user_question}"
 Look at the portfolio data below and answer this specific question before doing anything else.
 """
+        # For allocation / "what should I invest in" questions, inject profile + splits + specific tickers
+        onboarding = data.get("onboarding") or {}
+        q_lower = user_question.lower()
+        if any(w in q_lower for w in ["allocat", "invest in", "what should", "split", "distribute", "put my", "divide", "recommend", "suggest", "where should"]):
+            capital = onboarding.get("investmentCapital") or onboarding.get("investment_capital")
+            asset_interests = onboarding.get("assetInterests") or onboarding.get("asset_interests") or []
+            strategies = onboarding.get("investmentStrategies") or onboarding.get("investment_strategies") or []
+            experience = onboarding.get("experienceLevel") or onboarding.get("experience_level", "beginner")
+            time_horizon = onboarding.get("timeHorizon") or onboarding.get("time_horizon", "monthly")
+            age = onboarding.get("age", 30)
+
+            # Strategy-based weights and specific ticker suggestions
+            STRATEGY_TICKERS = {
+                "growth":              {"stock": ["NVDA", "TSLA", "MSFT", "AMZN"], "crypto": ["BTC", "ETH", "SOL"], "etf": ["QQQ", "ARKK"]},
+                "income":              {"stock": ["JNJ", "KO", "PG", "T"],          "crypto": ["BTC"],               "etf": ["VYM", "SCHD", "JEPI"]},
+                "day_trading":         {"stock": ["NVDA", "TSLA", "AMD", "AAPL"],   "crypto": ["BTC", "ETH", "SOL"], "etf": ["SQQQ", "TQQQ"]},
+                "index":               {"stock": ["AAPL", "MSFT"],                  "crypto": ["BTC"],               "etf": ["VOO", "VTI", "SPY"]},
+                "dollar_cost_average": {"stock": ["AAPL", "MSFT", "GOOGL"],         "crypto": ["BTC", "ETH"],        "etf": ["VOO", "VTI"]},
+                "buy_and_hold":        {"stock": ["AAPL", "MSFT", "GOOGL", "AMZN"], "crypto": ["BTC", "ETH"],        "etf": ["VOO", "QQQ", "VTI"]},
+            }
+            STRATEGY_WEIGHTS = {
+                "growth":              {"stock": 0.60, "crypto": 0.25, "etf": 0.15},
+                "income":              {"stock": 0.30, "crypto": 0.10, "etf": 0.60},
+                "day_trading":         {"stock": 0.50, "crypto": 0.40, "etf": 0.10},
+                "index":               {"stock": 0.20, "crypto": 0.10, "etf": 0.70},
+                "dollar_cost_average": {"stock": 0.30, "crypto": 0.15, "etf": 0.55},
+                "buy_and_hold":        {"stock": 0.50, "crypto": 0.20, "etf": 0.30},
+            }
+
+            primary_strategy = strategies[0] if strategies else "buy_and_hold"
+            weights = STRATEGY_WEIGHTS.get(primary_strategy, STRATEGY_WEIGHTS["buy_and_hold"])
+            tickers = STRATEGY_TICKERS.get(primary_strategy, STRATEGY_TICKERS["buy_and_hold"])
+
+            if capital and asset_interests:
+                n = len(asset_interests)
+                total_w = sum(weights.get(a, 1/n) for a in asset_interests)
+                splits = []
+                for asset in asset_interests:
+                    w = weights.get(asset, 1/n) / total_w
+                    dollar_amt = round(capital * w)
+                    suggested = ", ".join(tickers.get(asset, [])[:3])
+                    splits.append(f"{asset}: {round(w*100)}% = ${dollar_amt:,}  →  e.g. {suggested}")
+
+                priority_block += f"""
+PERSONALISED RECOMMENDATION REQUIRED — answer using these exact figures:
+
+User profile:
+- Capital available: ${capital:,}
+- Age: {age}
+- Strategy: {', '.join(strategies)}
+- Time horizon: {time_horizon}
+- Experience: {experience}
+- Asset interests: {', '.join(asset_interests)}
+
+Suggested allocation (use these numbers exactly):
+{chr(10).join('- ' + s for s in splits)}
+
+In QUESTION_RESPONSE:
+1. Open with: "Based on your ${capital:,} capital, {time_horizon} horizon, and {primary_strategy.replace('_', ' ')} strategy, here's what I'd recommend:"
+2. For each asset class above, give the dollar amount AND 2-3 specific ticker examples from the list
+3. Add 1 sentence explaining why this suits their strategy and age
+4. Keep it under 150 words
+"""
 
     if memories:
         memory_block = "\n\n".join(memories)
@@ -228,6 +309,39 @@ Look at the portfolio data below and answer this specific question before doing 
     market_context = data.pop("market_context", None) or {}
     if market_context:
         market_context_block = _build_market_context_block(market_context)
+
+    geo_exposure = data.pop("geographic_exposure", None) or {}
+    geo_block = _build_geographic_exposure_block(geo_exposure)
+
+    # ================= EMERGENCY CASH RESERVE =================
+    reserve_block = ""
+    _onboarding = data.get("onboarding") or {}
+    _summary = data.get("summary") or {}
+    monthly_expenses = (
+        _onboarding.get("monthlyExpenses")
+        or _onboarding.get("monthly_expenses")
+    )
+    cash_balance = _summary.get("cashBalance")
+
+    if monthly_expenses and cash_balance is not None:
+        reserve_min = monthly_expenses * 3
+        reserve_max = monthly_expenses * 6
+        months_covered = cash_balance / monthly_expenses
+        if months_covered >= 6:
+            status = "STRONG — above 6-month target"
+        elif months_covered >= 3:
+            status = "ADEQUATE — within 3–6 month range"
+        else:
+            status = f"INSUFFICIENT — only {months_covered:.1f} months covered (minimum is 3)"
+
+        reserve_block = f"""
+=== EMERGENCY CASH RESERVE ANALYSIS ===
+Cash balance:              ${cash_balance:,.2f}
+Monthly expenses:          ${monthly_expenses:,.2f}
+Recommended reserve (3–6 months): ${reserve_min:,.2f} – ${reserve_max:,.2f}
+Current coverage:          {months_covered:.1f} months
+Status:                    {status}
+"""
 
     portfolio_json = {k: v for k, v in data.items() if k != "market_context"}
 
@@ -247,12 +361,24 @@ IMPORTANT RULES:
 - If a hypothetical projection is provided, use those exact numbers and always state the timeframe
 - When citing news, always state which company the headline is actually about
 - Only reference news directly relevant to the holdings — ignore unrelated general market headlines
-- The onboarding field contains investment strategies and asset interests — tailor recommendations to match
-- If strategy is buy_and_hold, favour long-term; if growth, favour high-growth; if income, favour dividends
+- The onboarding field contains the user's profile — always tailor advice to match it exactly
+- onboarding.investmentCapital is their total available capital in dollars — use it for specific dollar allocation amounts
+- onboarding.investmentStrategies drives the allocation style: buy_and_hold → stable long-term assets; growth → high-growth stocks; income → dividend ETFs; day_trading → liquid high-volatility assets; index → broad index ETFs; dollar_cost_average → staggered entries
+- onboarding.assetInterests lists which asset classes they want exposure to (stock, crypto, etf) — only recommend assets from this list
+- onboarding.timeHorizon is their trading frequency (daily/weekly/monthly/annually/indefinitely) — factor this into how actively they should manage positions
+- onboarding.experienceLevel affects complexity: beginner → keep it simple with 2-3 asset classes; advanced → can handle more granular splits
+- When allocation is asked, give concrete percentage splits AND dollar amounts based on investmentCapital (e.g. "40% stocks = $20,000")
+- If geographic exposure is provided, use it to describe domestic vs international spread in SUMMARY and reference specific exchanges (e.g. "your RELIANCE holding trades on the NSE in India")
+- If more than 70% of the portfolio is concentrated in a single region, flag it as geographic concentration risk in CONS
+- Crypto holdings are global and should be noted as such, not as domestic or international
+- If the emergency reserve analysis shows coverage < 3 months, add it as a bullet in CONS using the exact coverage figure, and add a NEXT_STEPS bullet recommending they build cash savings to the 3-month minimum shown in the reserve analysis before investing further
+- If coverage is 3–6 months, mention it as a strength in PROS
+- If coverage is above 6 months, mention it as a strength in PROS
+- Always cite the specific months covered when referencing emergency reserve (e.g. "0.8 months covered")
 
 PORTFOLIO DATA:
 {json.dumps(portfolio_json, indent=2)}
-{market_context_block}
+{reserve_block}{geo_block}{market_context_block}
 
 STRICT OUTPUT FORMAT:
 - Section headers MUST match EXACTLY
@@ -278,6 +404,7 @@ Write a short portfolio summary (2-3 sentences).
 [SECTION: QUESTION_RESPONSE]
 Answer the question "{user_question if user_question else ''}" directly using the portfolio data and market data above.
 Use specific numbers and holding names. Keep under 200 words.
+If the question is about allocation or what to invest in, give concrete percentage splits AND dollar amounts based on onboarding.investmentCapital, broken down by asset class (stocks/crypto/ETFs) matching onboarding.assetInterests.
 If no question was provided write: No question provided.
 
 [SECTION: SOURCES]
@@ -483,7 +610,11 @@ def portfolio_analysis(request: PortfolioRequest):
 
     user_question = data.get("question", None)
 
-    # STEP 2: STOCK EXTRACTION
+    # STEP 2: GEOGRAPHIC EXPOSURE
+    holdings = data.get("holdings", [])
+    data["geographic_exposure"] = fetch_geographic_exposure(holdings)
+
+    # STEP 3: STOCK EXTRACTION
     stock_section = extract_stocks_only(data, user_question)
 
     print("\n=== STOCK EXTRACTION ===")
@@ -548,5 +679,19 @@ def portfolio_analysis(request: PortfolioRequest):
 
     store_sectioned_memories(user_question, parsed)
 
+    # ================= BUILD ALLOCATION RESPONSE =================
+    geo_exposure = data.get("geographic_exposure") or {}
+    by_geography = {
+        r["region"]: r["weight_pct"]
+        for r in geo_exposure.get("by_region", [])
+    }
+
+    existing_allocation = data.get("allocation") or {}
+    allocation = {
+        "byAssetType":  existing_allocation.get("byAssetType", {}),
+        "bySymbol":     existing_allocation.get("bySymbol", {}),
+        "byGeography":  by_geography,
+    }
+
     print("\nTOTAL TIME:", time.perf_counter() - start)
-    return parsed
+    return {**parsed, "allocation": allocation}

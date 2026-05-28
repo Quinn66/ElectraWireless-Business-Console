@@ -203,6 +203,11 @@ export async function fetchSnapshots(): Promise<PortfolioSnapshot[]> {
   return res.data;
 }
 
+export async function backfillSnapshots(): Promise<{ seeded: number; from: string; to: string }> {
+  const res = await investmentApiClient.post("/investments/snapshots/backfill");
+  return res.data;
+}
+
 export async function fetchMarkowitz(): Promise<MarkowitzPoint[]> {
   const res = await investmentApiClient.get<MarkowitzPoint[]>("/investments/markowitz");
   return res.data;
@@ -222,6 +227,23 @@ export interface MarketMovers {
 
 export async function fetchMarketMovers(): Promise<MarketMovers> {
   const res = await investmentApiClient.get<MarketMovers>("/investments/market-movers");
+  return res.data;
+}
+
+export interface GeoExposureEntry {
+  region:     string;
+  symbols:    string[];
+  value:      number;
+  percentage: number;
+}
+
+export interface GeoExposureResponse {
+  total_value:  number;
+  by_geography: GeoExposureEntry[];
+}
+
+export async function fetchGeographicExposure(): Promise<GeoExposureResponse> {
+  const res = await investmentApiClient.get<GeoExposureResponse>("/investments/geographic-exposure");
   return res.data;
 }
 
@@ -265,6 +287,17 @@ export interface InvestmentAIResponse {
   profile_context:   string;
 }
 
+/** Personal Finance context injected from Feature 2 for cross-feature analysis. */
+export interface PFContextInput {
+  hasData:          boolean;
+  monthlyExpenses:  number;
+  cashBalance:      number;
+  savingsRate:      number;
+  healthScore:      number;
+  healthGrade:      string;
+  netCashFlow:      number;
+}
+
 export interface InvestmentAIRequest {
   question: string;
   Goals:    string;
@@ -275,6 +308,12 @@ export interface InvestmentAIRequest {
     totalCurrentValue: number | null;
     totalPnL:          number | null;
     totalReturnPct:    number | null;
+    // Cross-feature: Personal Finance context (optional)
+    monthlyExpenses?:  number;
+    savingsRate?:      number;
+    healthScore?:      number;
+    healthGrade?:      string;
+    netCashFlow?:      number;
   };
   holdings: Array<{
     symbol:            string;
@@ -298,6 +337,8 @@ export interface InvestmentAIRequest {
     investmentStrategies: string[];
     timeHorizon:          string;
     assetInterests:       string[];
+    // Cross-feature: average monthly expenses from PF (triggers emergency reserve calc)
+    monthlyExpenses?:     number;
   };
 }
 
@@ -312,6 +353,7 @@ export function buildInvestmentAIPayload(
   goals:      string = "",
   period:     string = "Current portfolio",
   summary:    PortfolioSummary | null = null,
+  pfContext:  PFContextInput | null = null,
 ): InvestmentAIRequest {
   const cashBalance = holdings
     .filter((h) => h.asset_type === ("cash" as AssetType))
@@ -332,10 +374,19 @@ export function buildInvestmentAIPayload(
     period,
     summary: {
       totalCost,
-      cashBalance,
+      // PF cashBalance overrides the holdings-based cash estimate when available
+      cashBalance:       pfContext?.cashBalance ?? cashBalance,
       totalCurrentValue: summary?.total_value ?? null,
       totalPnL:          summary?.profit_loss ?? null,
       totalReturnPct:    summary?.return_percentage ?? null,
+      // Cross-feature PF fields (backend prompt uses these for analysis rules)
+      ...(pfContext ? {
+        monthlyExpenses: pfContext.monthlyExpenses,
+        savingsRate:     pfContext.savingsRate,
+        healthScore:     pfContext.healthScore,
+        healthGrade:     pfContext.healthGrade,
+        netCashFlow:     pfContext.netCashFlow,
+      } : {}),
     },
     holdings: holdings.map((h) => {
       const perf = perfMap.get(h.symbol.toUpperCase());
@@ -362,6 +413,8 @@ export function buildInvestmentAIPayload(
       investmentStrategies: onboarding.investmentStrategies,
       timeHorizon:          onboarding.timeHorizon,
       assetInterests:       onboarding.assetInterests,
+      // monthlyExpenses triggers the emergency cash reserve block in the backend prompt
+      ...(pfContext ? { monthlyExpenses: pfContext.monthlyExpenses } : {}),
     },
   };
 }
