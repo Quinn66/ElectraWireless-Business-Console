@@ -14,6 +14,9 @@ Phases covered in this file:
 import csv
 import io
 import uuid
+import math
+import random
+from datetime import date, timedelta
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
@@ -338,6 +341,106 @@ def get_snapshots(db: Session = Depends(get_db)):
     ]
 
 
+@router.post("/snapshots/backfill")
+def backfill_snapshots(db: Session = Depends(get_db)):
+    """
+    Generate monthly historical snapshots from each holding's purchase date up
+    to today.  Uses cumulative cost-basis at each month-end plus a small
+    deterministic growth curve so the chart shows a realistic upward trend
+    rather than a flat line.  Safe to call repeatedly — existing snapshots for
+    the same date are overwritten (last-write-wins, matching /snapshots GET).
+    """
+    holdings = (
+        db.query(models.InvestmentHolding)
+        .filter(models.InvestmentHolding.user_id == "demo-user")
+        .all()
+    )
+    if not holdings:
+        raise HTTPException(status_code=400, detail="No holdings found — import a portfolio first.")
+
+    # Earliest purchase date across all holdings
+    parsed_dates = []
+    for h in holdings:
+        if h.purchase_date:
+            try:
+                if isinstance(h.purchase_date, date):
+                    parsed_dates.append(h.purchase_date)
+                else:
+                    parsed_dates.append(date.fromisoformat(str(h.purchase_date)))
+            except ValueError:
+                pass
+    if not parsed_dates:
+        raise HTTPException(status_code=400, detail="Holdings have no purchase dates.")
+
+    start = min(parsed_dates)
+    today = date.today()
+
+    # Build list of month-end dates from start → today
+    def month_end(d: date) -> date:
+        next_month = d.replace(day=28) + timedelta(days=4)
+        return next_month - timedelta(days=next_month.day)
+
+    snapshot_dates: list[date] = []
+    cur = month_end(start)
+    while cur <= today:
+        snapshot_dates.append(cur)
+        # Advance to next month
+        next_m = cur.replace(day=1)
+        next_m = (next_m.replace(day=28) + timedelta(days=4)).replace(day=1)
+        cur = month_end(next_m)
+    if today not in snapshot_dates:
+        snapshot_dates.append(today)
+
+    # For each snapshot date, calculate cumulative cost basis
+    # (holdings purchased on or before that date)
+    def cost_at(d: date) -> float:
+        total = 0.0
+        for h in holdings:
+            try:
+                pd = h.purchase_date if isinstance(h.purchase_date, date) else date.fromisoformat(str(h.purchase_date))
+            except (ValueError, TypeError):
+                pd = today
+            if pd <= d:
+                total += h.quantity * h.buy_price
+        return total
+
+    # Deterministic noise seeded on date string so repeated calls are stable
+    def growth_factor(d: date, months_elapsed: float) -> float:
+        rng = random.Random(d.isoformat())
+        # ~8% annualised base + small monthly noise (±1.5%)
+        base = math.exp(0.08 / 12 * months_elapsed)
+        noise = 1 + rng.uniform(-0.015, 0.015)
+        return base * noise
+
+    inserted = 0
+    for snap_date in snapshot_dates:
+        cost = cost_at(snap_date)
+        if cost <= 0:
+            continue
+        months_elapsed = (snap_date - start).days / 30.44
+        value = cost * growth_factor(snap_date, months_elapsed)
+        pl = value - cost
+        ret_pct = (pl / cost) * 100 if cost else 0
+
+        # Upsert: delete existing row for this date then insert fresh
+        db.query(models.PortfolioSnapshot).filter(
+            models.PortfolioSnapshot.user_id == "demo-user",
+            models.PortfolioSnapshot.snapshot_date == snap_date,
+        ).delete()
+        db.add(models.PortfolioSnapshot(
+            user_id           = "demo-user",
+            total_value       = round(value, 2),
+            total_cost        = round(cost, 2),
+            profit_loss       = round(pl, 2),
+            return_percentage = round(ret_pct, 4),
+            snapshot_date     = snap_date,
+        ))
+        inserted += 1
+
+    db.commit()
+    return {"seeded": inserted, "from": start.isoformat(), "to": today.isoformat()}
+
+
 # ── Markowitz Risk-Return Data ─────────────────────────────────────────────────
 
 @router.get("/markowitz")
@@ -373,14 +476,6 @@ def get_markowitz(db: Session = Depends(get_db)):
     return result
 
 
-# ── Insights ──────────────────────────────────────────────────────────────────
-
-@router.get("/insights")
-def get_insights(db: Session = Depends(get_db)):
-    """Return categorised insights with severity. (Phase 6 — Jeffrey)"""
-    return db.query(models.InvestmentInsight).filter(
-        models.InvestmentInsight.user_id == "demo-user"
-    ).all()
 
 
 # ── Manual Price Fallback ─────────────────────────────────────────────────────

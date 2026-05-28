@@ -12,7 +12,7 @@ import {
 import { C_PRIMARY, C_BORDER, C_SUCCESS, C_ERROR, C_WARNING } from "@/lib/colors";
 import {
   fetchHoldings, addHolding, deleteHolding, clearAllHoldings, uploadHoldingsCsv,
-  fetchInsights, fetchPrices, fetchSummary, fetchSnapshots, fetchMarkowitz,
+  fetchInsights, fetchPrices, fetchSummary, fetchSnapshots, backfillSnapshots, fetchMarkowitz,
   fetchMarketMovers, fetchGeographicExposure, ASSET_TYPE_LABELS,
 } from "@/services/investmentApi";
 import type {
@@ -29,7 +29,6 @@ const TABS = [
   { key: "overview",  label: "Overview" },
   { key: "holdings",  label: "Holdings" },
   { key: "analytics", label: "Analytics" },
-  { key: "insights",  label: "Insights" },
   { key: "risk",      label: "Risk & Protection" },
   { key: "ai",        label: "AI Scenarios" },
 ];
@@ -340,18 +339,50 @@ function AllocationPieChart({
 
 // ── Portfolio growth line chart ───────────────────────────────────────────────
 
-function GrowthLineChart({ snapshots }: { snapshots: PortfolioSnapshot[] }) {
-  if (snapshots.length === 0) {
+function GrowthLineChart({
+  snapshots, onBackfill,
+}: {
+  snapshots: PortfolioSnapshot[];
+  onBackfill?: () => Promise<void>;
+}) {
+  const [seeding, setSeeding] = useState(false);
+
+  const handleBackfill = async () => {
+    if (!onBackfill) return;
+    setSeeding(true);
+    try { await onBackfill(); } finally { setSeeding(false); }
+  };
+
+  const tooFew = snapshots.length < 2;
+
+  if (snapshots.length === 0 || tooFew) {
     return (
       <div style={{
         background: "rgba(255,255,255,0.55)", backdropFilter: "blur(14px)",
         border: `1.5px solid ${C_BORDER}`, borderRadius: 12, padding: "18px 20px",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        gap: 6, minHeight: 236,
+        gap: 10, minHeight: 236,
       }}>
         <BarChart2 size={28} color="#ccc" />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#aaa" }}>No snapshot history yet</span>
-        <span style={{ fontSize: 11, color: "#bbb" }}>History builds as you revisit the dashboard</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#aaa" }}>Only today's snapshot</span>
+        <span style={{ fontSize: 11, color: "#bbb", textAlign: "center", maxWidth: 220 }}>
+          Generate simulated monthly history from your holdings' purchase dates to see the growth trend.
+        </span>
+        {onBackfill && (
+          <button
+            onClick={handleBackfill}
+            disabled={seeding}
+            style={{
+              marginTop: 4, padding: "7px 16px", borderRadius: 8, border: "none", cursor: seeding ? "wait" : "pointer",
+              background: C_PRIMARY, color: "#fff", fontSize: 12, fontWeight: 600,
+              display: "flex", alignItems: "center", gap: 6, opacity: seeding ? 0.7 : 1,
+            }}
+          >
+            {seeding
+              ? <><Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> Generating…</>
+              : <><TrendingUp size={12} /> Generate History</>}
+          </button>
+        )}
       </div>
     );
   }
@@ -634,14 +665,60 @@ function MarkowitzScatterPlot() {
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
+function PortfolioInsightsPanel({ holdings }: { holdings: InvestmentHolding[] }) {
+  const [insights, setInsights] = useState<InvestmentInsight[]>([]);
+
+  useEffect(() => {
+    if (holdings.length === 0) { setInsights([]); return; }
+    fetchInsights().then(setInsights).catch(() => setInsights([]));
+  }, [holdings]);
+
+  if (insights.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: "#999", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        Portfolio Alerts
+      </span>
+      {insights.map((ins, i) => {
+        const color = SEVERITY_COLOR[ins.severity] ?? C_PRIMARY;
+        return (
+          <div key={i} style={{
+            background: color + "0f", border: `1.5px solid ${color}40`,
+            borderLeft: `4px solid ${color}`, borderRadius: 10, padding: "12px 14px",
+            display: "flex", flexDirection: "column", gap: 5,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <AlertTriangle size={12} color={color} />
+              <span style={{ fontWeight: 700, fontSize: 12, color }}>{ins.type}</span>
+              <span style={{
+                fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                background: color + "20", color, padding: "1px 6px", borderRadius: 4,
+              }}>{ins.severity}</span>
+              {ins.affected.map((sym) => (
+                <span key={sym} style={{
+                  fontSize: 10, fontWeight: 700, background: "rgba(0,0,0,0.06)",
+                  color: "#555", padding: "1px 6px", borderRadius: 4,
+                }}>{sym}</span>
+              ))}
+            </div>
+            <p style={{ margin: 0, fontSize: 12, color: "#555", lineHeight: 1.5 }}>{ins.message}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function OverviewTab({
-  holdings, summary, prices, snapshots, geoData,
+  holdings, summary, prices, snapshots, geoData, onBackfill,
 }: {
   holdings: InvestmentHolding[];
   summary: PortfolioSummary | null;
   prices: MarketPrice[];
   snapshots: PortfolioSnapshot[];
   geoData: GeoExposureEntry[];
+  onBackfill: () => Promise<void>;
 }) {
   const holdingSymbols = new Set(holdings.map((h) => h.symbol.toUpperCase()));
   const plColor = summary && summary.profit_loss !== 0
@@ -680,9 +757,11 @@ function OverviewTab({
         />
       </div>
 
+      <PortfolioInsightsPanel holdings={holdings} />
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <AllocationPieChart holdings={holdings} geoData={geoData} />
-        <GrowthLineChart snapshots={snapshots} />
+        <GrowthLineChart snapshots={snapshots} onBackfill={onBackfill} />
       </div>
 
       <GainersLosersList />
@@ -1041,110 +1120,16 @@ const SEVERITY_COLOR: Record<string, string> = {
   high: C_ERROR, medium: C_WARNING, low: C_SUCCESS, info: C_PRIMARY,
 };
 
-function InsightsTab({ holdings }: { holdings: InvestmentHolding[] }) {
-  const [insights, setInsights] = useState<InvestmentInsight[]>([]);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
-
-  useEffect(() => {
-    if (holdings.length === 0) { setInsights([]); return; }
-    setLoading(true); setError(null);
-    fetchInsights()
-      .then(setInsights)
-      .catch(() => setError("Could not load insights — is the backend running on port 8000?"))
-      .finally(() => setLoading(false));
-  }, [holdings]);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <p style={{ fontSize: 12.5, color: "#666", margin: 0 }}>
-        Rule-based alerts from <code style={{ fontSize: 11 }}>GET /investments/insights</code> — live from your holdings, no market data required.
-      </p>
-
-      {loading && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#888" }}>
-          <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Analysing portfolio…
-        </div>
-      )}
-
-      {error && (
-        <div style={{
-          padding: "10px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
-          background: C_ERROR + "10", border: `1px solid ${C_ERROR}40`, color: C_ERROR,
-        }}>{error}</div>
-      )}
-
-      {!loading && holdings.length === 0 && (
-        <div style={{
-          padding: "18px 20px", borderRadius: 10, fontSize: 12.5, color: "#aaa",
-          background: "rgba(255,255,255,0.4)", border: `1.5px dashed ${C_BORDER}`, textAlign: "center",
-        }}>
-          Add holdings first — insights will appear automatically.
-        </div>
-      )}
-
-      {!loading && insights.map((ins, i) => {
-        const color = SEVERITY_COLOR[ins.severity] ?? C_PRIMARY;
-        return (
-          <div key={i} style={{
-            background: color + "0f", border: `1.5px solid ${color}40`,
-            borderLeft: `4px solid ${color}`, borderRadius: 10, padding: "14px 16px",
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <AlertTriangle size={13} color={color} />
-              <span style={{ fontWeight: 700, fontSize: 12.5, color }}>{ins.type}</span>
-              <span style={{
-                fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
-                background: color + "20", color, padding: "1px 6px", borderRadius: 4,
-              }}>{ins.severity}</span>
-              {ins.affected.length > 0 && ins.affected.map((sym) => (
-                <span key={sym} style={{
-                  fontSize: 10, fontWeight: 700, background: "rgba(0,0,0,0.06)",
-                  color: "#555", padding: "1px 6px", borderRadius: 4,
-                }}>{sym}</span>
-              ))}
-            </div>
-            <p style={{ margin: 0, fontSize: 12, color: "#555", lineHeight: 1.5 }}>{ins.message}</p>
-          </div>
-        );
-      })}
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
-        <PlaceholderCard icon={<Lightbulb size={15} />} title="Personalised Insight Language"
-          description="Tone adapts to onboarding experience level — simple for beginners, technical for advanced." owner="AI / Insights" phase="Phase 6" />
-        <PlaceholderCard icon={<Bell size={15} />} title="Live Price Signals"
-          description="Insight severity updates in real-time as market prices shift your effective allocation." owner="Backend" phase="Phase 6" />
-      </div>
-    </div>
-  );
-}
-
 // ── AI Scenarios tab ──────────────────────────────────────────────────────────
 
 function AITab({ holdings, summary }: { holdings: InvestmentHolding[]; summary: PortfolioSummary | null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <p style={{ fontSize: 12.5, color: "#666", margin: 0 }}>
-        AI-powered scenario planning. Connects onboarding context (age, horizon, experience) into prompts.
+        Auto-generated portfolio health report — strengths, weaknesses, and next steps based on your holdings and onboarding profile. Use the Elly sidebar to ask specific questions or run scenarios.
       </p>
 
       <InvestmentAIPanel holdings={holdings} summary={summary} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <PlaceholderCard icon={<Sparkles size={15} />} title="Hypothetical Scenario"
-          description="'What if I invested $X in Y today?' — simulates outcome using current market data." owner="AI / Insights" phase="Phase 7" />
-        <PlaceholderCard icon={<Sparkles size={15} />} title="Historical Scenario"
-          description="'How would my portfolio have performed if I bought in 2020?' — replays real price data." owner="AI / Insights" phase="Phase 7" />
-        <PlaceholderCard icon={<Sparkles size={15} />} title="Future Projection"
-          description="'Where could this be in 5 years?' — uses CAGR + volatility from Phase 4." owner="AI / Insights" phase="Phase 7" />
-        <PlaceholderCard icon={<Sparkles size={15} />} title="AI Rebalancing"
-          description="Recommends allocation shifts based on goals, risk tolerance, and current holdings." owner="AI / Insights" phase="Phase 7" />
-        <PlaceholderCard icon={<BarChart2 size={15} />} title="Industry & Sector Research"
-          description="Macro signals and sector trends to provide market context alongside portfolio insights." owner="AI / Insights" phase="Phase 7" />
-        <PlaceholderCard icon={<TrendingUp size={15} />} title="Cross-Feature: Cashflow → Investments"
-          description="Links Feature 2 cashflow health to investment decisions (e.g. 'Low savings → avoid high risk')." owner="Shared" phase="Phase 7" />
-      </div>
     </div>
   );
 }
@@ -1170,7 +1155,11 @@ export function InvestmentPage() {
       setPrices(p);
       const s = await fetchSummary();
       setSummary(s);
-      const snaps = await fetchSnapshots();
+      let snaps = await fetchSnapshots();
+      if (snaps.length < 2 && h.length > 0) {
+        await backfillSnapshots();
+        snaps = await fetchSnapshots();
+      }
       setSnapshots(snaps);
       // geo exposure is slow (yFinance per holding) — fetch last, fail silently
       fetchGeographicExposure()
@@ -1204,13 +1193,17 @@ export function InvestmentPage() {
     setSummary(null);
     setSnapshots([]);
   }
+  async function handleBackfill() {
+    await backfillSnapshots();
+    const snaps = await fetchSnapshots();
+    setSnapshots(snaps);
+  }
 
   const tabContent: Record<string, React.ReactNode> = {
-    overview:  <OverviewTab holdings={holdings} summary={summary} prices={prices} snapshots={snapshots} geoData={geoData} />,
+    overview:  <OverviewTab holdings={holdings} summary={summary} prices={prices} snapshots={snapshots} geoData={geoData} onBackfill={handleBackfill} />,
     holdings:  <HoldingsTab holdings={holdings} loading={loading} fetchError={fetchError} summary={summary}
                  onAdd={handleAdd} onDelete={handleDelete} onClearAll={handleClearAll} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
-    insights:  <InsightsTab holdings={holdings} />,
     risk:      <RiskTab holdings={holdings} summary={summary} snapshots={snapshots} />,
     ai:        <AITab holdings={holdings} summary={summary} />,
   };
