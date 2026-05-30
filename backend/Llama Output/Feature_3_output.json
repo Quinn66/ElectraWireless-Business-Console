@@ -1,28 +1,28 @@
 {
-  "summary": "Your portfolio is currently valued at $12,500, with a total profit of $2,500 over the last 6 months. The portfolio has a diversification score of 62 and a risk grade of B.",
+  "summary": "The portfolio has a total value of $12,500 with a return percentage of 25%. The portfolio is heavily concentrated in crypto, with 69.6% of the portfolio in BTC.",
   "pros": [
-    "The portfolio has a high return percentage of 25% over the last 6 months",
-    "The cash balance is $1,500, providing liquidity",
-    "The portfolio has a low day change percentage of 1.18%",
-    "The top gainer is BTC with a return percentage of 38.1%",
-    "The portfolio has a clear goal to reach $20,000 within 12 months"
+    "High return percentage of 25%",
+    "Strong performance of BTC with a return percentage of 38.1%",
+    "Available investment capital of $50,000",
+    "Beginner experience level with a simple communication style",
+    "Buy and hold strategy"
   ],
   "cons": [
-    "The portfolio has a high concentration of crypto, with 69.6% in BTC",
-    "The diversification score is 62, indicating a need for more diversification",
-    "The portfolio has a high risk grade of B",
-    "The top loser is VOO with a return percentage of -3.2%",
-    "The portfolio dipped in April, with a 4.1% decrease in value"
+    "High concentration in crypto with 69.6% in BTC",
+    "Low diversification score of 62",
+    "Warning of high crypto concentration"
   ],
   "next_steps": [
-    "Rebalance the portfolio to reduce crypto concentration",
-    "Add more diversified assets to the portfolio",
-    "Consider adding stocks or ETFs to reduce risk",
-    "Monitor the portfolio's performance regularly",
-    "Adjust the portfolio to meet the goal of reaching $20,000 within 12 months"
+    "Reduce crypto concentration to below 25%",
+    "Add 2-3 uncorrelated positions to improve diversification",
+    "Consider adding more stocks or ETFs to the portfolio",
+    "Rebalance the portfolio regularly",
+    "Consider adding a stop-loss order to limit potential losses"
   ],
-  "question_response": "Your portfolio is doing well overall, with a high return percentage of 25% over the last 6 months. However, it has a high concentration of crypto and a low diversification score, which may increase risk. To improve, consider rebalancing the portfolio and adding more diversified assets.",
+  "question_response": "Based on the available data, if you invest in BHP Group today, the AI predicts its value could realistically become $277.92 in 3 years, with a gain of 216.54%. The current price of BHP is $87.8, with a PE ratio of 21.7866 and a market capitalization of $223 billion.",
   "sources": [
-    "The provided portfolio JSON data was used for analysis"
+    "BHP market analysis data",
+    "BHP forward-looking signals data",
+    "NEWS CONTEXT data for BHP, VOO, and AAPL"
   ]
 }

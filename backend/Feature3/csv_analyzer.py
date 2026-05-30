@@ -4,10 +4,191 @@ import numpy as np
 import yfinance as yf
 from prophet import Prophet
 import os
+import requests
+from datetime import datetime, timedelta
 
 OUTPUT_FILE = "ydata/csv_analysis_output.json"
 OUTPUT_FILE_PROPHET = "ydata/csv_prediction_output_analysis.json"
+
 TEST_TICKERS = ["AMD", "NVDA"]
+
+FINNHUB_BASE = "https://finnhub.io/api/v1"
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
+
+DATA_DIR = "ydata"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def build_news_block(news_data):
+    """
+    Converts raw news into richer LLM context with lightweight interpretation layer.
+    """
+
+    if not news_data:
+        return "[NEWS] No news available"
+
+    lines = ["[NEWS CONTEXT]"]
+
+    company = news_data.get("company", {})
+
+    for symbol, data in company.items():
+        country = data.get("country", "Unknown")
+        articles = data.get("articles", [])
+
+        lines.append(f"\n{symbol} ({country})")
+
+        for a in articles[:3]:
+            headline = a.get("headline", "")
+            summary = a.get("summary", "")
+
+            # lightweight enrichment layer (heuristic, not LLM)
+            context_hint = infer_news_context(headline, summary)
+
+            lines.append(f"- Headline: {headline}")
+            lines.append(f"  Context: {context_hint}")
+            lines.append(f"  Summary: {summary}")
+
+    return "\n".join(lines)
+
+def infer_news_context(headline: str, summary: str) -> str:
+    text = (headline + " " + summary).lower()
+
+    if any(x in text for x in ["fed", "interest rate", "powell"]):
+        return "Macroeconomic policy / interest rate expectations impacting market sentiment"
+
+    if any(x in text for x in ["ai", "nvidia", "chip", "semiconductor"]):
+        return "AI / semiconductor sector momentum and competitive positioning"
+
+    if any(x in text for x in ["tesla", "waymo", "robotaxi", "autonomous"]):
+        return "Autonomous driving competition and EV sector disruption"
+
+    if any(x in text for x in ["etf", "index"]):
+        return "Passive investment flows and broad market positioning"
+
+    if any(x in text for x in ["buffett", "hold forever"]):
+        return "Long-term value investing sentiment signal"
+
+    return "General market or company-specific news with moderate impact"
+
+
+def get_country(symbol: str):
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.get_info()
+
+        return (
+            info.get("country")
+            or info.get("region")
+            or "Unknown"
+        )
+    except:
+        return "Unknown"
+
+def fetch_market_news(tickers: list[str], countries: list[str] = None):
+    """
+    Fetch company + market news using Finnhub and enrich with country via yfinance.
+    Saves output to ydata/newsOutput.json
+    """
+
+    if countries is None:
+        countries = []
+
+    print("\n[NEWS PIPELINE RUNNING]")
+    print("Tickers received:", tickers)
+
+    result = {
+        "company": {},
+        "market": [],
+        "meta": {
+            "tickers_received": tickers,
+            "countries_received": countries,
+            "status": "active"
+        }
+    }
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    # =========================
+    # COMPANY NEWS (per ticker)
+    # =========================
+    for symbol in tickers:
+        try:
+            country = get_country(symbol)
+
+            resp = requests.get(
+                f"{FINNHUB_BASE}/company-news",
+                params={
+                    "symbol": symbol,
+                    "from": week_ago,
+                    "to": today,
+                    "token": FINNHUB_API_KEY
+                },
+                timeout=8
+            )
+
+            if resp.status_code != 200:
+                continue
+
+            articles = resp.json()[:5]
+
+            result["company"][symbol] = {
+                "country": country,
+                "articles": [
+                    {
+                        "headline": a.get("headline", ""),
+                        "summary": (a.get("summary") or "")[:200],
+                        "source": a.get("source", ""),
+                        "url": a.get("url", ""),
+                        "datetime": a.get("datetime", "")
+                    }
+                    for a in articles
+                ]
+            }
+
+        except Exception as e:
+            print(f"[NEWS ERROR] {symbol}: {e}")
+
+    # =========================
+    # MARKET NEWS (global)
+    # =========================
+    try:
+        resp = requests.get(
+            f"{FINNHUB_BASE}/news",
+            params={
+                "category": "general",
+                "token": FINNHUB_API_KEY
+            },
+            timeout=8
+        )
+
+        if resp.status_code == 200:
+            articles = resp.json()[:5]
+
+            result["market"] = [
+                {
+                    "headline": a.get("headline", ""),
+                    "summary": (a.get("summary") or "")[:200],
+                    "source": a.get("source", ""),
+                    "url": a.get("url", ""),
+                    "datetime": a.get("datetime", "")
+                }
+                for a in articles
+            ]
+
+    except Exception as e:
+        print(f"[MARKET NEWS ERROR]: {e}")
+
+    # =========================
+    # SAVE OUTPUT
+    # =========================
+    output_path = os.path.join(DATA_DIR, "newsOutput.json")
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+
+    print(f"\n💾 Saved → {output_path}")
+
+    return result
 
 def project_investment_prophet(symbol: str, amount: float, years: float) -> dict | None:
     try:
@@ -56,20 +237,25 @@ def project_investment_prophet(symbol: str, amount: float, years: float) -> dict
             "model": "prophet"
         }
 
-        # ================= SAVE ONLY TO PROPHET FILE =================
+        # ================= SAVE ONLY TO PROPHET FILE (NO DUPLICATES) =================
+# ================= SAVE ONLY TO PROPHET FILE (append-safe) =================
         os.makedirs(os.path.dirname(OUTPUT_FILE_PROPHET), exist_ok=True)
 
         try:
-            with open(OUTPUT_FILE_PROPHET, "r") as f:
+            with open(OUTPUT_FILE_PROPHET, "r", encoding="utf-8") as f:
                 existing = json.load(f)
+                if not isinstance(existing, list):
+                    existing = []
         except:
             existing = []
 
+        # remove duplicate symbol inside same run
+        existing = [x for x in existing if x.get("symbol") != symbol]
+
         existing.append(result)
 
-        with open(OUTPUT_FILE_PROPHET, "w") as f:
+        with open(OUTPUT_FILE_PROPHET, "w", encoding="utf-8") as f:
             json.dump(existing, f, indent=2)
-
         return result
 
     except Exception as e:

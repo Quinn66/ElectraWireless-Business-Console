@@ -115,7 +115,7 @@ ASSISTANT:
 
 # ================= FILTERED RETRIEVAL =================
 
-def retrieve_memories_by_intent(query, intent="general", n_results=10):
+def retrieve_memories_by_intent(query, intent="general", n_results=5):
 
     print("\n=== MEMORY SEARCH (FILTERED) ===")
     print("Query:", query)
