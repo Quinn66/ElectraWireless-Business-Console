@@ -117,6 +117,7 @@ export function ConsoleAISidebar({ activeTool }: ConsoleAISidebarProps) {
           age:                  onboarding.age,
           experienceLevel:      onboarding.experienceLevel,
           investmentCapital:    onboarding.investmentCapital,
+          emergencyCash:        onboarding.emergencyCash,
           communicationStyle:   onboarding.communicationStyle,
           investmentStrategies: onboarding.investmentStrategies,
           timeHorizon:          onboarding.timeHorizon,

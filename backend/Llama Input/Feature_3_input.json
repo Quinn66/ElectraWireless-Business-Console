@@ -1,4 +1,3 @@
-
 {
   "question": "If I invest in bhp group today, what does the AI predict its value could realistically become in 1 year, 3 years, and 5 years based on market trends, financials, and industry growth?",
   "Goals": "Reach $20,000 portfolio value within 12 months\nKeep crypto exposure below 25%",
@@ -192,6 +191,7 @@
     "age": 30,
     "experienceLevel": "beginner",
     "investmentCapital": 50000,
+    "emergencyCash": 10000,
     "communicationStyle": "simple",
     "investmentStrategies": [
       "buy_and_hold"
@@ -202,6 +202,6 @@
       "crypto",
       "etf"
     ],
-    "completedAt": "2026-05-28T05:34:09.197189+00:00"
+    "completedAt": "2026-05-30T04:18:07.420469+00:00"
   }
 }

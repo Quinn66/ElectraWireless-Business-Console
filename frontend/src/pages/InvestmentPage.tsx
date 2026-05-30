@@ -22,6 +22,7 @@ import type {
 } from "@/services/investmentApi";
 import { InvestmentAIPanel } from "@/components/investment/InvestmentAIPanel";
 import { RiskTab } from "@/components/investment/RiskTab";
+import { InvestmentGoalsTab } from "@/components/investment/InvestmentGoalsTab";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ const TABS = [
   { key: "holdings",  label: "Holdings" },
   { key: "analytics", label: "Analytics" },
   { key: "risk",      label: "Risk & Protection" },
+  { key: "goals",     label: "Goals" },
   { key: "ai",        label: "AI Scenarios" },
 ];
 
@@ -1205,6 +1207,7 @@ export function InvestmentPage() {
                  onAdd={handleAdd} onDelete={handleDelete} onClearAll={handleClearAll} onCsvUpload={handleCsvUpload} />,
     analytics: <AnalyticsTab />,
     risk:      <RiskTab holdings={holdings} summary={summary} snapshots={snapshots} />,
+    goals:     <InvestmentGoalsTab holdings={holdings} summary={summary} />,
     ai:        <AITab holdings={holdings} summary={summary} />,
   };
 

@@ -47,6 +47,7 @@ def _backfill_onboarding_columns() -> None:
     to_add = [
         ("investment_strategies", "TEXT"),
         ("asset_interests",       "TEXT"),
+        ("emergency_cash",        "INTEGER"),
     ]
     with engine.begin() as conn:
         for name, sqltype in to_add:
@@ -265,15 +266,15 @@ def analyze(req: AnalyzeRequest):
                     if td:
                         years_match = re.search(r'(\d+)', str(req.months))
                         years       = float(years_match.group(1)) / 12 if years_match else 1.0
-                        projection  = project_investment(hyp_ticker, amount, years, td)
+                        projection  = project_investment_cagr(hyp_ticker, amount, years, td)
                         if projection:
                             market_context["hypothetical_projection"] = projection
 
-                news = fetch_news(tickers[:5])
+                news = fetch_market_news(tickers[:5])
                 if news.get("company") or news.get("market"):
                     market_context["news"] = news
         except Exception as e:
-            print(f"[market_research] analyze endpoint failed (non-fatal): {e}")
+            print(f"[csv_analyzer] /analyze enrichment failed (non-fatal): {e}")
 
     analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast, current_params, market_context or None)
     return parse_output(analysis)
@@ -697,16 +698,17 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from Feature3.F3Insights import (
-    build_prompt as build_portfolio_prompt,
-    get_analysis as get_portfolio_analysis,
-    parse_output as parse_portfolio_output,
-)
+from Feature3.F3Insights import run_analysis as run_portfolio_analysis
 from Feature3.F3Insight_memory import store_memories_batch, retrieve_memories_by_intent
-from Feature3.market_research import (
-    detect_tickers, fetch_ticker_data, fetch_news,
-    parse_hypothetical, project_investment,
-    detect_historical_year, calculate_historical_performance,
+# /analyze (above) does its own lightweight market enrichment via csv_analyzer.
+# /pf/portfolio-analysis runs the full pipeline through F3Insights, which also
+# sources its market data from csv_analyzer — market_research is no longer used.
+from Feature3.csv_analyzer import (
+    detect_tickers,
+    fetch_ticker_data,
+    parse_hypothetical,
+    project_investment_cagr,
+    fetch_market_news,
 )
 
 
@@ -727,6 +729,12 @@ def _build_profile_context(onboarding: dict) -> str:
     if cap is not None:
         try:
             parts.append(f"${int(cap):,} capital")
+        except (TypeError, ValueError):
+            pass
+    cash = onboarding.get("emergencyCash")
+    if cash is not None:
+        try:
+            parts.append(f"${int(cash):,} emergency cash")
         except (TypeError, ValueError):
             pass
     horizon = onboarding.get("timeHorizon")
@@ -765,6 +773,8 @@ def _answer_profile_question(question: str, onboarding: dict) -> Optional[str]:
         (("experience level", "experience"), lambda v: f"Your experience level is {v}."),
         (("investment capital", "capital", "net worth"),
             lambda v: f"Your stated investment capital is ${int(v):,}."),
+        (("emergency cash", "cash cushion", "cushion", "emergency fund"),
+            lambda v: f"Your stated emergency cash is ${int(v):,}."),
         (("age",),                       lambda v: f"You're {v} years old."),
         (("communication style", "tone"),lambda v: f"Your preferred communication style is {v}."),
         (("investment strategies", "strategies", "strategy"),
@@ -779,6 +789,10 @@ def _answer_profile_question(question: str, onboarding: dict) -> Optional[str]:
         "investment capital":   "investmentCapital",
         "capital":              "investmentCapital",
         "net worth":            "investmentCapital",
+        "emergency cash":       "emergencyCash",
+        "cash cushion":         "emergencyCash",
+        "cushion":              "emergencyCash",
+        "emergency fund":       "emergencyCash",
         "age":                  "age",
         "communication style":  "communicationStyle",
         "tone":                 "communicationStyle",
@@ -842,57 +856,12 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
     except Exception as e:
         print(f"[prices] Refresh/enrich failed (non-fatal): {e}")
 
-    # Market research — ticker data + news + hypothetical projections
-    market_context = {}
-    if user_question:
-        try:
-            portfolio_syms = [h.get("symbol", "") for h in data.get("holdings", [])]
-            tickers = detect_tickers(user_question, portfolio_symbols=portfolio_syms)
+    # Make the user's question visible to F3Insights (it reads data["question"]
+    # for intent extraction + enrichment routing).
+    if user_question and "question" not in data:
+        data["question"] = user_question
 
-            # Fetch yfinance data for tickers mentioned in the question
-            if tickers:
-                ticker_data = {}
-                for sym in tickers[:5]:
-                    td = fetch_ticker_data(sym)
-                    if td:
-                        ticker_data[sym] = td
-                if ticker_data:
-                    market_context["ticker_data"] = ticker_data
-
-            # Hypothetical projection: "what if I invested $X in Y?"
-            amount, hyp_ticker = parse_hypothetical(user_question)
-            if amount and hyp_ticker:
-                td = market_context.get("ticker_data", {}).get(hyp_ticker) or fetch_ticker_data(hyp_ticker)
-                if td:
-                    time_horizon = data.get("onboarding", {}).get("timeHorizon", "5 years")
-                    years_match  = re.search(r'(\d+)', str(time_horizon))
-                    years        = float(years_match.group(1)) if years_match else 5.0
-                    projection   = project_investment(hyp_ticker, amount, years, td)
-                    if projection:
-                        market_context["hypothetical_projection"] = projection
-
-            # Historical scenario: "how would my portfolio have performed if I bought in 2020?"
-            hist_year = detect_historical_year(user_question)
-            if hist_year:
-                hist_perf = calculate_historical_performance(
-                    data.get("holdings", []), hist_year
-                )
-                if hist_perf:
-                    market_context["historical_performance"] = hist_perf
-
-            # Finnhub news for mentioned tickers + general market
-            news_tickers = tickers[:5] if tickers else portfolio_syms[:5]
-            news = fetch_news(news_tickers)
-            if news.get("company") or news.get("market"):
-                market_context["news"] = news
-
-        except Exception as e:
-            print(f"[market_research] Failed (non-fatal): {e}")
-
-    if market_context:
-        data["market_context"] = market_context
-
-    # Retrieve relevant past memories before building the prompt
+    # Retrieve relevant past memories before running the analysis pipeline.
     memories = []
     if user_question:
         try:
@@ -900,9 +869,11 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
         except Exception as e:
             print(f"[memory] Retrieval failed (non-fatal): {e}")
 
-    prompt = build_portfolio_prompt(data, memories=memories, user_question=user_question)
-    raw    = get_portfolio_analysis(prompt)
-    result = parse_portfolio_output(raw)
+    # F3Insights owns the full portfolio analysis pipeline now: market_context
+    # (ticker_data / hypothetical / historical) + geographic_exposure via
+    # csv_analyzer, intent extraction, Finnhub news, yfinance snapshot, Prophet
+    # projections, prompt build, Groq call, parse, memory store.
+    result = run_portfolio_analysis(data, memories=memories)
 
     onboarding_payload = data.get("onboarding") or {}
 
@@ -975,6 +946,7 @@ class InvestmentOnboardingRequest(BaseModel):
     age:                  int
     experienceLevel:      str            # beginner | intermediate | advanced
     investmentCapital:    int            # dollar amount, 0 – 500,000
+    emergencyCash:        int            # dollar amount, 0 – 200,000; cash held outside the portfolio
     communicationStyle:   str            # simple | technical
     investmentStrategies: list[str]      # subset of: day_trading | index | growth | income | buy_and_hold | dollar_cost_average
     timeHorizon:          str            # daily | weekly | monthly | annually | indefinitely
@@ -988,6 +960,7 @@ ONBOARDING_RESET_STATE = {
     "age":                  30,
     "experienceLevel":      "beginner",
     "investmentCapital":    50000,
+    "emergencyCash":        10000,
     "communicationStyle":   "simple",
     "investmentStrategies": ["buy_and_hold"],
     "timeHorizon":          "monthly",
@@ -1003,6 +976,7 @@ def _onboarding_record(req: InvestmentOnboardingRequest, completed_at: str) -> d
         "age":                  req.age,
         "experienceLevel":      req.experienceLevel,
         "investmentCapital":    req.investmentCapital,
+        "emergencyCash":        req.emergencyCash,
         "communicationStyle":   req.communicationStyle,
         "investmentStrategies": req.investmentStrategies,
         "timeHorizon":          req.timeHorizon,
@@ -1025,6 +999,7 @@ def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session =
         existing.age                   = req.age
         existing.experience_level      = req.experienceLevel
         existing.investment_capital    = req.investmentCapital
+        existing.emergency_cash        = req.emergencyCash
         existing.communication_style   = req.communicationStyle
         existing.investment_strategies = strategies_json
         existing.time_horizon          = req.timeHorizon
@@ -1043,6 +1018,7 @@ def submit_investment_onboarding(req: InvestmentOnboardingRequest, db: Session =
             age                   = req.age,
             experience_level      = req.experienceLevel,
             investment_capital    = req.investmentCapital,
+            emergency_cash        = req.emergencyCash,
             communication_style   = req.communicationStyle,
             investment_goal       = legacy_goal,
             investment_strategies = strategies_json,
@@ -1112,6 +1088,7 @@ def get_investment_onboarding_by_user(user_id: str, db: Session = Depends(get_db
         "age":                   profile.age,
         "experience_level":      profile.experience_level,
         "investment_capital":    profile.investment_capital,
+        "emergency_cash":        profile.emergency_cash,
         "communication_style":   profile.communication_style,
         "investment_goal":       profile.investment_goal,
         "investment_strategies": json.loads(profile.investment_strategies) if profile.investment_strategies else [],

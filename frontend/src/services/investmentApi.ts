@@ -72,6 +72,7 @@ export interface InvestmentOnboardingPayload {
   age:                  number;
   experienceLevel:      "beginner" | "intermediate" | "advanced";
   investmentCapital:    number;
+  emergencyCash:        number;
   communicationStyle:   "simple" | "technical";
   investmentStrategies: Array<"day_trading" | "index" | "growth" | "income" | "buy_and_hold" | "dollar_cost_average">;
   timeHorizon:          "daily" | "weekly" | "monthly" | "annually" | "indefinitely";
@@ -113,6 +114,7 @@ export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPa
       age:                   number;
       experience_level:      string;
       investment_capital:    number;
+      emergency_cash:        number | null;
       communication_style:   string;
       investment_strategies: string[];
       time_horizon:          string;
@@ -123,6 +125,7 @@ export async function loadInvestmentOnboarding(): Promise<InvestmentOnboardingPa
       age:                  d.age,
       experienceLevel:      d.experience_level     as InvestmentOnboardingPayload["experienceLevel"],
       investmentCapital:    d.investment_capital,
+      emergencyCash:        d.emergency_cash ?? 0,
       communicationStyle:   d.communication_style  as InvestmentOnboardingPayload["communicationStyle"],
       investmentStrategies: (d.investment_strategies ?? []) as InvestmentOnboardingPayload["investmentStrategies"],
       timeHorizon:          d.time_horizon         as InvestmentOnboardingPayload["timeHorizon"],
@@ -333,6 +336,7 @@ export interface InvestmentAIRequest {
     age:                  number;
     experienceLevel:      string;
     investmentCapital:    number;
+    emergencyCash:        number;
     communicationStyle:   string;
     investmentStrategies: string[];
     timeHorizon:          string;
@@ -409,6 +413,7 @@ export function buildInvestmentAIPayload(
       age:                  onboarding.age,
       experienceLevel:      onboarding.experienceLevel,
       investmentCapital:    onboarding.investmentCapital,
+      emergencyCash:        onboarding.emergencyCash,
       communicationStyle:   onboarding.communicationStyle,
       investmentStrategies: onboarding.investmentStrategies,
       timeHorizon:          onboarding.timeHorizon,

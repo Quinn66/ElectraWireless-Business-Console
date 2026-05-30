@@ -12,6 +12,9 @@ import {
   INVESTMENT_CAPITAL_MIN,
   INVESTMENT_CAPITAL_MAX,
   INVESTMENT_CAPITAL_STEP,
+  EMERGENCY_CASH_MIN,
+  EMERGENCY_CASH_MAX,
+  EMERGENCY_CASH_STEP,
   type ExperienceLevel,
   type CommunicationStyle,
   type InvestmentStrategy,
@@ -140,12 +143,23 @@ function PersonalContextStep({ state, patch }: StepProps) {
       />
       <Slider
         label="Investment Capital"
+        hint="Money you've set aside to invest — already committed to the market."
         value={state.investmentCapital}
         min={INVESTMENT_CAPITAL_MIN}
         max={INVESTMENT_CAPITAL_MAX}
         step={INVESTMENT_CAPITAL_STEP}
         format={(v) => `$${v.toLocaleString("en-US")}`}
         onChange={(v) => patch({ investmentCapital: v })}
+      />
+      <Slider
+        label="Emergency Cash"
+        hint="Savings kept outside the market as your financial cushion."
+        value={state.emergencyCash}
+        min={EMERGENCY_CASH_MIN}
+        max={EMERGENCY_CASH_MAX}
+        step={EMERGENCY_CASH_STEP}
+        format={(v) => `$${v.toLocaleString("en-US")}`}
+        onChange={(v) => patch({ emergencyCash: v })}
       />
     </div>
   );

@@ -222,6 +222,7 @@ class InvestmentOnboardingProfile(Base):
     age                   = Column(Integer, nullable=False)
     experience_level      = Column(String,  nullable=False)   # beginner | intermediate | advanced
     investment_capital    = Column(Integer, nullable=False)   # dollar amount, 0 – 500,000
+    emergency_cash        = Column(Integer, nullable=True)    # dollar amount, 0 – 200,000; cash held outside the portfolio
     communication_style   = Column(String,  nullable=False)   # simple | technical
     investment_goal       = Column(String,  nullable=True)    # legacy: growth | income | preservation | balanced
     investment_strategies = Column(String,  nullable=True)    # JSON list[str]

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Loader2, Sparkles, TrendingUp, TrendingDown, ListChecks, MessageCircle, UserCircle, RefreshCw, Activity } from "lucide-react";
 import { useInvestmentContextStore } from "@/store/investmentContextStore";
+import { useInvestmentGoalsStore } from "@/store/investmentGoalsStore";
 import { usePersonalFinanceStore } from "@/store/personalFinanceStore";
 import { fetchSummary } from "@/services/personalFinanceApi";
 import type { FinancialSummary } from "@/services/personalFinanceApi";
 import { buildInvestmentAIPayload, fetchInvestmentAIInsights } from "@/services/investmentApi";
 import type { InvestmentHolding, InvestmentAIResponse, PortfolioSummary, PFContextInput } from "@/services/investmentApi";
+import { summarizeInvestmentGoal } from "@/components/investment/InvestmentGoalsTab";
 import { C_PRIMARY, C_SUCCESS, C_ERROR, C_WARNING, C_BORDER } from "@/lib/colors";
 
 type SectionAccent = "primary" | "success" | "error" | "warning";
@@ -65,8 +67,9 @@ function BulletList({ items, color }: { items: string[]; color: string }) {
 }
 
 export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentHolding[]; summary: PortfolioSummary | null }) {
-  const onboarding   = useInvestmentContextStore();
-  const pfStore      = usePersonalFinanceStore();
+  const onboarding      = useInvestmentContextStore();
+  const investmentGoals = useInvestmentGoalsStore((s) => s.goals);
+  const pfStore         = usePersonalFinanceStore();
   const { transactions, assets, liabilities } = pfStore;
 
   const [loading,    setLoading]   = useState(false);
@@ -99,16 +102,20 @@ export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentH
     setLoading(true);
     setError(null);
     try {
+      const goalsSummary = investmentGoals
+        .map((g) => summarizeInvestmentGoal(g, holdings, summary))
+        .join("; ");
       const payload = buildInvestmentAIPayload("", holdings, {
         age:                  onboarding.age,
         experienceLevel:      onboarding.experienceLevel,
         investmentCapital:    onboarding.investmentCapital,
+        emergencyCash:        onboarding.emergencyCash,
         communicationStyle:   onboarding.communicationStyle,
         investmentStrategies: onboarding.investmentStrategies,
         timeHorizon:          onboarding.timeHorizon,
         assetInterests:       onboarding.assetInterests,
         completedAt:          onboarding.completedAt,
-      }, "", "Current portfolio", summary, pfContext);
+      }, goalsSummary, "Current portfolio", summary, pfContext);
       setResult(await fetchInvestmentAIInsights(payload));
       setGeneratedAt(new Date());
     } catch {
