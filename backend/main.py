@@ -266,15 +266,15 @@ def analyze(req: AnalyzeRequest):
                     if td:
                         years_match = re.search(r'(\d+)', str(req.months))
                         years       = float(years_match.group(1)) / 12 if years_match else 1.0
-                        projection  = project_investment(hyp_ticker, amount, years, td)
+                        projection  = project_investment_cagr(hyp_ticker, amount, years, td)
                         if projection:
                             market_context["hypothetical_projection"] = projection
 
-                news = fetch_news(tickers[:5])
+                news = fetch_market_news(tickers[:5])
                 if news.get("company") or news.get("market"):
                     market_context["news"] = news
         except Exception as e:
-            print(f"[market_research] analyze endpoint failed (non-fatal): {e}")
+            print(f"[csv_analyzer] /analyze enrichment failed (non-fatal): {e}")
 
     analysis = get_analysis(req.question, historical, prophet_forecast, slider_forecast, current_params, market_context or None)
     return parse_output(analysis)
@@ -698,16 +698,17 @@ def ai_insights(req: dict = Body(...)):
 
 # ── Feature 3 AI Insights (Portfolio Analysis) ────────────────────────────────
 
-from Feature3.F3Insights import (
-    build_prompt as build_portfolio_prompt,
-    get_analysis as get_portfolio_analysis,
-    parse_output as parse_portfolio_output,
-)
+from Feature3.F3Insights import run_analysis as run_portfolio_analysis
 from Feature3.F3Insight_memory import store_memories_batch, retrieve_memories_by_intent
-from Feature3.market_research import (
-    detect_tickers, fetch_ticker_data, fetch_news,
-    parse_hypothetical, project_investment,
-    detect_historical_year, calculate_historical_performance,
+# /analyze (above) does its own lightweight market enrichment via csv_analyzer.
+# /pf/portfolio-analysis runs the full pipeline through F3Insights, which also
+# sources its market data from csv_analyzer — market_research is no longer used.
+from Feature3.csv_analyzer import (
+    detect_tickers,
+    fetch_ticker_data,
+    parse_hypothetical,
+    project_investment_cagr,
+    fetch_market_news,
 )
 
 
@@ -855,57 +856,12 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
     except Exception as e:
         print(f"[prices] Refresh/enrich failed (non-fatal): {e}")
 
-    # Market research — ticker data + news + hypothetical projections
-    market_context = {}
-    if user_question:
-        try:
-            portfolio_syms = [h.get("symbol", "") for h in data.get("holdings", [])]
-            tickers = detect_tickers(user_question, portfolio_symbols=portfolio_syms)
+    # Make the user's question visible to F3Insights (it reads data["question"]
+    # for intent extraction + enrichment routing).
+    if user_question and "question" not in data:
+        data["question"] = user_question
 
-            # Fetch yfinance data for tickers mentioned in the question
-            if tickers:
-                ticker_data = {}
-                for sym in tickers[:5]:
-                    td = fetch_ticker_data(sym)
-                    if td:
-                        ticker_data[sym] = td
-                if ticker_data:
-                    market_context["ticker_data"] = ticker_data
-
-            # Hypothetical projection: "what if I invested $X in Y?"
-            amount, hyp_ticker = parse_hypothetical(user_question)
-            if amount and hyp_ticker:
-                td = market_context.get("ticker_data", {}).get(hyp_ticker) or fetch_ticker_data(hyp_ticker)
-                if td:
-                    time_horizon = data.get("onboarding", {}).get("timeHorizon", "5 years")
-                    years_match  = re.search(r'(\d+)', str(time_horizon))
-                    years        = float(years_match.group(1)) if years_match else 5.0
-                    projection   = project_investment(hyp_ticker, amount, years, td)
-                    if projection:
-                        market_context["hypothetical_projection"] = projection
-
-            # Historical scenario: "how would my portfolio have performed if I bought in 2020?"
-            hist_year = detect_historical_year(user_question)
-            if hist_year:
-                hist_perf = calculate_historical_performance(
-                    data.get("holdings", []), hist_year
-                )
-                if hist_perf:
-                    market_context["historical_performance"] = hist_perf
-
-            # Finnhub news for mentioned tickers + general market
-            news_tickers = tickers[:5] if tickers else portfolio_syms[:5]
-            news = fetch_news(news_tickers)
-            if news.get("company") or news.get("market"):
-                market_context["news"] = news
-
-        except Exception as e:
-            print(f"[market_research] Failed (non-fatal): {e}")
-
-    if market_context:
-        data["market_context"] = market_context
-
-    # Retrieve relevant past memories before building the prompt
+    # Retrieve relevant past memories before running the analysis pipeline.
     memories = []
     if user_question:
         try:
@@ -913,9 +869,11 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
         except Exception as e:
             print(f"[memory] Retrieval failed (non-fatal): {e}")
 
-    prompt = build_portfolio_prompt(data, memories=memories, user_question=user_question)
-    raw    = get_portfolio_analysis(prompt)
-    result = parse_portfolio_output(raw)
+    # F3Insights owns the full portfolio analysis pipeline now: market_context
+    # (ticker_data / hypothetical / historical) + geographic_exposure via
+    # csv_analyzer, intent extraction, Finnhub news, yfinance snapshot, Prophet
+    # projections, prompt build, Groq call, parse, memory store.
+    result = run_portfolio_analysis(data, memories=memories)
 
     onboarding_payload = data.get("onboarding") or {}
 
