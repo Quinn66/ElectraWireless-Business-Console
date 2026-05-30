@@ -1,0 +1,142 @@
+{
+  "company": {
+    "VOO": {
+      "country": "US",
+      "articles": [
+        {
+          "headline": "The Great Debt Debacle Has Arrived",
+          "summary": "We are staring at a debt structure of nearly $180 trillion, in an economy with a GDP of $32 trillion. This is now colliding with a very dangerous force: rising interest rates. Read more here",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=010f0be84353a02df163f0bd49efcdae0cbba787662be1dc1246d97cceecb311",
+          "datetime": 1780034700
+        },
+        {
+          "headline": "The Most-Compared ETFs Right Now \u2014 And What They Reveal",
+          "summary": "ETF.com's Comparison Tool logged nearly 97,000 user sessions over the past 28 days, revealing four dominant investor themes: semiconductor ETFs (led by the SMH vs. SOXX matchup with 2,478 users), larg",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=11f9993706429d81411bf4ae45c86af4566314f62cb01526c483e90d9ae65d39",
+          "datetime": 1780009200
+        },
+        {
+          "headline": "Powell Hands Warsh A Dissent Surge, But Not Really A Divided Fed",
+          "summary": "A major feature of the Federal Reserve under the second Donald Trump presidency is the spike in the number of dissent votes.",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=ee7ed9a54b7a10913ff6d283498b783f47034cfd25cf29322a9804bb39caf222",
+          "datetime": 1780008900
+        },
+        {
+          "headline": "AAII Sentiment Survey: Optimism Reappears",
+          "summary": "Get the latest investor sentiment update: bullish rises to 35.6%, neutral falls to 22.6%, bearish dips to 41.9%.",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=3e5d28637ef7629d3147e6ee16adbdbe6d9b70c11bc309f61fd8d6a5b3248969",
+          "datetime": 1780000860
+        },
+        {
+          "headline": "Dow Jones, Nasdaq And S&P 500 Intraday Levels: Memorandum Is Finalized, But Its Agreement Is Still Pending",
+          "summary": "Markets are rallying due to the finalization of the peace memorandum, but final agreement by Trump and Khamenei is still awaited",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=bf8bc7b6a67e9e7dc07b276305c9df994cfba9fbe640cd2bdd52d4a32d0c989a",
+          "datetime": 1780000800
+        }
+      ]
+    },
+    "AAPL": {
+      "country": "United States",
+      "articles": [
+        {
+          "headline": "5 Warren Buffett Stocks to Hold Forever",
+          "summary": "Berkshire Hathaway has had some of these titles in its equity portfolio for decades.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=87d4670df3ab7f6fb50a06555c2bfb1e1a8caa6c1fec3fb60938be02f9082a40",
+          "datetime": 1780047900
+        },
+        {
+          "headline": "Foxconn has 'immense confidence' in growth momentum due to AI, chairman says",
+          "summary": "Taiwan's Foxconn, the world's largest contract electronics maker, has \"immense \u200cconfidence\" in its growth momentum because of \u200csoaring AI demand, Chairman Young Liu said on Friday.  The company, \u200bNvid",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=cbb665d5b1ac657598493a88602b306bd6c5ea3cf4f446021249c9f612f2b3c1",
+          "datetime": 1780019031
+        },
+        {
+          "headline": "Is This Why Taiwan Semiconductor Manufacturing Company Limited (TSM) is One of the Best 52-week High Stocks to Invest In?",
+          "summary": "Taiwan Semiconductor Manufacturing Company Limited (NYSE:TSM) is one of the best 52-week high stocks to invest in, according to short sellers. On May 18, analysts at Bernstein SocGen Group reiterated ",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=7f30ea2d2c8130cc48824e522c96bb03267fa3223e95424fb58ca145fae44dde",
+          "datetime": 1780011556
+        },
+        {
+          "headline": "Intel Has Tripled in 2026. Here's 1 Reason It Could Keep Going.",
+          "summary": "One idea from the chipmaker's latest earnings call sits at the center of the bull case.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=b02f134244415e463b28c48a91bf7e63529f595b506702b12f4861d7bd2c127e",
+          "datetime": 1780008660
+        },
+        {
+          "headline": "Is Apple (AAPL) One of the Best Reddit Stocks to Buy According to Billionaires?",
+          "summary": "Apple Inc. (NASDAQ:AAPL) is included among the 10 Best Reddit Stocks to Buy According to Billionaires. On May 26, BofA raised its price recommendation on Apple Inc. (NASDAQ:AAPL) to $380 from $330. It",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=13dec806e1dae9d382e8b80ddbc9cefa63f7057db7c8251583fb4560ae186ea2",
+          "datetime": 1779999940
+        }
+      ]
+    },
+    "BHP": {
+      "country": "Australia",
+      "articles": [
+        {
+          "headline": "Nickel Miners News For The Month Of May 2026",
+          "summary": "Nickel market shows softer spot prices, Indonesia policy shifts, sulfur supply risks & major producers\u00e2\u0080\u0099 output. Read more here.",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=e048ffb0bc528e45589876113a31e5ef0e06c407c5cc2455a2795441c87dce0d",
+          "datetime": 1780028726
+        }
+      ]
+    }
+  },
+  "market": [
+    {
+      "headline": "Iran war impact could 'doubly scar' euro zone consumers, ECB research finds - Reuters",
+      "summary": "Iran war impact could 'doubly scar' euro zone consumers, ECB research finds\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxOOG96cVltZ2lKcTlBQkt5ZWE2QVdiT2dZWUpvNDN0SzJNUzcyTDgtblFQb1VuaUhGbkM5OXVRNmdydzd3YnAzTHdVSjFCaUNLU2Vfbko0aHZvYU9EbUtoVzQ5Uko0MGNzTFFvSEdQV3BteDUzc2ptR0NoSGtLSThkY1ZCdHBkTVNzVlFhX3NNQWppX01kNzBBX1MzYUhIRExLNE9DOHZvczVMUWZZbHkxdlNoTEUxY2d1ZVkzbEJQLXZmV0E?oc=5",
+      "datetime": 1780038848
+    },
+    {
+      "headline": "Morning Bid: Another day, another Iran deal moment - Reuters",
+      "summary": "Morning Bid: Another day, another Iran deal moment\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMif0FVX3lxTE5iZ2RaRG9vZ1dVU25EYUM2b1BreVFpS2s5SGhXQlV2Uy05dWloYXV6Yk9rcmJKcFVqSXByTDRsR2R1XzRqcTh6cmpnejlrZXYwOVBaTk02QkVXMkhPUXQwZkxaemkxTE1neXdPd1JqQUdEYXE2bHBNYWhBcWxlSFk?oc=5",
+      "datetime": 1780029300
+    },
+    {
+      "headline": "Central bank intervention boosts rupee; NDF maturities exert pressure - Reuters",
+      "summary": "Central bank intervention boosts rupee; NDF maturities exert pressure\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxQMUs4SlJiTUI1TTNVaXBYSlppLUZYVjFsVUt2ZGNPZmRxMHI1T2syZXhZclpEQW40OERVc2p4R1NIQ1hXZlJmN3NJcHF3YlVvcXJTQ1ZDc2JpM19XMW1XWGJwQkdMNVF3M1lCQ1lKcncySmwwM2xKenFsdVY1RGxxUnlKX3M5N2RzbzBxVWgybjRNMjFTSXBEMFE2dk9BT2xuUUdxbEpGMjE1M1ljZ083RnFVa1dGckJBN29pLTJybw?oc=5",
+      "datetime": 1780022160
+    },
+    {
+      "headline": "Trump's room to maneuver narrows as US, Iran close in on framework deal - Reuters",
+      "summary": "Trump's room to maneuver narrows as US, Iran close in on framework deal\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxNVzYxUnZMR1RyMnBocjBKaUJMS29UUGk0M0NkaC1LTzl2bVhSd0xrZmVSOWxRRjJPd3lnbGdnYXhhRXRJOTRwb0dYby1hVEJ0VENtZENUYkRFbTI5dXA1ckoyOW5ib01ZN2hwbFJSd09hZkx2RXJrY2ZzSFpYR1lxNjBMNGxZZVhlLWw1UGt3UlNzbHhoVlFaaTVIMGxUVlVud3Y5S1U5YURIZ3hCSWZtUA?oc=5",
+      "datetime": 1780019820
+    },
+    {
+      "headline": "Gold on track for third monthly loss as traders focus on US-Iran ceasefire - Reuters",
+      "summary": "Gold on track for third monthly loss as traders focus on US-Iran ceasefire\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxPVG9LSXFya2dkWXFpalhhTWlIT3dMRFBSU3dHdHFHZDdBbnNxbk9SVWlNcDQzY0gwX19MNlh1TEw0UUNZd3ZIekE5VGhCSXU4cC05SlQ3TGM0d2x0bjdmRi0xR2pOWDNkZ1JYYzhlcVR6Rms4SFpSV3FIZTZ2ZndadTc0MUxMUk1qR3RsbmhZdnFNcUk2cHhPVmVySTN0NS1PcUJmMEVMbElLZGU0T042WDM4YlFkVFo5a05VQ193?oc=5",
+      "datetime": 1780017900
+    }
+  ],
+  "meta": {
+    "tickers_received": [
+      "VOO",
+      "AAPL",
+      "BHP"
+    ],
+    "countries_received": [],
+    "status": "active"
+  }
+}

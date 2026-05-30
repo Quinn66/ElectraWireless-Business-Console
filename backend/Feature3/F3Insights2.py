@@ -5,6 +5,8 @@ from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
 import os
 from groq import Groq
 from csv_analyzer import run as analyze_ticker, project_investment_prophet, format_market_data, fetch_market_news, build_news_block
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 DATA_DIR = "ydata"
 
@@ -13,6 +15,12 @@ api_key = os.getenv("GROQ_API_KEY")
 
 client = Groq(api_key=api_key)
 
+# ================= FASTAPI APP =================
+app = FastAPI()
+
+# ================= REQUEST MODEL =================
+class PortfolioRequest(BaseModel):
+    data: dict
 # ================= FILE PATHS =================
 INPUT_FILE = "../Llama Input/Feature_3_input.json"
 OUTPUT_FILE = "../Llama Output/Feature_3_output.json"
@@ -547,8 +555,9 @@ def detect_intent(question):
 
     return "general"
 
-# ================= MAIN =================
-def run():
+
+@app.post("/pf/portfolio-analysis")
+def portfolio_analysis(request: PortfolioRequest):
     start = time.perf_counter()
     data = load_input()
     # ================= RESET PROPHET SNAPSHOT =================
@@ -559,19 +568,18 @@ def run():
     if not data:
         return
     print("🔍 Generating analysis...\n")
-# ================= ONBOARDING EXTRACTION =================
+    # ================= ONBOARDING EXTRACTION =================
     onboarding = data.get("onboarding", {})
     user_question = data.get("question", None)
     portfolio_holdings = extract_portfolio_holdings(data)
-# ================= ONBOARDING EXTRACTION =================
-    # STEP 2: STOCK EXTRACTION
+    # ================= ONBOARDING EXTRACTION =================
+    # STOCK EXTRACTION
     stock_section = extract_intent(data, portfolio_holdings, user_question)
     print("\n=== STOCK EXTRACTION ===")
     print(stock_section)
     stocks, portfolio_stocks = extract_stock_lines(stock_section)
     all_tickers = stocks + portfolio_stocks
     all_tickers = list(set([t.strip().upper() for t in all_tickers if t]))
-    # news_data =
     news_data = fetch_market_news(all_tickers, [])
     news_block = build_news_block(news_data)
 
@@ -597,7 +605,7 @@ def run():
             print(m)
     else:
         print("No memories retrieved")
-    # STEP 4: MAIN LLM ANALYSIS
+    # MAIN LLM ANALYSIS
     # ================= LOAD CSV ANALYSIS JSON =================
     csv_analysis_path = os.path.join(DATA_DIR, "csv_analysis_output.json")
     csv_prediction_path = os.path.join(DATA_DIR, "csv_prediction_output_analysis.json")
@@ -611,7 +619,7 @@ def run():
     if os.path.exists(csv_prediction_path):
         with open(csv_prediction_path, "r", encoding="utf-8") as f:
             csv_prediction_data = json.load(f)
-    # COMPACT MARKET DATA BLOCK (NEW FORMATTER)
+    # COMPACT MARKET DATA BLOCK
     market_analysis_block, market_prediction_block = format_market_data(
         csv_analysis_data,
         csv_prediction_data
@@ -635,5 +643,6 @@ def run():
     store_sectioned_memories(user_question, parsed)
 
     print("\nTOTAL TIME:", time.perf_counter() - start)
-if __name__ == "__main__":
-    run()
+
+    return {**parsed}
+#     return run_portfolio_analysis(request.data)
