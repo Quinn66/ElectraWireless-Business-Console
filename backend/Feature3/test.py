@@ -46,34 +46,69 @@ def load_input():
     return None
 
 # 
+# def parse_predictions(text: str):
+#     lines = [l.strip() for l in text.split("\n") if l.strip()]
+
+#     predictions = []
+#     i = 0
+
+#     while i < len(lines):
+#         if lines[i].startswith("["):
+#             i += 1
+#             continue
+
+#         if i + 2 < len(lines):
+#             ticker = lines[i]
+#             flag = lines[i + 1].upper()
+#             timeframe = lines[i + 2]
+
+#             predictions.append({
+#                 "ticker": ticker,
+#                 "predict": flag == "YES",
+#                 "years": extract_years(timeframe)
+#             })
+
+#             i += 3
+#         else:
+#             break
+
+#     return predictions
+
 def parse_predictions(text: str):
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    lines = [l.strip() for l in text.splitlines()]
+
+    # Find prediction section
+    start = None
+    for i, line in enumerate(lines):
+        if line.upper() == "[SECTION: PREDICTIONS]":
+            start = i + 1
+            break
+
+    if start is None:
+        return []
+
+    # Only keep prediction lines
+    lines = [l for l in lines[start:] if l]
 
     predictions = []
     i = 0
 
-    while i < len(lines):
-        if lines[i].startswith("["):
-            i += 1
-            continue
+    while i + 3 < len(lines):
+        ticker = lines[i]
+        flag = lines[i + 1].upper()
+        timeframe = lines[i + 2]
+        country = lines[i + 3]
 
-        if i + 2 < len(lines):
-            ticker = lines[i]
-            flag = lines[i + 1].upper()
-            timeframe = lines[i + 2]
+        predictions.append({
+            "ticker": ticker,
+            "predict": flag == "YES",
+            "years": extract_years(timeframe),
+            "country": country
+        })
 
-            predictions.append({
-                "ticker": ticker,
-                "predict": flag == "YES",
-                "years": extract_years(timeframe)
-            })
-
-            i += 3
-        else:
-            break
+        i += 4
 
     return predictions
-
 
 def extract_years(text: str):
     import re
@@ -578,6 +613,9 @@ def run():
     print("\n🔧 YFINANCE LIVE MODE:")
     csv_analysis_data = analyze_ticker(stocks)
     predictions = parse_predictions(stock_section)
+    print("\n=== PARSED PREDICTIONS ===")
+    print(json.dumps(predictions, indent=2))
+
     active_predictions = [p for p in predictions if p["predict"]]
     if active_predictions:
         print("\n🚀 Running Prophet Predictions...\n")

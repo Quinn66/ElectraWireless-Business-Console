@@ -554,7 +554,6 @@ def project_investment_prophet(symbol: str, amount: float, years: float) -> dict
             "model": "prophet"
         }
 
-        # ================= SAVE ONLY TO PROPHET FILE (NO DUPLICATES) =================
 # ================= SAVE ONLY TO PROPHET FILE (append-safe) =================
         os.makedirs(os.path.dirname(OUTPUT_FILE_PROPHET), exist_ok=True)
 
@@ -566,13 +565,20 @@ def project_investment_prophet(symbol: str, amount: float, years: float) -> dict
         except:
             existing = []
 
-        # remove duplicate symbol inside same run
-        existing = [x for x in existing if x.get("symbol") != symbol]
+        # Remove only duplicate symbol + timeframe combinations
+        existing = [
+            x for x in existing
+            if not (
+                x.get("symbol") == symbol and
+                float(x.get("projected_years", 0)) == float(years)
+            )
+        ]
 
         existing.append(result)
 
         with open(OUTPUT_FILE_PROPHET, "w", encoding="utf-8") as f:
             json.dump(existing, f, indent=2)
+
         return result
 
     except Exception as e:
