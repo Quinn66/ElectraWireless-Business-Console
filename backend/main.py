@@ -7,6 +7,7 @@ from datetime import date as date_today, datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from investments import router as investments_router
+from knowledge import router as knowledge_router
 from database import engine, Base, get_db
 import models  # registers ORM models
 
@@ -145,6 +146,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(investments_router)
+app.include_router(knowledge_router)
 
 class ForecastRequest(BaseModel):
     revenue: float = Field(..., description="Current monthly revenue ($)")

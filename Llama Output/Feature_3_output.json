@@ -1,25 +1,32 @@
 {
-  "summary": "The portfolio has a total current value of $113,404.96, with a total return percentage of 73.77%. The portfolio is diversified across stocks, ETFs, and cryptocurrencies.",
+  "summary": "The portfolio has a total value of $225,005.58, with a total return of 39.67% and a total PnL of $63,913.20. The portfolio is diversified across various asset classes, including stocks, ETFs, and cryptocurrencies. The primary risk or opportunity in the portfolio is the high concentration of technology stocks, which may be affected by market volatility. The portfolio has a geographic spread across the United States, Taiwan, and the United Kingdom.",
   "pros": [
-    "The portfolio has a significant return percentage, indicating strong performance.",
-    "The emergency cash reserve of $10,000 provides a cushion against market volatility.",
-    "The portfolio is diversified across different asset classes, reducing risk."
+    "The portfolio has a high return percentage of 39.67%, indicating strong growth potential.",
+    "The portfolio is diversified across various asset classes, including stocks, ETFs, and cryptocurrencies, which can help to reduce risk.",
+    "The portfolio has a high total PnL of $63,913.20, indicating significant profits.",
+    "The portfolio has a strong growth stock component, with companies like NVDA and TSM showing high growth potential.",
+    "The portfolio has a stable ETF component, with funds like VEA and EEM providing diversification and stability."
   ],
   "cons": [
-    "The portfolio lacks geographic exposure data for some holdings, making it difficult to assess risk.",
-    "The high price-to-earnings ratio of TSLA (396.17) may pose a risk to investors.",
-    "The annualized volatility of TSLA (38.43%) is relatively high, which may lead to significant price fluctuations."
+    "The portfolio has a high concentration of technology stocks, which may be affected by market volatility.",
+    "The portfolio has a high risk component, with companies like NVDA and TSM having high volatility.",
+    "The portfolio has a limited geographic spread, with a high concentration of US-based companies.",
+    "The portfolio has a high dependence on the semiconductor sector, which may be affected by industry trends.",
+    "The portfolio has a limited cash balance, which may limit the ability to take advantage of new investment opportunities."
   ],
   "next_steps": [
-    "Monitor the performance of TSLA and adjust the portfolio as needed to ensure it remains aligned with the user's investment strategy and risk tolerance.",
-    "Consider adding more holdings to increase geographic diversification.",
-    "Review the portfolio regularly to ensure it remains aligned with the user's investment goals and risk tolerance."
+    "Consider diversifying the portfolio by adding more international stocks and ETFs to reduce geographic concentration risk.",
+    "Consider adding more stable and diversified ETFs to reduce volatility and increase stability.",
+    "Consider reducing the concentration of technology stocks to reduce risk.",
+    "Consider adding more growth stocks to take advantage of high growth potential.",
+    "Consider increasing the cash balance to take advantage of new investment opportunities."
   ],
-  "question_response": "Based on the MARKET ANALYSIS, Tesla's (TSLA) biggest risks and opportunities over the next few years include its high price-to-earnings ratio of 396.17 and its significant market capitalization of $1,636,706,942,976. The company's high volatility, with an annualized volatility of 38.43%, also poses a risk to investors. However, TSLA's current price of $435.79 and return percentage of 79.49% indicate a strong performance. According to the MARKET PREDICTIONS, TSLA is projected to gain 160.24% over the next 3 years, reaching a price of $1134.08.",
+  "question_response": "## Top 5 Investment Opportunities \u2014 June 2026\n**Selection Criteria**: Ranked by a combination of valuation attractiveness, earnings momentum, sector tailwinds, news sentiment, and risk-adjusted upside potential.\n**#1 NVDA \u2014 Nvidia Corporation** | Confidence: 9/10\n- Current price: $205.1 | P/E: 31.457056 | Forward P/E: 28.42 | Market cap: $4967727366144\n- **Why selected**: Nvidia's strong growth potential, driven by its leadership in the AI and semiconductor sectors, makes it an attractive investment opportunity.\n- **Sector analysis**: The AI and semiconductor sectors are expected to grow at a CAGR of 30% and 10%, respectively, over the next 5 years.\n- **Risk**: High \u2014 The portfolio has a high concentration of technology stocks, and NVDA's high volatility may increase the overall risk.\n- **Growth potential**: +20-30% over the next 12 months\n- **Investment horizon**: Medium-term 1-3 years\n**#2 TSM \u2014 Taiwan Semiconductor Manufacturing Company** | Confidence: 8.5/10\n- Current price: $415.17 | P/E: 35.575836 | Forward P/E: 30.21 | Market cap: $2153268510720\n- **Why selected**: TSM's strong growth potential, driven by its leadership in the semiconductor sector, makes it an attractive investment opportunity.\n- **Sector analysis**: The semiconductor sector is expected to grow at a CAGR of 10% over the next 5 years.\n- **Risk**: Medium \u2014 TSM's high dependence on the semiconductor sector may increase the overall risk.\n- **Growth potential**: +15-25% over the next 12 months\n- **Investment horizon**: Medium-term 1-3 years\n**#3 AAPL \u2014 Apple Inc.** | Confidence: 8/10\n- Current price: $307.34 | P/E: 37.16324 | Forward P/E: 28.42 | Market cap: $4514011676672\n- **Why selected**: Apple's strong brand and ecosystem, combined with its growing services segment, make it an attractive investment opportunity.\n- **Sector analysis**: The technology sector is expected to grow at a CAGR of 10% over the next 5 years.\n- **Risk**: Medium \u2014 Apple's high dependence on the technology sector may increase the overall risk.\n- **Growth potential**: +10-20% over the next 12 months\n- **Investment horizon**: Medium-term 1-3 years\n**#4 SHEL \u2014 Shell plc** | Confidence: 7.5/10\n- Current price: $85.4 | P/E: 13.30218 | Forward P/E: 10.21 | Market cap: $237102039040\n- **Why selected**: Shell's strong dividend yield and growing renewable energy segment make it an attractive investment opportunity.\n- **Sector analysis**: The energy sector is expected to grow at a CAGR of 5% over the next 5 years.\n- **Risk**: Low \u2014 Shell's diversified energy portfolio and strong dividend yield reduce the overall risk.\n- **Growth potential**: +5-15% over the next 12 months\n- **Investment horizon**: Long-term 3-5 years\n**#5 VEA \u2014 Vanguard FTSE Developed Markets ETF** | Confidence: 7/10\n- Current price: $69.17 | P/E: 20.21 | Forward P/E: 18.42 | Market cap: $100000000000\n- **Why selected**: VEA's diversified portfolio of developed market stocks provides a stable and attractive investment opportunity.\n- **Sector analysis**: The developed markets sector is expected to grow at a CAGR of 5% over the next 5 years.\n- **Risk**: Low \u2014 VEA's diversified portfolio and low expense ratio reduce the overall risk.\n- **Growth potential**: +5-10% over the next 12 months\n- **Investment horizon**: Long-term 3-5 years\n**Portfolio fit for your profile**: The top 5 investment opportunities align with the buy_and_hold and growth strategies, and fit within the $100,000 investment capital.\n**Methodology**: Selections based on live market data, news sentiment analysis, earnings signals, sector rotation, and valuation vs. historical averages.",
   "sources": [
+    "Portfolio data",
+    "Live market data",
+    "News context",
     "MARKET ANALYSIS",
-    "MARKET PREDICTIONS",
-    "PORTFOLIO DATA",
-    "LIVE MARKET DATA"
+    "MARKET PREDICTIONS (not available)"
   ]
 }

@@ -5,6 +5,7 @@ import { ConsoleAISidebar } from "@/components/ConsoleAISidebar";
 import { ProjectionPage } from "@/pages/ProjectionPage";
 import { PersonalFinancePage } from "@/pages/PersonalFinancePage";
 import { InvestmentPage } from "@/pages/InvestmentPage";
+import { KnowledgePage } from "@/pages/KnowledgePage";
 import { ConsoleHome } from "@/pages/ConsoleHome";
 import ProfileSelector from "@/ProfileSelector";
 import OnboardingFlow from "@/OnboardingFlow";
@@ -128,6 +129,10 @@ export function BusinessConsoleDashboard() {
       return <InvestmentPage />;
     }
 
+    if (activeTool === "knowledge") {
+      return <KnowledgePage />;
+    }
+
     return null;
   }
 
@@ -156,7 +161,7 @@ export function BusinessConsoleDashboard() {
           {renderMainContent()}
         </div>
 
-        {activeTool !== "investment" && <ConsoleAISidebar activeTool={activeTool} />}
+        {activeTool !== "investment" && activeTool !== "knowledge" && <ConsoleAISidebar activeTool={activeTool} />}
       </div>
     </div>
   );
