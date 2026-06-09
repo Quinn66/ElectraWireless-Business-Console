@@ -863,6 +863,11 @@ def portfolio_analysis(req: dict = Body(...), db: Session = Depends(get_db)):
     if user_question and "question" not in data:
         data["question"] = user_question
 
+    # Conversation history — passed from EllyChat so the LLM has prior context.
+    history = data.pop("history", None) or []
+    if history:
+        data["history"] = history
+
     # Retrieve relevant past memories before running the analysis pipeline.
     memories = []
     if user_question:

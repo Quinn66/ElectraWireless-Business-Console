@@ -114,6 +114,7 @@ export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentH
         investmentStrategies: onboarding.investmentStrategies,
         timeHorizon:          onboarding.timeHorizon,
         assetInterests:       onboarding.assetInterests,
+        country:              onboarding.country,
         completedAt:          onboarding.completedAt,
       }, goalsSummary, "Current portfolio", summary, pfContext);
       setResult(await fetchInvestmentAIInsights(payload));
@@ -125,11 +126,8 @@ export function InvestmentAIPanel({ holdings, summary }: { holdings: InvestmentH
     }
   }
 
-  // Auto-run once on mount when holdings are available
-  useEffect(() => {
-    if (hasHoldings && !result) generate();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasHoldings]);
+  // Removed auto-run — Groq free tier has a 100k token/day limit and
+  // firing on every page mount burns ~7k tokens with no user question.
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
