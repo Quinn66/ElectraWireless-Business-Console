@@ -1,13 +1,208 @@
 {
-  "company": {},
-  "market": [],
+  "company": {
+    "TSLA": {
+      "country": "United States",
+      "articles": [
+        {
+          "headline": "Why Is Tesla (TSLA) Stock Rocketing Higher Today",
+          "summary": "Shares of electric vehicle pioneer Tesla (NASDAQ:TSLA) jumped 5.5% in the afternoon session after the company's unsupervised robotaxi service launched in Austin over the weekend, the most concrete ste",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=56b04c633e43182ad99c0ac760a01f4cb1879a15da00a2e60bd34fdda73bfc28",
+          "datetime": 1780976510
+        },
+        {
+          "headline": "ValuEngine Weekly Market Summary And Commentary",
+          "summary": "U.S. equity markets moved lower this week, with weakness concentrated in growth and technology-linked areas.",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=03f78bab5f92598d5453366454323c7f01cd24f091cb881c9fc0e76b03ed04dc",
+          "datetime": 1780971300
+        },
+        {
+          "headline": "ASML Weighs Musk Terafab Talks Against Valuation And Governance Questions",
+          "summary": "Elon Musk joined ASML Holding\u2019s (ENXTAM:ASML) recent technology conference virtually to discuss chip manufacturing ambitions tied to the proposed Terafab project. Musk and ASML executives held direct ",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=c6d12fd63367a04d6dd66af858bde1e65ee27d7681f7cc4a2efd59b981a303f8",
+          "datetime": 1780964288
+        },
+        {
+          "headline": "TSLA Stock: Cathie Wood Slaps $75 Robotaxi Ticket Into ARK\u2019s Bull Case",
+          "summary": "Cathie Wood experienced an unsupervised Tesla Robotaxi ride in Austin on Monday and immediately added a new cost line item to ARK Invest\u2019s valuation model after the vehicle received a $75 parking tick",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=5519aa6cd24a3d738106707437f849e92235873a71457dccfc69cf5271023215",
+          "datetime": 1780963964
+        },
+        {
+          "headline": "Dow Jones Futures: Trump, Iran Comments Spark Tech Rebound; Apple, Micron, Nvidia, Sandisk, Tesla Are Big Movers",
+          "summary": "Dow Jones Futures: President Trump and Iran's comments sparked a tech rebound Monday. Micron, Nvidia and Sandisk were big winners.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=6c3fe0429fb798eee0f4de5fea5d92ccf0516eff705497606522a269999846e3",
+          "datetime": 1780953416
+        }
+      ]
+    },
+    "NVDA": {
+      "country": "United States",
+      "articles": [
+        {
+          "headline": "IBIT vs. FBTC: Which Bitcoin ETF Is Better?",
+          "summary": "The difference between the two largest Bitcoin ETFs comes down to a few minor details.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=cdc2487ca01cd68fa62d6c44e956fadadec937e59ebed777094146ae43e7902b",
+          "datetime": 1780983300
+        },
+        {
+          "headline": "SK hynix NVIDIA Alliance Puts AI Memory And Fabs In Focus",
+          "summary": "SK hynix (KOSE:A000660) and NVIDIA have agreed a multiyear technology partnership focused on next generation memory for AI computing platforms. The collaboration covers joint development of advanced m",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=0f91a9559e1206b9c64ebf1a4a69563bcb32b36eadc900ef8c3eeafd4b13843c",
+          "datetime": 1780981890
+        },
+        {
+          "headline": "This Sector Has Dominated ETF Returns So Far in 2026",
+          "summary": "AI is driving the hottest sector of this year's ETFs.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=9dbb9445ada534b1bcce8a8a8d21553501bfe514c8b7044f92232091ea51d0ac",
+          "datetime": 1780981500
+        },
+        {
+          "headline": "History Says SpaceX Stock Will Do This in Its First Year of Trading",
+          "summary": "SpaceX expects to go public this month at a $1.77 trillion valuation.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=6e6296fba533c7496b550901c627a28563ac17b54d471cadc454e9593e317a68",
+          "datetime": 1780980600
+        },
+        {
+          "headline": "Intel stock makes eye-popping move on Google, Nvidia news",
+          "summary": "Intel spent the second half of last week, between June 4 and 5, getting hammered alongside the rest of the chip sector. Then things changed on Monday, June 8. Shares of Intel (INTC) jumped about 13% t",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=5873a7b15b4e01845cdd0557803117f54ddfdf98556f0952ee2769f4dc2495fc",
+          "datetime": 1780979820
+        }
+      ]
+    },
+    "AAPL": {
+      "country": "United States",
+      "articles": [
+        {
+          "headline": "Nedap expands partnership with Albert Heijn with mobile access",
+          "summary": "Nedap expands partnership with Albert Heijn with mobile access Nedap (AMS:NEDAP), a global leader in Digital Twin Technology and access management solutions, announces the expansion of its partnership",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=c85a495e99b2b7034351496c2a517b21876aa198155c0ad9b151679fc060e8e7",
+          "datetime": 1780981200
+        },
+        {
+          "headline": "Apple answers Wall Street\u2019s biggest AI concern",
+          "summary": "Apple is trying to reset the conversation around its place in the artificial intelligence race. The iPhone maker on June 8 unveiled the next generation of Apple Intelligence, including a new and more ",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=4ab7f92e678f137fad12996ccb89a05dc8b8d8fa66fc140eee447678f0573de7",
+          "datetime": 1780975020
+        },
+        {
+          "headline": "Why Did AAPL, OSCR, LLY Stocks Hit 52-Week Highs Today?",
+          "summary": "Apple drew investor interest with a major AI update, Oscar Health reaffirmed its outlook, and Eli Lilly further strengthened its position in the weight-loss drug market.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=18b62689ad6c41a1d9a445994f027393926db6b7fcc04d4c62658229b5565e7d",
+          "datetime": 1780974498
+        },
+        {
+          "headline": "ValuEngine Weekly Market Summary And Commentary",
+          "summary": "U.S. equity markets moved lower this week, with weakness concentrated in growth and technology-linked areas.",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=03f78bab5f92598d5453366454323c7f01cd24f091cb881c9fc0e76b03ed04dc",
+          "datetime": 1780971300
+        },
+        {
+          "headline": "Why Apple\u2019s slow-and-steady AI bet is starting to look pretty smart",
+          "summary": "Can Apple's new AI glow up put to bed accusations that it's losing an all-important industry race?",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=39bc49fe97ef6bf94ba1e6e57ed9b5c1dcbd8e3eb88ecc431cc7ed9fe132c10b",
+          "datetime": 1780970208
+        }
+      ]
+    },
+    "META": {
+      "country": "United States",
+      "articles": [
+        {
+          "headline": "Meta Is Reportedly Weighing a Multibillion-Dollar Stock Sale to Fund Its AI Build-Out. Here's What It Could Mean for Shareholders.",
+          "summary": "After leaning on debt to fund its artificial intelligence (AI) ambitions, the social media giant may now be turning to its own shareholders.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=8ea645838d32c8cd44e3146f504bd25bd2cc2d31639e6ce6d53baccf80e0b0b0",
+          "datetime": 1780973460
+        },
+        {
+          "headline": "Corning (GLW) Shares Skyrocket, What You Need To Know",
+          "summary": "Shares of glass and electronic component manufacturer Corning (NYSE:GLW) jumped 7.4% in the morning session after Amazon announced a multiyear, multibillion-dollar agreement with the company to supply",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=95a58ba490634975aacd6cd8453f4ffe0c754c703218dcedc3dea54ebcba6c7b",
+          "datetime": 1780956830
+        },
+        {
+          "headline": "Billionaire Investor Backs Meta And Alphabet As AI Spending Surges",
+          "summary": "Hedge fund billionaire Daniel Loeb added several mega-cap and technology companies to his Third Point LLC portfolio in the first quarter of FY26. The investor placed his bets on Meta Platforms, Inc. a",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=d1582974f0d32a2aa2b0057f0e995fa8e51840a1585cecdefadc6b1c93a04bdf",
+          "datetime": 1780954262
+        },
+        {
+          "headline": "Meta funds skilled trades jobs program for AI data center buildout",
+          "summary": "Meta is investing $115 million to stand up a new training program for data center technician jobs, as the social \u200cmedia giant races to build the infrastructure to power its AI ambitions.  The cost-fre",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=efb47ff10119fa57b80745d1f5e256bfb1e269ddc9af9c73123b9f3c7f7f5d91",
+          "datetime": 1780953389
+        },
+        {
+          "headline": "ServiceTitan Stock Surged on Better-Than-Expected Results Powered by AI. What This Means for ServiceTitan Investors.",
+          "summary": "ServiceTitan shares surged more than 4% after reporting strong fiscal Q1 2027 results, with revenue rising 25% year-over-year to $268.8 million, driven by its AI-powered platform.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=748511a845e1fa05e0d20f735c0c2aa2aa901526deb9b4fe4ddab1a5a9a1d425",
+          "datetime": 1780951948
+        }
+      ]
+    }
+  },
+  "market": [
+    {
+      "headline": "Trump says US helicopter pilots who went down in Strait of Hormuz are fine - Reuters",
+      "summary": "Trump says US helicopter pilots who went down in Strait of Hormuz are fine\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxOWGZKeW81Zk5SeFFRa0s2TWRGZWR4czJsM1ZkUlR4M0xMbWdpNER1UndNRFJmTEtYZEZST0JQSUtCemFXQjN2Z3R4ZnUzemZadUYwakxFTWUyY0ZCZWpQWFhLa1Y4NjN2T1MtTW1XMU1OYTE5M3hwUEpZZ3dOXzlobUVzazRrM3ZyOEhiWUdyM2JUdkRINVZJREFUWDFLSG5hUGRjWGhIX1JnbUdqTHNYUGY1R1ZqdDNMa0hybkptaw?oc=5",
+      "datetime": 1780984680
+    },
+    {
+      "headline": "Trump says pilots safe after US Army Apache goes down near Hormuz - Reuters",
+      "summary": "Trump says pilots safe after US Army Apache goes down near Hormuz\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxOaUF1RGh1MHRmV3BMbTV3bTFQTnRRYkEtM2lxRE8zRGlqcE82RkZwOTlpRHZvTl8tNk9zRkQ0SVJueG1MUU9TdDhlelItVXlMcTVxT2FETVNRcW5vYVlrckt6UTVZbWNPQnAzVXNBWnVkLU13NWVjUXhGVHRYYzdVcXM1MjdCSzcyWktuS3RYSTQ1dFdHb1cyX2ViakVaWUVtSXBfZTNrallHVlRzNm5SUnRpXzJYZw?oc=5",
+      "datetime": 1780977540
+    },
+    {
+      "headline": "Dollar retreats from two-month high as Gulf tensions ease; rate hike bets rise - Reuters",
+      "summary": "Dollar retreats from two-month high as Gulf tensions ease; rate hike bets rise\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxNeWs5WHdObzRZRHJxcnRhbVBqbS1DV09RV0RUUFdsQnVMZ0czT2x0NFNnSDh3ODl3QXdTd1VTV0hiQkd0ektSRFhhQWEtdW1uMjU2bTl2TW1tcV9qVkJMbHNQeWZUYjlEcHN4RURDNDNicUsxLUVic0RqcHJHVU9YR3ZEYzVxeUxnNk1BQTlLRUZTb3ZtbzBtUm1sZENrenozQVJENkc4SUpYVHZvTlBDTXd6RUlIM2lhQmZKY1E4TQ?oc=5",
+      "datetime": 1780968780
+    },
+    {
+      "headline": "Oil falls as investors await clarity after Iran-Israel halt attacks - Reuters",
+      "summary": "Oil falls as investors await clarity after Iran-Israel halt attacks\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxOQno1QTVjdUJYSkVuMTUxZTVxcHBhUWNVQWVfN0JsVzdpNmVPUTBjMjdTaE4wSy1RNVpNNGJHdi1DVGNzd0NfQUdYOVVILWh0djRxbFpSSUJGTEp5ZTJnNUFsNnU4UkRscHJBZi1mVlYwNWFiUGFyVk1TOGNxcDEtVDc0cFhTYmpvRDdrd0tTYjFON19JNmI2Sm5MX3ZXb0M3UE5lZ0Q4UTFZSTJ6VFNudFMxRmVQMUh6U05XU3M2SGtpNmc?oc=5",
+      "datetime": 1780966020
+    },
+    {
+      "headline": "Trump approval stays near record low as most Americans expect higher gas prices - Reuters",
+      "summary": "Trump approval stays near record low as most Americans expect higher gas prices\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMixwFBVV95cUxOZWhGcWotbmVCTUpWTDA3eDFKdFI5WnB5M0JoeGJ6bU9pUjZDWE5ScW55Vkt4OFpiZGZ3bW8xS1cyUHZqb2pHQ2hPRndISXl0dXZQcWJmMG1TY2gwWndfaVJMUXZ6N1dYeU4zb0h6VC1USFZxVnAwa2FvMjJCT3g3aTl5cnAtUDNnTVVBSS11b1JsRXhJay1NQkg1UlFYRWRRanF0Vmw3TVhTZWtUQzZVNWRPdlRBbEtSWE80aG0ySGUwdDRDVHUw?oc=5",
+      "datetime": 1780953689
+    }
+  ],
   "meta": {
     "tickers_received": [
       "TSLA",
-      "TESLA",
-      "AAPL",
       "NVDA",
-      "VOO",
+      "AAPL",
       "META"
     ],
     "countries_received": [],

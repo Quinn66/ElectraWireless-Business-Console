@@ -5,11 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from groq import Groq
 
-
 try:
-    from F3Insight_memory import (retrieve_memories_by_intent, store_memories_batch, 
-    build_memory_fact, store_sectioned_memories, detect_intent)
-    
+    from F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
     from csv_analyzer import (
         run as analyze_ticker,
         project_investment_prophet,
@@ -25,9 +22,6 @@ try:
         detect_historical_year,
         calculate_historical_performance,
         fetch_geographic_exposure,
-    )
-    from domestic import (
-    get_top5_by_country
     )
 except ImportError:
     from Feature3.F3Insight_memory import retrieve_memories_by_intent, store_memories_batch
@@ -45,9 +39,6 @@ except ImportError:
         calculate_historical_performance,
         fetch_geographic_exposure,
     )
-    from Feature3.domestic import (
-    get_top5_by_country
-    )
 
 DATA_DIR = "ydata"
 
@@ -62,9 +53,7 @@ PROPHET_SNAPSHOT = os.path.join(DATA_DIR, "csv_prediction_output_analysis.json")
 
 DEFAULT_INVESTMENT = 1000
 
-with open("Feature3/ydata/sp500_ranked.json", "r", encoding="utf-8") as f:
-    SP500_DATA = json.load(f)
-    
+
 def parse_predictions(text: str):
     # Only parse inside [SECTION: PREDICTIONS] — otherwise tickers from the
     # STOCKS / STOCKS_PORFOLIO sections leak in as phantom predictions.
@@ -112,7 +101,7 @@ def run_prophet_predictions(predictions, default_amount=DEFAULT_INVESTMENT):
             amount=default_amount,
             years=p["years"]
         )
-
+# 
 def extract_intent(data, portfolio_holdings, user_question=None):
     prompt = f"""
 You are a STRICT stock ticker extraction system.
@@ -641,8 +630,7 @@ def build_prompt(
     onboarding = onboarding if onboarding is not None else (data.get("onboarding") or {})
 
     onboarding_experience    = onboarding.get("experienceLevel", "unknown")
-    _raw_cap                 = onboarding.get("investmentCapital") or 0
-    onboarding_capital       = int(float(_raw_cap)) if _raw_cap else 0
+    onboarding_capital       = onboarding.get("investmentCapital", 0)
     onboarding_strategies    = onboarding.get("investmentStrategies", [])
     onboarding_strategy_text = (
         ", ".join(str(s).replace("_", " ").title() for s in onboarding_strategies)
@@ -869,6 +857,101 @@ def extract_portfolio_holdings(data):
     return cleaned
 
 
+def build_memory_fact(parsed):
+
+    summary = parsed.get("summary", "").strip()
+
+    pros = parsed.get("pros", [])
+    cons = parsed.get("cons", [])
+    next_steps = parsed.get("next_steps", [])
+    question_response = parsed.get("question_response", "").strip()
+    sources = parsed.get("sources", [])
+
+    key_strengths = ", ".join(pros[:2]) if pros else "none identified"
+    key_risks = ", ".join(cons[:2]) if cons else "none identified"
+    key_actions = ", ".join(next_steps[:2]) if next_steps else "none identified"
+    key_sources = ", ".join(sources[:2]) if sources else "none identified"
+
+    memory_text = f"""
+Portfolio insight: {summary}
+Key strengths: {key_strengths}
+Key risks: {key_risks}
+Recommended actions: {key_actions}
+User question response: {question_response}
+Data sources used: {key_sources}
+""".strip()
+
+    return memory_text
+
+def store_sectioned_memories(user_question, parsed):
+
+    base = user_question or "portfolio analysis"
+
+    memories = []
+
+    # 1. SUMMARY (single memory)
+    if parsed.get("summary"):
+        memories.append({
+            "user": base + " summary",
+            "assistant": parsed["summary"],
+            "section": "summary"
+        })
+
+    # 2. PROS (single block memory)
+    if parsed.get("pros"):
+        pros_block = "\n".join(parsed["pros"])
+        memories.append({
+            "user": base + " pros",
+            "assistant": pros_block,
+            "section": "pros"
+        })
+
+    # 3. CONS (single block memory)
+    if parsed.get("cons"):
+        cons_block = "\n".join(parsed["cons"])
+        memories.append({
+            "user": base + " cons",
+            "assistant": cons_block,
+            "section": "cons"
+        })
+
+    # 4. NEXT STEPS (single block memory)
+    if parsed.get("next_steps"):
+        next_block = "\n".join(parsed["next_steps"])
+        memories.append({
+            "user": base + " next_steps",
+            "assistant": next_block,
+            "section": "next_steps"
+        })
+
+    # 5. RESPONSE (single memory — truncated to keep within Ollama embedding limit)
+    if parsed.get("question_response"):
+        truncated = parsed["question_response"][:1200]
+        memories.append({
+            "user": base + " response",
+            "assistant": truncated,
+            "section": "response"
+        })
+
+    if memories:
+        store_memories_batch(memories)
+
+def detect_intent(question):
+
+    q = question.lower()
+
+    if any(x in q for x in ["risk", "reduce", "safe", "loss"]):
+        return "cons"
+
+    if any(x in q for x in ["next", "what should", "do", "improve"]):
+        return "next_steps"
+
+    if any(x in q for x in ["performance", "how is", "portfolio"]):
+        return "summary"
+
+    return "general"
+
+
 def _enrich_market_context(data: dict) -> None:
     """Populate data['market_context'] and data['geographic_exposure'] using
     csv_analyzer. Runs in parallel where the underlying yfinance calls can fan
@@ -939,19 +1022,6 @@ def _reset_prophet_snapshot():
     except Exception as e:
         print(f"[prophet] Could not reset snapshot: {e}")
 
-def get_country_list(tickers):
-    lookup = {item["symbol"].upper(): item.get("country") for item in SP500_DATA}
-
-    countries = set()
-
-    for t in tickers:
-        t = t.strip().upper()
-        country = lookup.get(t)
-
-        if country and country != "Unknown":
-            countries.add(country)
-
-    return list(countries)
 
 def run_analysis(data: dict, memories=None) -> dict:
     """End-to-end analysis pipeline used by main.py /pf/portfolio-analysis.
@@ -976,17 +1046,14 @@ def run_analysis(data: dict, memories=None) -> dict:
 
     stocks, portfolio_stocks = extract_stock_lines(stock_section)
     all_tickers = list({t.strip().upper() for t in (stocks + portfolio_stocks) if t})
-    ticker_country_map = get_country_list(all_tickers)
-    suggestions = get_top5_by_country("Feature3/ydata/sp500_ranked.json", ticker_country_map)
-
-
 
     # ---- news (Finnhub via csv_analyzer — adds country + heuristic context) ----
     news_block = build_news_block(fetch_market_news(all_tickers, []))
 
     # ---- yfinance snapshot for the question tickers ----
     print("\n🔧 YFINANCE LIVE MODE:")
-    analyze_ticker(stocks, portfolio_stocks)
+    analyze_ticker(stocks)
+    analyze_ticker(portfolio_stocks)
 
     # ---- Prophet projections only for tickers the LLM flagged YES ----
     # Cap at 2 — each Prophet training takes ~1-3s and the 8b model tends to
@@ -998,20 +1065,11 @@ def run_analysis(data: dict, memories=None) -> dict:
         run_prophet_predictions(active_predictions)
 
     # ---- memories ----
-    print("\n=== CONTEXT MEMORIES ===")
-    if memories:
-        for i, m in enumerate(memories):
-            print(f"\n--- MEMORY {i+1} ---")
-            print(m)
-    else:
-        print("No memories retrieved")
-
     if memories is None:
         memories = retrieve_memories_by_intent(
             query=user_question or "portfolio analysis",
             intent=detect_intent(user_question or ""),
         )
-
 
     # ---- load on-disk snapshots written by analyze_ticker / Prophet ----
     csv_analysis_data   = _load_json(os.path.join(DATA_DIR, "csv_analysis_output.json"))

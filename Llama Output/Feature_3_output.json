@@ -1,25 +1,34 @@
 {
-  "summary": "The portfolio has a total current value of $113,404.96, with a total return percentage of 73.77%. The portfolio is diversified across stocks, ETFs, and cryptocurrencies.",
+  "summary": "The portfolio has a strong overall return percentage of 59.12%, indicating a significant increase in value over time. The allocation breakdown consists of stocks (NVDA, AAPL, TSLA, META) and ETFs (VOO, QQQ), as well as cryptocurrencies (BTC, ETH). The primary risk or opportunity lies in the concentration of assets in the technology sector, with a significant portion of the portfolio invested in companies such as NVDA, AAPL, and TSLA. The portfolio's geographic spread is primarily focused on the United States, with some global exposure through cryptocurrencies. The total current value of the portfolio is $103,844.16, with a total return of $38,582.16.",
   "pros": [
-    "The portfolio has a significant return percentage, indicating strong performance.",
-    "The emergency cash reserve of $10,000 provides a cushion against market volatility.",
-    "The portfolio is diversified across different asset classes, reducing risk."
+    "The portfolio has a strong overall return percentage of 59.12%, indicating a significant increase in value over time.",
+    "The portfolio has a diversified mix of assets, including stocks, ETFs, and cryptocurrencies.",
+    "The portfolio has a significant portion of its assets invested in the technology sector, which has been a strong performer in recent years.",
+    "The portfolio has a total current value of $103,844.16, with a total return of $38,582.16.",
+    "The emergency cash reserve has $10,000, which is a good starting point for building a cash cushion."
   ],
   "cons": [
-    "The portfolio lacks geographic exposure data for some holdings, making it difficult to assess risk.",
-    "The high price-to-earnings ratio of TSLA (396.17) may pose a risk to investors.",
-    "The annualized volatility of TSLA (38.43%) is relatively high, which may lead to significant price fluctuations."
+    "The portfolio has a significant concentration of assets in the technology sector, which may increase its vulnerability to sector-specific risks.",
+    "The portfolio has a limited geographic spread, with most of its assets invested in the United States.",
+    "The portfolio has a relatively high allocation to individual stocks, which may increase its vulnerability to company-specific risks.",
+    "The portfolio's cryptocurrency holdings have a high volatility, with a return percentage of 112.75% for BTC and -15.14% for ETH.",
+    "The portfolio's total cash balance is $0, which may limit its ability to take advantage of new investment opportunities."
   ],
   "next_steps": [
-    "Monitor the performance of TSLA and adjust the portfolio as needed to ensure it remains aligned with the user's investment strategy and risk tolerance.",
-    "Consider adding more holdings to increase geographic diversification.",
-    "Review the portfolio regularly to ensure it remains aligned with the user's investment goals and risk tolerance."
+    "Consider rebalancing the portfolio to maintain a target allocation of 60% stocks, 20% ETFs, and 20% cryptocurrencies.",
+    "Consider adding more geographic diversification to the portfolio by investing in international stocks or ETFs.",
+    "Consider reducing the allocation to individual stocks and increasing the allocation to ETFs to reduce company-specific risks.",
+    "Consider building up the emergency cash reserve to 3-6 months of coverage by adding $10,000 to $20,000 to the reserve.",
+    "Consider monitoring the portfolio's cryptocurrency holdings closely and considering reducing the allocation if volatility increases."
   ],
-  "question_response": "Based on the MARKET ANALYSIS, Tesla's (TSLA) biggest risks and opportunities over the next few years include its high price-to-earnings ratio of 396.17 and its significant market capitalization of $1,636,706,942,976. The company's high volatility, with an annualized volatility of 38.43%, also poses a risk to investors. However, TSLA's current price of $435.79 and return percentage of 79.49% indicate a strong performance. According to the MARKET PREDICTIONS, TSLA is projected to gain 160.24% over the next 3 years, reaching a price of $1134.08.",
+  "question_response": "## TSLA \u2014 Price Prediction & Outlook\n**Current Position**\n- Current price: $408.95\n- 52-week range: $24.06 / $62.73\n- Market cap: $1,535,903,268,864 | P/E: 371.77 | Forward P/E: Not available\n\n**1-Year Outlook (by 2027)**\n- Base case: $500 ([+22.5]% return) \u2014 The base case assumes that TSLA will continue to grow at a moderate pace, driven by increasing demand for electric vehicles and autonomous driving technology.\n- Bull case: $700 ([+71.4]% return) \u2014 The bull case assumes that TSLA will experience rapid growth, driven by significant advancements in autonomous driving technology and increasing adoption of electric vehicles.\n- Bear case: $300 ([-26.6]% return) \u2014 The bear case assumes that TSLA will experience a significant decline, driven by increased competition in the electric vehicle market and regulatory challenges.\n\n**3-Year Outlook (by 2029)**\n- Base case: $800 ([+95.5]% total return) | Bull: $1,200 | Bear: $200\n- Primary driver: The primary driver of TSLA's growth will be the increasing demand for electric vehicles and autonomous driving technology, with a projected growth rate of 20% per annum.\n\n**5-Year Outlook (by 2031)**\n- Base case: $1,499.19 ([+266.6]% total, ~21.5% annualised CAGR) | Bull: $2,500 | Bear: $500\n- Long-term thesis: The long-term thesis for TSLA is that the company will continue to be a leader in the electric vehicle and autonomous driving markets, with a projected market share of 30% by 2030.\n\n**Key Growth Drivers**\n- Increasing demand for electric vehicles, with a projected growth rate of 20% per annum.\n- Advancements in autonomous driving technology, with a projected growth rate of 30% per annum.\n- Expansion into new markets, including China and Europe, with a projected growth rate of 25% per annum.\n\n**Risks & Uncertainties**\n- Regulatory challenges, including potential changes to tax credits and emissions standards \u2014 Impact: High\n- Increased competition in the electric vehicle market, including from established automakers and new entrants \u2014 Impact: Medium\n- Technological risks, including the potential for autonomous driving technology to be delayed or disrupted \u2014 Impact: Medium\n\n**Industry Outlook**\nThe electric vehicle market is projected to grow at a rate of 20% per annum over the next 5 years, driven by increasing demand and decreasing costs. The autonomous driving market is also projected to grow rapidly, with a projected growth rate of 30% per annum. TSLA is well-positioned to benefit from these trends, with a strong brand and a significant lead in the electric vehicle market.\n\n**Confidence Level**: Medium\n**Reasoning**: The confidence level is medium due to the uncertainty surrounding the growth of the electric vehicle and autonomous driving markets, as well as the potential for regulatory challenges and technological risks.",
   "sources": [
+    "Portfolio JSON",
+    "Live market data",
     "MARKET ANALYSIS",
     "MARKET PREDICTIONS",
-    "PORTFOLIO DATA",
-    "LIVE MARKET DATA"
+    "NEWS CONTEXT",
+    "yfinance",
+    "onboarding data"
   ]
 }
