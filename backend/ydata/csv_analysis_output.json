@@ -1,5 +1,6 @@
 [
   {
+<<<<<<< HEAD
     "ticker": "TSLA",
     "start_price": 445.17,
     "end_price": 408.95,
@@ -29,10 +30,60 @@
     "fifty_two_week_low": 164.97772216796875,
     "market_cap": 5053469425664,
     "pe_ratio": 31.950994,
+=======
+    "ticker": "AAPL",
+    "start_price": 277.37,
+    "end_price": 307.34,
+    "change_abs": 29.97,
+    "change_pct": 10.8,
+    "data_points": 124,
+    "volatility_pct": 22.68,
+    "fifty_two_week_high": 315.20001220703125,
+    "fifty_two_week_low": 246.2425079345703,
+    "market_cap": 4514011676672,
+    "pe_ratio": 37.16324,
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "exchange": "NMS",
+    "country": "United States",
+    "current_price": 307.34
+  },
+  {
+    "ticker": "MSFT",
+    "start_price": 488.84,
+    "end_price": 416.67,
+    "change_abs": -72.17,
+    "change_pct": -14.76,
+    "data_points": 124,
+    "volatility_pct": 31.51,
+    "fifty_two_week_high": 489.8385925292969,
+    "fifty_two_week_low": 355.9989318847656,
+    "market_cap": 3095206035456,
+    "pe_ratio": 24.831347,
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "exchange": "NMS",
+    "country": "United States",
+    "current_price": 416.67
+  },
+  {
+    "ticker": "NVDA",
+    "start_price": 185.32,
+    "end_price": 205.1,
+    "change_abs": 19.78,
+    "change_pct": 10.67,
+    "data_points": 124,
+    "volatility_pct": 37.67,
+    "fifty_two_week_high": 235.465576171875,
+    "fifty_two_week_low": 164.97772216796875,
+    "market_cap": 4967727366144,
+    "pe_ratio": 31.457056,
+>>>>>>> 25f5ffe4781c158ee0dcbb7e03c2039d459f7225
     "sector": "Technology",
     "industry": "Semiconductors",
     "exchange": "NMS",
     "country": "United States",
+<<<<<<< HEAD
     "current_price": 208.64
   },
   {
@@ -88,5 +139,44 @@
     "exchange": "NMS",
     "country": "United States",
     "current_price": 585.39
+=======
+    "current_price": 205.1
+  },
+  {
+    "ticker": "SHEL",
+    "start_price": 71.38,
+    "end_price": 85.4,
+    "change_abs": 14.02,
+    "change_pct": 19.64,
+    "data_points": 124,
+    "volatility_pct": 24.7,
+    "fifty_two_week_high": 93.30391693115234,
+    "fifty_two_week_low": 69.03321075439453,
+    "market_cap": 237102039040,
+    "pe_ratio": 13.30218,
+    "sector": "Energy",
+    "industry": "Oil & Gas Integrated",
+    "exchange": "NYQ",
+    "country": "United Kingdom",
+    "current_price": 85.4
+  },
+  {
+    "ticker": "TSM",
+    "start_price": 300.21,
+    "end_price": 415.17,
+    "change_abs": 114.96,
+    "change_pct": 38.29,
+    "data_points": 124,
+    "volatility_pct": 40.22,
+    "fifty_two_week_high": 446.69000244140625,
+    "fifty_two_week_low": 276.1817626953125,
+    "market_cap": 2153268510720,
+    "pe_ratio": 35.575836,
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "exchange": "NYQ",
+    "country": "Taiwan",
+    "current_price": 415.17
+>>>>>>> 25f5ffe4781c158ee0dcbb7e03c2039d459f7225
   }
 ]

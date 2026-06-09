@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [
   {
     "symbol": "TSLA",
@@ -12,3 +13,6 @@
     "model": "prophet"
   }
 ]
+=======
+[]
+>>>>>>> 25f5ffe4781c158ee0dcbb7e03c2039d459f7225
