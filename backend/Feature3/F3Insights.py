@@ -516,8 +516,23 @@ CRITICAL — output ALL six sections in this exact order. The full prediction an
         _raw_cap_opp    = onboarding.get("investmentCapital") or onboarding.get("investment_capital") or 0
         capital         = float(_raw_cap_opp) if _raw_cap_opp not in (None, "") else 0
 
+        _SP500_COVERED = {"United States", "US", "Canada", "Ireland", "Netherlands",
+                          "Singapore", "Switzerland", "Bermuda", "United Kingdom"}
         domestic_block = ""
-        if domestic_suggestions:
+        if user_country and user_country not in _SP500_COVERED:
+            # User is in a country not covered by sp500_ranked.json (e.g. Australia, India).
+            # domestic_suggestions only has SP500-country picks from portfolio holdings — those are
+            # NOT domestic for the user. Use LLM knowledge for the user's actual exchange instead.
+            domestic_block = (
+                f"\n\nUSER COUNTRY: {user_country}\n"
+                f"The user is based in {user_country}. When suggesting domestic stocks, recommend stocks listed "
+                f"on {user_country}'s primary stock exchange (e.g. ASX for Australia, TSX for Canada, LSE for UK, "
+                f"NSE/BSE for India, SGX for Singapore). "
+                f"Use your knowledge of {user_country}'s market to suggest underrated, high-potential domestic stocks — "
+                f"NOT just mega-caps. Include specific tickers from that exchange. "
+                f"Label them with '⭐ Domestic Pick' in the heading. Include at least 2–3 domestic picks in the top 5."
+            )
+        elif domestic_suggestions:
             lines = []
             for country, tickers in domestic_suggestions.items():
                 if tickers:
@@ -1046,6 +1061,7 @@ def run_analysis(data: dict, memories=None) -> dict:
 
     # Add user's declared country to the country list for domestic suggestions.
     user_country = (onboarding.get("country") or "").strip()
+    print(f"[domestic] user_country={user_country!r}")
     SP500_COUNTRIES = {"United States", "US", "Canada", "Ireland", "Netherlands", "Singapore", "Switzerland", "Bermuda", "United Kingdom"}
     if user_country and user_country not in ticker_country_map:
         ticker_country_map.append(user_country)
