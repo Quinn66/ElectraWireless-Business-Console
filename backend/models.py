@@ -228,6 +228,7 @@ class InvestmentOnboardingProfile(Base):
     investment_strategies = Column(String,  nullable=True)    # JSON list[str]
     time_horizon          = Column(String,  nullable=False)   # daily | weekly | monthly | annually | indefinitely
     asset_interests       = Column(String,  nullable=True)    # JSON list[str]
+    country               = Column(String,  nullable=True)    # user's home country for domestic stock suggestions
     completed_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
