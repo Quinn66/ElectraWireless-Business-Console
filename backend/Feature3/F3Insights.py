@@ -125,9 +125,9 @@ Output Yahoo Finance tickers ONLY for companies EXPLICITLY NAMED in the user que
 
 RULES:
 - Output ONLY tickers for companies the user literally typed
-- If the question is vague (e.g. "this stock", "the market", "my portfolio"), output NONE
+- If the question is vague (e.g. "this stock", "the market"), output NONE
 - DO NOT add industry peers, competitors, or "related" stocks
-- DO NOT list every tech / energy / index stock you know
+- If uncertain output NONE
 - Maximum 5 tickers — if the question lists more, pick the first 5
 - One ticker per line
 - No prose, no explanations, no notes
@@ -171,6 +171,13 @@ OUTPUT FORMAT (exactly 3 lines per ticker — ticker, flag, timeframe):
 <TICKER>
 <YES | NO>
 <TIMEFRAME>
+
+TASK 4:
+If the user mentions a country list out the countries mentioned in this exact format
+IF the user asks for not a specific country list out 5 countries that aren't that specific country
+OUTPUT FORMAT
+[SECTION: COUNTRIES]
+<COUNTRY>
 
 FORMAT RULES:
 - No Notes
@@ -220,37 +227,58 @@ MAX_PORTFOLIO_TICKERS = 5
 def extract_stock_lines(text):
     stocks = []
     portfolio = []
-    seen_q, seen_p = set(), set()
+    countries = []
 
-    capture = None  # None | "stocks" | "portfolio"
+    seen_q, seen_p, seen_c = set(), set(), set()
+
+    capture = None  # None | "stocks" | "portfolio" | "countries"
+
+    section_pattern = re.compile(r"^\[SECTION:\s*(.*?)\s*\]$", re.IGNORECASE)
 
     for line in text.split("\n"):
         line = line.strip()
 
-        if line.upper().startswith("[SECTION: STOCKS_PORFOLIO]"):
-            capture = "portfolio"
+        # Detect section headers
+        match = section_pattern.match(line)
+        if match:
+            section = match.group(1).upper()
+
+            if section == "STOCKS":
+                capture = "stocks"
+            elif section == "STOCKS_PORFOLIO":
+                capture = "portfolio"
+            elif section == "COUNTRIES":
+                capture = "countries"
+            else:
+                capture = None
+
             continue
 
-        if line.upper().startswith("[SECTION: STOCKS]"):
-            capture = "stocks"
+        if not capture:
             continue
 
-        if line.startswith("[SECTION:"):
-            capture = None
-            continue
+        value = line.strip()
 
-        if not (capture and _is_ticker_like(line)):
-            continue
+        if capture == "stocks":
+            if _is_ticker_like(value):
+                sym = value.upper()
+                if sym not in seen_q and len(stocks) < MAX_QUESTION_TICKERS:
+                    seen_q.add(sym)
+                    stocks.append(sym)
 
-        sym = line.upper()
-        if capture == "stocks" and sym not in seen_q and len(stocks) < MAX_QUESTION_TICKERS:
-            seen_q.add(sym)
-            stocks.append(sym)
-        elif capture == "portfolio" and sym not in seen_p and len(portfolio) < MAX_PORTFOLIO_TICKERS:
-            seen_p.add(sym)
-            portfolio.append(sym)
+        elif capture == "portfolio":
+            if _is_ticker_like(value):
+                sym = value.upper()
+                if sym not in seen_p and len(portfolio) < MAX_PORTFOLIO_TICKERS:
+                    seen_p.add(sym)
+                    portfolio.append(sym)
 
-    return stocks, portfolio
+        elif capture == "countries":
+            if value and value.upper() not in seen_c:
+                seen_c.add(value.upper())
+                countries.append(value)
+
+    return stocks, portfolio, countries
 # 
 
 
@@ -1040,13 +1068,14 @@ def run_analysis(data: dict, memories=None) -> dict:
     print("\n=== STOCK EXTRACTION ===")
     print(stock_section)
 
-    stocks, portfolio_stocks = extract_stock_lines(stock_section)
+    stocks, portfolio_stocks, countriesMention = extract_stock_lines(stock_section)
     all_tickers = list({t.strip().upper() for t in (stocks + portfolio_stocks) if t})
     ticker_country_map = get_country_list(all_tickers)
-
+    ticker_country_map.extend(c for c in countriesMention if c not in ticker_country_map)
     # Add user's declared country to the country list for domestic suggestions.
     user_country = (onboarding.get("country") or "").strip()
     SP500_COUNTRIES = {"United States", "US", "Canada", "Ireland", "Netherlands", "Singapore", "Switzerland", "Bermuda", "United Kingdom"}
+    
     if user_country and user_country not in ticker_country_map:
         ticker_country_map.append(user_country)
     if not ticker_country_map:

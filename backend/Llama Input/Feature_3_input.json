@@ -188,9 +188,9 @@
   },
   "onboarding": {
     "available": true,
-    "age": 21,
+    "age": 30,
     "experienceLevel": "beginner",
-    "investmentCapital": 102000,
+    "investmentCapital": 50000,
     "emergencyCash": 10000,
     "communicationStyle": "simple",
     "investmentStrategies": [
@@ -202,6 +202,6 @@
       "crypto",
       "etf"
     ],
-    "completedAt": "2026-06-09T09:03:00.459631+00:00"
+    "completedAt": "2026-06-09T11:02:24.345928+00:00"
   }
 }
