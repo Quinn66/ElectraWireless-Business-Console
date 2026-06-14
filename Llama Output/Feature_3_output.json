@@ -1,34 +1,38 @@
 {
-  "summary": "The portfolio has a total current value of $103,459.49, with a total return of 58.53% and a total profit/loss of $38,197.49. The portfolio is primarily invested in US stocks, with a geographic exposure of 0% in Australia and Germany. The primary risk is the high concentration of investments in the technology sector, with companies such as NVDA, AAPL, and TSLA making up a significant portion of the portfolio.",
+  "summary": "The portfolio has a total current value of $229,191.92, with a total return percentage of 42.27% and a total profit/loss of $68,099.54. The allocation breakdown is diverse, with stocks, ETFs, and cryptocurrencies, and the geographic spread is primarily global, with a significant presence in the United States and Taiwan. The primary risk or opportunity lies in the technology sector, particularly in AI and semiconductor stocks such as NVDA, TSM, and MSFT, which have shown significant growth and volatility.",
   "pros": [
-    "The portfolio has a high total return of 58.53%, indicating strong growth potential.",
-    "The technology sector, which makes up a significant portion of the portfolio, has a market share of 25% and a sector CAGR of 10%.",
-    "The portfolio has a diversified mix of stocks and ETFs, including NVDA, AAPL, TSLA, META, VOO, and QQQ.",
-    "The portfolio has a long-term investment horizon, with a focus on buy-and-hold strategy.",
-    "The portfolio has a total investment capital of $50,000, with a recommended allocation of 20% to each of the top 5 picks.",
-    "The portfolio has a medium to high risk tolerance, with a focus on long-term growth."
+    "The portfolio has a strong total return percentage of 42.27%, indicating a significant increase in value over time.",
+    "The diversification of the portfolio is a strength, with a mix of stocks, ETFs, and cryptocurrencies, reducing risk and increasing potential for long-term growth.",
+    "The portfolio has a significant allocation to growth stocks, such as NVDA and TSM, which have shown high growth potential and returns, with NVDA having a return percentage of 68.96% and TSM having a return percentage of 140.55%.",
+    "The portfolio has a relatively high savings rate of 24%, indicating a strong ability to generate cash and invest for the future.",
+    "The emergency cash reserve is adequate, covering 4.5 months of expenses, providing a cushion in case of market downturns or unexpected expenses.",
+    "The portfolio has a strong presence in the technology sector, with stocks such as AAPL, MSFT, and GOOGL, which have shown significant growth and stability.",
+    "The portfolio has a relatively low geographic concentration risk, with a diverse spread of stocks and ETFs from different regions and countries."
   ],
   "cons": [
-    "The portfolio has a high concentration of investments in the technology sector, which may increase risk.",
-    "The portfolio has a limited geographic exposure, with 0% invested in Australia and Germany.",
-    "The portfolio has a high volatility, with an annualized volatility of 60.33% for the YOU stock.",
-    "The portfolio has a limited diversification, with a focus on US stocks and ETFs.",
-    "The portfolio has a high P/E ratio, with an average P/E ratio of 31.95 for the NVDA stock.",
-    "The portfolio has a limited yield, with no dividend-paying stocks or ETFs."
+    "The portfolio has a significant allocation to stocks, which can be volatile and subject to market fluctuations, with MSFT having a return percentage of -7.37% and NVO having a return percentage of -50.56%.",
+    "The portfolio has a relatively high expense ratio, with monthly expenses of $3,965.60, which can eat into returns and reduce overall profitability.",
+    "The portfolio has a significant concentration in the technology sector, which can be subject to rapid changes and disruptions, with stocks such as NVDA and TSM having high volatility and risk.",
+    "The portfolio has a relatively low yield, with few dividend-paying stocks, which can reduce income generation and increase reliance on capital gains.",
+    "The portfolio has a significant allocation to cryptocurrencies, such as BTC and ETH, which can be highly volatile and subject to regulatory risks.",
+    "The portfolio has a relatively high risk profile, with a significant allocation to growth stocks and a relatively low allocation to stable, income-generating assets.",
+    "The portfolio has a potential geographic concentration risk, with a significant presence in the United States and Taiwan, which can increase exposure to regional economic and market risks."
   ],
   "next_steps": [
-    "Consider diversifying the portfolio by investing in Australian and German stocks, such as BHP.AX and DAX.",
-    "Allocate 10% of the portfolio to Australian and German stocks, with a focus on buy-and-hold strategy.",
-    "Monitor the portfolio's performance and adjust the allocation as needed to maintain a balanced portfolio.",
-    "Consider investing in dividend-paying stocks or ETFs to increase the portfolio's yield.",
-    "Review the portfolio's risk tolerance and adjust the allocation accordingly."
+    "Consider rebalancing the portfolio to reduce concentration in the technology sector and increase diversification across other sectors and asset classes.",
+    "Increase the allocation to stable, income-generating assets, such as dividend-paying stocks or bonds, to reduce reliance on capital gains and increase income generation.",
+    "Consider reducing the allocation to cryptocurrencies, such as BTC and ETH, and increasing the allocation to more stable, low-risk assets.",
+    "Increase the emergency cash reserve to cover at least 6 months of expenses, providing a larger cushion in case of market downturns or unexpected expenses.",
+    "Consider tax-loss harvesting to reduce tax liabilities and increase after-tax returns.",
+    "Consider increasing the allocation to international stocks and ETFs to reduce geographic concentration risk and increase diversification.",
+    "Consider reducing the expense ratio by optimizing portfolio costs and fees."
   ],
-  "question_response": "## Australian and German Stocks\nThe Australian stock market has several attractive options, including BHP.AX, which has a current price of $60.08 and a P/E ratio of 21.006994. The German stock market also has several options, including DAX, which has a current price of 44.7 and a P/E ratio of 17.703077. **BHP.AX** has a market capitalization of $305,247,879,168 and a 1-year change of 38.2%. **DAX** has a market capitalization of None and a 1-year change of 0.43%. Based on the portfolio data and market analysis, it is recommended to allocate 10% of the portfolio to Australian and German stocks, with a focus on buy-and-hold strategy.",
+  "question_response": "No question provided.",
   "sources": [
     "Portfolio data",
     "MARKET ANALYSIS",
-    "MARKET PREDICTIONS",
     "NEWS CONTEXT",
-    "LIVE MARKET DATA"
+    "EMERGENCY CASH RESERVE ANALYSIS",
+    "GEOGRAPHIC EXPOSURE"
   ]
 }
