@@ -420,9 +420,7 @@ def fetch_market_news(tickers: list[str], countries: list[str] = None):
     today = datetime.now().strftime("%Y-%m-%d")
     week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
 
-    # =========================
     # COMPANY NEWS (per ticker) — parallelised
-    # =========================
     # Each ticker = 1 yfinance get_country call + 1 Finnhub HTTP call. Done
     # sequentially this dominates the request when there are >5 tickers.
     # ThreadPoolExecutor with max 8 workers keeps us well under rate limits.
@@ -465,9 +463,7 @@ def fetch_market_news(tickers: list[str], countries: list[str] = None):
                 if payload is not None:
                     result["company"][symbol] = payload
 
-    # =========================
     # MARKET NEWS (global)
-    # =========================
     try:
         resp = requests.get(
             f"{FINNHUB_BASE}/news",
@@ -495,9 +491,7 @@ def fetch_market_news(tickers: list[str], countries: list[str] = None):
     except Exception as e:
         print(f"[MARKET NEWS ERROR]: {e}")
 
-    # =========================
     # SAVE OUTPUT
-    # =========================
     output_path = os.path.join(DATA_DIR, "newsOutput.json")
 
     with open(output_path, "w", encoding="utf-8") as f:

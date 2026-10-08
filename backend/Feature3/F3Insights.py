@@ -800,6 +800,9 @@ MARKET PREDICTIONS (forward-looking Prophet projections — only present when us
 NEWS CONTEXT (sentiment / qualitative only — do not invent quotes):
 {news_block}
 
+DOMESTIC SUGGESTIONS
+{domestic_suggestions}
+
 STRICT OUTPUT FORMAT:
 - You MUST output ALL six sections: SUMMARY, PROS, CONS, NEXT_STEPS, QUESTION_RESPONSE, SOURCES
 - Section headers MUST match EXACTLY — every response must contain all six [SECTION: ...] markers
@@ -827,6 +830,7 @@ If YOUR FIRST PRIORITY above specifies an exact format structure, follow that st
 Otherwise: answer "{user_question if user_question else ''}" directly using portfolio data, MARKET ANALYSIS, MARKET PREDICTIONS, and NEWS CONTEXT.
 Start with a direct conclusion grounded in data, then expand with specific numbers (%, prices, ratios).
 Match complexity to experience level: {onboarding_experience}. Suggestions must stay within ${onboarding_capital:,} and align with strategy: {onboarding_strategy_text}.
+For Stock suggestions prioritise suggestions including {domestic_suggestions} not all suggestions need to be from that list
 If no question was provided write: No question provided.
 
 [SECTION: SOURCES]

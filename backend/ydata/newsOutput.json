@@ -1,42 +1,42 @@
 {
   "company": {
-    "TSLA": {
+    "META": {
       "country": "United States",
       "articles": [
         {
-          "headline": "Bye-Bye FAANG, Hello MANGOS: Will SpaceX, OpenAI, Anthropic IPOs Herald A New Wall Street Order?",
-          "summary": "MANGOS typically refers to artificial intelligence leaders such as Meta, Anthropic, Nvidia, Google, OpenAI, and SpaceX.",
+          "headline": "The Index Says Euphoria. But Don\u2019t Panic.",
+          "summary": "A Citigroup sentiment indicator hasn\u2019t shown this much market euphoria since the post-Covid rally of 2021. How long can it last?",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=1766216dff904e52c8e0e861688bc74443d88fbf35f1ff0b5b06b9ef4552560a",
-          "datetime": 1780993613
+          "url": "https://finnhub.io/api/news?id=6306a17d4e6f82666ce939663f199e5a3c19c79d1f6c125181e5151f642976b5",
+          "datetime": 1781305980
         },
         {
-          "headline": "Why Is Tesla (TSLA) Stock Rocketing Higher Today",
-          "summary": "Shares of electric vehicle pioneer Tesla (NASDAQ:TSLA) jumped 5.5% in the afternoon session after the company's unsupervised robotaxi service launched in Austin over the weekend, the most concrete ste",
+          "headline": "Does Google Stock Have More Upside?",
+          "summary": "Alphabet (GOOGL) stock is at an interesting point right now. It has strong momentum, and if you bet on it, you are betting on a company with strong profitability, good cash flow, a low-debt to market ",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=56b04c633e43182ad99c0ac760a01f4cb1879a15da00a2e60bd34fdda73bfc28",
-          "datetime": 1780976510
+          "url": "https://finnhub.io/api/news?id=bd00f2425eaadd43f771aa205cdc0445f80365356a9985bf41a80bd04e41d9c7",
+          "datetime": 1781305721
         },
         {
-          "headline": "ValuEngine Weekly Market Summary And Commentary",
-          "summary": "U.S. equity markets moved lower this week, with weakness concentrated in growth and technology-linked areas.",
-          "source": "SeekingAlpha",
-          "url": "https://finnhub.io/api/news?id=03f78bab5f92598d5453366454323c7f01cd24f091cb881c9fc0e76b03ed04dc",
-          "datetime": 1780971300
+          "headline": "Meta\u2019s months-old AI unit is a soul-crushing gulag, say the engineers stuck inside it",
+          "summary": "A new report suggests the unit, which employs 6,500 people, is on the verge of revolt.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=0e50cfd264e177357571d7224b44cf3a39864add493a2375a87bf5910b68c8a5",
+          "datetime": 1781305254
         },
         {
-          "headline": "Elon Musk Shows Detailed Design of AI Data Center Satellite",
-          "summary": "(Bloomberg) -- Elon Musk unveiled a more detailed look at an initial version of an AI data center satellite SpaceX plans to build, providing fresh insight into the ambitious project driving the compan",
+          "headline": "Meta\u2019s AI Costs Spike \u2014 Company Reportedly Tightens Grip With New Tracking System",
+          "summary": "Meta is building an internal platform to track AI usage and spending in real time as it prepares for tighter budgeting and rising AI costs in the coming years.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=49a81057ffc4bfe5e7e21709f65540dbc3d4d0f25a445685944ddbea5ff9811d",
-          "datetime": 1780966411
+          "url": "https://finnhub.io/api/news?id=c79efff1b66c6931269fce6644b3315d03f86dddff6142457679250e4b382ba0",
+          "datetime": 1781304850
         },
         {
-          "headline": "ASML Weighs Musk Terafab Talks Against Valuation And Governance Questions",
-          "summary": "Elon Musk joined ASML Holding\u2019s (ENXTAM:ASML) recent technology conference virtually to discuss chip manufacturing ambitions tied to the proposed Terafab project. Musk and ASML executives held direct ",
+          "headline": "The Great, Big, Boring SpaceX IPO",
+          "summary": "The SpaceX initial public offering was expected to deliver exciting twists and turns, fireworks, and flare-ups\u2014the kind of drama usually reserved for a summer thriller.  The public debut of SpaceX\u2014off",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=c6d12fd63367a04d6dd66af858bde1e65ee27d7681f7cc4a2efd59b981a303f8",
-          "datetime": 1780964288
+          "url": "https://finnhub.io/api/news?id=5c8aa36581872c72df367148a255feb3297ee0e894b967931c4dc5a9f1f941c4",
+          "datetime": 1781302320
         }
       ]
     },
@@ -44,51 +44,39 @@
       "country": "US",
       "articles": [
         {
-          "headline": "Summer Job Season Leaving Younger Teens On Outside Looking In",
-          "summary": "The earliest data for 2026's summer jobs season came in trending downward for U.S. teens. Read more here.",
-          "source": "SeekingAlpha",
-          "url": "https://finnhub.io/api/news?id=2c25a177cd993f3b3f117fa336e5459c5d90a680c143c1d6892efe02d1af22c9",
-          "datetime": 1780987800
-        },
-        {
-          "headline": "The 'Herd' Panicked, But...",
-          "summary": "Bull market outlook stays strong: June dip may be a buy-the-dip chance. Click here to read my detailed analysis.",
-          "source": "SeekingAlpha",
-          "url": "https://finnhub.io/api/news?id=9d96a48efa496c5a08be20baa44ae4356144179267b255329d8cccb858e9cdfb",
-          "datetime": 1780984544
-        },
-        {
-          "headline": "Downside Risks Rise As Tech Volatility Spikes",
-          "summary": "Implied volatilities jumped across asset classes last week as markets grappled with rising US-Iran tensions, higher bond yields, and a sharp pullback in tech. Read more here.",
-          "source": "SeekingAlpha",
-          "url": "https://finnhub.io/api/news?id=370667de7824b5162dc25693cda9bbc0ff2d2877937159e80571d459d3b14d03",
-          "datetime": 1780980900
-        },
-        {
-          "headline": "Why Marvell Stock Popped Today",
-          "summary": "The artificial intelligence (AI) chipmaker is being added to a well-known index.",
+          "headline": "ETF League Tables: Vanguard Gains, BlackRock Sheds Assets",
+          "summary": "Table below reflects daily flows on June 11, 2026 and asset totals as of that date.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=9fdcdbd6d139f369df8e69fb40816a57063d34168c7600a14adc88d412ca7a2b",
-          "datetime": 1780974327
+          "url": "https://finnhub.io/api/news?id=b50c4c9b4d5b33565463de2cf45bc73bd2d44853b0a9622479de81fbec879e50",
+          "datetime": 1781298004
         },
         {
-          "headline": "These 3 S&P 500 ETFs Are Nearly Identical But After Doing the Math One of Them Saves You Money Over a Lifetime",
-          "summary": "Three of the largest U.S. equity index funds on the market look like clones at first glance. Vanguard 500 Index Fund ETF (NYSEARCA:VOO), iShares Core S&P 500 ETF (NYSEARCA:IVV), and Schwab U.S. Large-",
+          "headline": "VOO vs. SPY: Which S&P 500 ETF is The Better Bet?",
+          "summary": "Subtle differences in structure and yield set these two S&P 500 giants apart for investors seeking long-term growth or trading flexibility.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=a109162ae2cab9913183aedae9fa3d9738f203ad8ed626376ac66ea93006121d",
-          "datetime": 1780969873
-        }
-      ]
-    },
-    "DAX": {
-      "country": "US",
-      "articles": [
+          "url": "https://finnhub.io/api/news?id=a07f7f82f95ae876ed314a906fbd6e3d8ec7daa27a9c946d602e3eb47b9f2ab1",
+          "datetime": 1781290083
+        },
         {
-          "headline": "Rates Spark: Spread Exposures",
-          "summary": "Geopolitics, via oil-driven volatility and hawkish central bank repricing, have left eurozone bond spreads wider, with Italy hardest hit.",
+          "headline": "How To Read The GDP Report In 4 Steps",
+          "summary": "The headline GDP number conceals economic momentum by blending leading and lagging sectors. Read how certain economic metrics mask early warning signals.",
           "source": "SeekingAlpha",
-          "url": "https://finnhub.io/api/news?id=e53bcd56614508de4ab28a1ef6ffafa8e738daf8c1394f04c5566f0e972b3382",
-          "datetime": 1780520700
+          "url": "https://finnhub.io/api/news?id=0eee156791369d56f37a307f2c4deac8c7e2174a90bb2051855b8550500738c0",
+          "datetime": 1781289119
+        },
+        {
+          "headline": "Leaving Las Vegas: How to Beat the House as the Stock Market Turns Into a Casino",
+          "summary": "Here\u2019s a 30,000-foot view on practical ways to protect your investing capital and gain a real edge over the house in a stock market designed to keep you glued to the slots instead of growing your weal",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=7db5f9a5d6954f478cc7ca859bc310460a4fd83f418009cce616f25dd5864dd7",
+          "datetime": 1781283497
+        },
+        {
+          "headline": "Warsh's First Fed Meeting May Decide The Market's Next Move",
+          "summary": "Fed pullback analysis ahead of the June FOMC: dot plot, inflation and balance sheet signals, crowded trades and U.S.\u00e2\u0080\u0093Iran risk\u00e2\u0080\u0094read now.",
+          "source": "SeekingAlpha",
+          "url": "https://finnhub.io/api/news?id=8e5708f60a22b60607ea64dc7dfe303ef84a11d324067934101bdceefe5f8f35",
+          "datetime": 1781282785
         }
       ]
     },
@@ -96,79 +84,79 @@
       "country": "United States",
       "articles": [
         {
-          "headline": "AI Trade Will Be Volatile Though Demand Signals Encouraging",
-          "summary": "Trade in artificial intelligence-linked stocks will continue to be volatile during a catalyst-heavy period, but the underlying investment case for the sector is strong, UBS Global Wealth Management's ",
+          "headline": "HPE Private Cloud AI Win With Sky Highlights On Premises AI Strategy",
+          "summary": "Sky Co., Ltd. has deployed HPE Private Cloud AI from Hewlett Packard Enterprise (NYSE:HPE), an on premises AI infrastructure solution co developed with NVIDIA. The deployment enables large scale AI ad",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=04d3c45fe41db4670edfbe2395b176c6d8072b29c02e08fe89f1b09c79de2154",
-          "datetime": 1780998129
+          "url": "https://finnhub.io/api/news?id=ca4f87b6bdf2392dad9170b76b03fcd0d835b16b0ce9e7c6eff9d5663100c8f8",
+          "datetime": 1781313092
         },
         {
-          "headline": "Got $2,000? Verra Mobility's Wreckage Might Be Your Opportunity \u2014 If You're Patient",
-          "summary": "Verra Mobility's stock got wrecked in May \u2014 but the business beneath the wreckage may still be worth your next $2,000.",
+          "headline": "Why Intel, AMD, Arm, and Other Artificial Intelligence (AI) Stocks Popped Today",
+          "summary": "Agentic AI will be a powerful growth driver.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=1919229a8f3f459cb0989423381ef3000144487f03ff82f2f4b9650790979de2",
-          "datetime": 1780997700
+          "url": "https://finnhub.io/api/news?id=abb6d39c330ea4ba4f9d7360eece965e27c82ee9a03050db1fe4acc7fa19904b",
+          "datetime": 1781312973
         },
         {
-          "headline": "AI Juggernauts Nvidia, Palantir, Micron, and Broadcom Are Sending Shockwaves Through Wall Street With This Nearly $13 Billion Warning",
-          "summary": "The people who knows these foundational artificial intelligence (AI) companies best are sending all the wrong signals.",
+          "headline": "Can Apple Stock Double to $600 in 5 Years?",
+          "summary": "After shares posted a 134% trailing five-year gain, investors are now focused on what the next half decade will bring.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=18f5067f61189dc3848194942aad3888d58b615ddaab1a673683156ccb58faa4",
-          "datetime": 1780997160
+          "url": "https://finnhub.io/api/news?id=3c25d59b74df30fac06b97d514c0f56a223b9ab194ce199c6d307f7dd317b3e8",
+          "datetime": 1781312460
         },
         {
-          "headline": "Is Costco Stock Finally Cheap Enough to Buy?",
-          "summary": "It's down this year as the S&P 500 rises.",
+          "headline": "Forget the \"Magnificent Seven\": These 3 Hypergrowth Artificial Intelligence (AI) Stocks Are Just Getting Started",
+          "summary": "Nebius, Micron, and Sandisk are each putting up unreal growth rates.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=54ff5da8cb21dea19cd35f019168a0a3b7c43cb6179b56a9d20b928f9a0199cb",
-          "datetime": 1780997100
+          "url": "https://finnhub.io/api/news?id=c3b765acc9b3ddcbc14dec370fc565022fb7dc7fd6078055c8af5ce78a081547",
+          "datetime": 1781310900
         },
         {
-          "headline": "Is There Any Reason Left to Buy Cryptocurrency in 2026?",
-          "summary": "It has been hard to feel good about investing in this sector lately.",
+          "headline": "Why CoreWeave Stock Surged Today",
+          "summary": "Investors were feeling more bullish about CoreWeave stock today following recent market developments.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=e271da3c56257548393108b91fa3f696da0cb8ccf7e085c0e969593c01eec7e3",
-          "datetime": 1780996800
+          "url": "https://finnhub.io/api/news?id=8143be73b754ba7d6a1b56ada93991a4d0faba4307ec0d0055aa61950bcb50ce",
+          "datetime": 1781310885
         }
       ]
     },
-    "META": {
+    "TSLA": {
       "country": "United States",
       "articles": [
         {
-          "headline": "China Prepares $295 Billion Plan to Fund Nationwide AI Buildout",
-          "summary": "(Bloomberg) -- China is preparing to spend around 2 trillion yuan ($295 billion) over the next five years on building data centers across the country, fueling Beijing\u2019s ambition to propel the domestic",
+          "headline": "Review & Preview: Party of 1",
+          "summary": "REVIEW PREVIEW NEWSLETTER To Infinity and Beyond. There are 3,362 companies listed on the Nasdaq Composite. On Friday, only one seemed to matter. SpaceX, Elon Musk\u2019s rocket and AI company, opened for ",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=996bb0772e2e9c0009238720baacc8b39246ed31207b5ef69e3fe67133d5f215",
-          "datetime": 1780992790
+          "url": "https://finnhub.io/api/news?id=e200da375d0abb4e492e9be4645b3c4a9df7619ef00a9d4fb35675db7eb7de10",
+          "datetime": 1781308500
         },
         {
-          "headline": "SpaceX\u2019s IPO Is Ready for Liftoff. Its Returns Might Not Be Out of This World.",
-          "summary": "IPOs have had juicy first-day gains this year, but it doesn\u2019t take long for the pullback to start. And that is particularly true for mega IPOs.",
+          "headline": "TSLA Stock Recovers To Close Nearly 2% Higher As SpaceX IPO Debuts",
+          "summary": "SPCX ended its debut trading session up 19%, while TSLA closed Friday 2% higher.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=d6b22c8556316460d4fc9cd529919da59e27a4d067eae534a8d45951ee1c6bfa",
-          "datetime": 1780979400
+          "url": "https://finnhub.io/api/news?id=f73444db2a21e0cc28530d3b6a0ba823cd821db065cc10a12634e8ac21ee202a",
+          "datetime": 1781304260
         },
         {
-          "headline": "Meta Is Reportedly Weighing a Multibillion-Dollar Stock Sale to Fund Its AI Build-Out. Here's What It Could Mean for Shareholders.",
-          "summary": "After leaning on debt to fund its artificial intelligence (AI) ambitions, the social media giant may now be turning to its own shareholders.",
+          "headline": "SpaceX shares soar 19% in stock market debut",
+          "summary": "STORY: The world's biggest ever IPO ended with Elon Musk's SpaceX gaining 19% in its debut session Friday, as investors piled into the\u00a0rocket company,\u00a0betting on its now-trillionaire CEO [beat]\u00a0and th",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=8ea645838d32c8cd44e3146f504bd25bd2cc2d31639e6ce6d53baccf80e0b0b0",
-          "datetime": 1780973460
+          "url": "https://finnhub.io/api/news?id=677137dd1212b08a638ba69bf8a2d2c3dd42c84c7d9fa3e41c79f6572f1be898",
+          "datetime": 1781302720
         },
         {
-          "headline": "Corning (GLW) Shares Skyrocket, What You Need To Know",
-          "summary": "Shares of glass and electronic component manufacturer Corning (NYSE:GLW) jumped 7.4% in the morning session after Amazon announced a multiyear, multibillion-dollar agreement with the company to supply",
+          "headline": "Will the Magnificent Seven Will Give Way to the Dirty Dozen?",
+          "summary": "Did SpaceX just boot Tesla from the Magnificent Seven?  With its first trading-day valuation of $2.1 trillion, SpaceX is worth more than Tesla ($1.8 trillion based on its fully diluted share count) an",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=95a58ba490634975aacd6cd8453f4ffe0c754c703218dcedc3dea54ebcba6c7b",
-          "datetime": 1780956830
+          "url": "https://finnhub.io/api/news?id=be2d93cf5cc52aa4f580e34af40fe18e82e90e961b940f06ef043df5bfe98d12",
+          "datetime": 1781302231
         },
         {
-          "headline": "Billionaire Investor Backs Meta And Alphabet As AI Spending Surges",
-          "summary": "Hedge fund billionaire Daniel Loeb added several mega-cap and technology companies to his Third Point LLC portfolio in the first quarter of FY26. The investor placed his bets on Meta Platforms, Inc. a",
+          "headline": "How much money did Elon Musk make in SpaceX\u2019s stock market debut?",
+          "summary": "He\u2019s now the world\u2019s first trillionaire, after his rocket and AI company broke IPO records on its way to a $2.1tn valuation",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=d1582974f0d32a2aa2b0057f0e995fa8e51840a1585cecdefadc6b1c93a04bdf",
-          "datetime": 1780954262
+          "url": "https://finnhub.io/api/news?id=fd75cebb77711f3c70e74a3ae68ffda7ef1abf1aaa55a08c903a3e0bf4fcc54b",
+          "datetime": 1781300040
         }
       ]
     },
@@ -176,92 +164,87 @@
       "country": "United States",
       "articles": [
         {
-          "headline": "Market Chatter: SONY Upgrades Struggling Xperia Smartphone With AI Features",
-          "summary": "Sony (SONY) will release a new flagship version of its Xperia smartphone on Thursday, adding AI-enab",
+          "headline": "Can Apple Stock Double to $600 in 5 Years?",
+          "summary": "After shares posted a 134% trailing five-year gain, investors are now focused on what the next half decade will bring.",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=1d75ad7b4ac920e4e7d59dd802b84ce68c3c7136b353cbc819a46c116d4a69ae",
-          "datetime": 1780997177
+          "url": "https://finnhub.io/api/news?id=3c25d59b74df30fac06b97d514c0f56a223b9ab194ce199c6d307f7dd317b3e8",
+          "datetime": 1781312460
         },
         {
-          "headline": "Nasdaq, S&P 500 Futures Gain After Tech-Led Rebound: Why NVDA, QCOM, AAPL, APLD, ASTS, NUVL Are Keeping Traders Engaged Today",
-          "summary": "Retail sentiment improved. Stocktwits data showed traders continued to maintain a \u2018bullish\u2019 stance on SPY and QQQ.",
+          "headline": "The Index Says Euphoria. But Don\u2019t Panic.",
+          "summary": "A Citigroup sentiment indicator hasn\u2019t shown this much market euphoria since the post-Covid rally of 2021. How long can it last?",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=b616d45f6e187964a2a0339e371632e989f1b42c9712b5e893d2cc84d93f51c8",
-          "datetime": 1780994950
+          "url": "https://finnhub.io/api/news?id=6306a17d4e6f82666ce939663f199e5a3c19c79d1f6c125181e5151f642976b5",
+          "datetime": 1781305980
         },
         {
-          "headline": "Apple Stock Edges Down. What Was \u2018Lacking\u2019 in Its Big AI Announcement.",
-          "summary": "Apple shares were edging down early on Tuesday as investors digested its artificial-intelligence plans, which raised some questions among analysts. Apple stock was down 0.3% at $300.74 in premarket tr",
+          "headline": "Does Google Stock Have More Upside?",
+          "summary": "Alphabet (GOOGL) stock is at an interesting point right now. It has strong momentum, and if you bet on it, you are betting on a company with strong profitability, good cash flow, a low-debt to market ",
           "source": "Yahoo",
-          "url": "https://finnhub.io/api/news?id=3f525a6b66fa77d224207708d617d2d70115d0ea9782aeb23cb18947b4734153",
-          "datetime": 1780994622
+          "url": "https://finnhub.io/api/news?id=bd00f2425eaadd43f771aa205cdc0445f80365356a9985bf41a80bd04e41d9c7",
+          "datetime": 1781305721
         },
         {
-          "headline": "Chips Rebound, Intel Catches A $3 Million-Order Tailwind, And OpenAI Joins The IPO Queue",
-          "summary": "Chip names bounced hard after Friday's rout. Intel ripped 11% on a reported Google TPU order. Apple's WWDC underwhelmed. OpenAI filed confidentially for an IPO, adding to the equity supply wall.",
-          "source": "ChartMill",
-          "url": "https://finnhub.io/api/news?id=4a075424b061ff27fdab9a9e42b338a0a316be08a344feec5c6f94f25769678e",
-          "datetime": 1780992458
+          "headline": "Cash Flow Kings: These Companies Generate Huge Cash",
+          "summary": "Companies with strong cash-generating abilities are great targets, as they have plenty of cash to fuel growth, pay out dividends, buy back shares, and easily wipe out debt.",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=d66cb568e1b53fa6bd11255ec0743b2eaeefcecbecb25ffb1e51ed7f2beb3b5f",
+          "datetime": 1781304600
         },
         {
-          "headline": "Wall Street Breakfast Podcast: Siri's Next Act",
-          "summary": "Apple WWDC 2026: New Siri, iOS, and AI updates galore. Sirius XM to join S&P MidCap 400; shares move higher. Costco Wholesale lowers prices on select Kirkland brand items.",
-          "source": "SeekingAlpha",
-          "url": "https://finnhub.io/api/news?id=7a7892f0e5d2c2f23f563117dfe39088d8413d2a96a1bf0f4b17c9cc2925455b",
-          "datetime": 1780987916
+          "headline": "SpaceX shares soar 19% in stock market debut",
+          "summary": "STORY: The world's biggest ever IPO ended with Elon Musk's SpaceX gaining 19% in its debut session Friday, as investors piled into the\u00a0rocket company,\u00a0betting on its now-trillionaire CEO [beat]\u00a0and th",
+          "source": "Yahoo",
+          "url": "https://finnhub.io/api/news?id=677137dd1212b08a638ba69bf8a2d2c3dd42c84c7d9fa3e41c79f6572f1be898",
+          "datetime": 1781302720
         }
       ]
     }
   },
   "market": [
     {
-      "headline": "Trump's trade war has a new target: forced labor. The case behind it is far from simple",
-      "summary": "Ending forced labor is a goal most countries around the world have but few actually have success, including the U.S. Can Trump's tariffs change that?",
-      "source": "CNBC",
-      "url": "https://www.cnbc.com/2026/06/09/trump-tariffs-trade-china-forced-labor.html",
-      "datetime": 1781002801
-    },
-    {
-      "headline": "51% of U.S. adults say the American Dream is out of reach for most people right now: CNBC survey",
-      "summary": "In an exclusive CNBC survey, 81% of respondents said the cost of living is their biggest financial hurdle to achieving the American Dream.",
-      "source": "CNBC",
-      "url": "https://www.cnbc.com/2026/06/09/american-dream-out-of-reach-most-people-right-now-cnbc-survey.html",
-      "datetime": 1781001001
-    },
-    {
-      "headline": "Iran says ticket allocation for World Cup withdrawn days before tournament - Reuters",
-      "summary": "Iran says ticket allocation for World Cup withdrawn days before tournament\u00a0\u00a0Reuters",
+      "headline": "Iran peace deal looms while new military action flares near Strait of Hormuz - Reuters",
+      "summary": "Iran peace deal looms while new military action flares near Strait of Hormuz\u00a0\u00a0Reuters",
       "source": "Reuters",
-      "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxONlBxU2p5dmFqVUtxVGdTVXJxWnRHQ2p2dFdWYWpsMjB4WlJEbDRhTGFjRVV5NVFfdW0yeUY0QkNZdlY2dnNTZ2hyekJiN3htVmJZYWRudnd2TTV3bThZYlB2NldxYzhQX0lMNnlUYlZsczRFOG1SdlQ3X3dnMmRCcU1RcG9JYUtDNzZBZVBDdmJSaDVRVklzMzNxWDNMWTkzTWZ5R05La01aMmxjOFFZT045RmZ6ZXRvZlJBMA?oc=5",
-      "datetime": 1780996329
+      "url": "https://news.google.com/rss/articles/CBMixwFBVV95cUxPOFNVaW1EQjcyVjlOZGtnLTdLXzctb2RqaXlFY0RfQ2FscHk3Y2NvYUkzZms3TGk1NHhoaGJGY21fV3hDa2VYYm4zRnVOTHpMYXJhOXk0UUdycFJMNlRNQ09SRFhXRTZvS2JiMDhtNlkzc2pIMWVrdm1mWGp0OUlIdHYwbGVDOGhUeW5FeFQ5ekdiY0RobFZjTDkyVnJONEhXM01TX1FKcE5INUg2RDlxWHpBa3RNRDEyX1J2SGlHd1pEVl9ZLUMw?oc=5",
+      "datetime": 1781314380
     },
     {
-      "headline": "Trump says US helicopter pilots who went down in Strait of Hormuz are fine - Reuters",
-      "summary": "Trump says US helicopter pilots who went down in Strait of Hormuz are fine\u00a0\u00a0Reuters",
+      "headline": "Exclusive: US forces shoot down Iranian attack drones, source says - Reuters",
+      "summary": "Exclusive: US forces shoot down Iranian attack drones, source says\u00a0\u00a0Reuters",
       "source": "Reuters",
-      "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxOWGZKeW81Zk5SeFFRa0s2TWRGZWR4czJsM1ZkUlR4M0xMbWdpNER1UndNRFJmTEtYZEZST0JQSUtCemFXQjN2Z3R4ZnUzemZadUYwakxFTWUyY0ZCZWpQWFhLa1Y4NjN2T1MtTW1XMU1OYTE5M3hwUEpZZ3dOXzlobUVzazRrM3ZyOEhiWUdyM2JUdkRINVZJREFUWDFLSG5hUGRjWGhIX1JnbUdqTHNYUGY1R1ZqdDNMa0hybkptaw?oc=5",
-      "datetime": 1780984680
+      "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxOLVpqblpRT0R6RGd1RUJmVjhfQi12S3JhbUJwM2dsM2hVSGRtMy02UkZYZTdseUI4YzRyMEFzOGpqNTdiRGkwdVB2R0oyX0otZDFQXzhENzYyVnpvMnNVUWZ4U0N5MzZETmp0OG5RcmdfWGV5elVlZktyeXVObThKNUlIa1N2dUtTdDUweGxwV0ZDeC1QeW9rd3p5RWhVVFRRRVdLYTJhQ2JxbnFt?oc=5",
+      "datetime": 1781311200
     },
     {
-      "headline": "LNG demand in Asia recovers from Iran shock as China buys - Reuters",
-      "summary": "LNG demand in Asia recovers from Iran shock as China buys\u00a0\u00a0Reuters",
+      "headline": "US deports Iranian pro-democracy activist to Central African Republic, lawyer says - Reuters",
+      "summary": "US deports Iranian pro-democracy activist to Central African Republic, lawyer says\u00a0\u00a0Reuters",
       "source": "Reuters",
-      "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxPME8tR25BVGlpS1lPR09idGVCV2dUQ205eXM5SmdaRGlWMjZ5WWswRjdsLVY1R183Nmk5ZkEzOWNUTUtJSFc2VHEtdU5qTmRLS0RxeXZXVlBTTEpnaGI1VWRlOE1UdkxBbmxZcWkwSzJZMlNobFZKTFZPdUdLZjBYN000ZnExcE1BQkUxYWdKQWVkdlRoUUhwcnVlbWtpVHFJQWQwakxwTjFYZ1NsTzNFaXQwSk41QQ?oc=5",
-      "datetime": 1780982737
+      "url": "https://news.google.com/rss/articles/CBMixgFBVV95cUxQSE9sR1B6Q0ZSajJMbEhkUzU0N01OWlpQS1JxZFZfTU9jbG5yQ1A1dnc4UXJwTUc4cE56NjRzZkdySWM3a0liY3Y1U2M3eThpSjNYYjNiSV8wc1d4LUJwMU5tNFJBby1yU1FvS1E5Sk4zM1l2T1Q1a2h1R3pLUkZUYlFrMWUzYzJHbjh1ZzZNS2JMRU1DOFF2dkUwSldYRkhmYzUyVkk5OXpISjgzZDBrUEQxejhxRl90VC1QZWVvOW00OENGbkE?oc=5",
+      "datetime": 1781306311
+    },
+    {
+      "headline": "Wall Street ends higher as SpaceX's market debut dominates - Reuters",
+      "summary": "Wall Street ends higher as SpaceX's market debut dominates\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxQeXNKNzNQRjdTSU90RjJ6d0JSM1FNVHRUQ1Q3VTM1VTlRSWZfVkoxcU9DRzQxRkE5R2JNdk9QelpoS3RoS29rNGVJTzNpWnVydDdweHhlcEVpd2hWNFVKcV9JUWNpODNzdGVSVlRTUVNKenhMdWpIZGd2RlRwWlBSNS1lWkNfRkRUdFBlUzNYemNtclNFcTdRR2Q4eWMyaERXV3dLc1VMQWQwdVAyUzVvNQ?oc=5",
+      "datetime": 1781305307
+    },
+    {
+      "headline": "Exclusive: UAE to unlock billions of dollars for Iran, sources say - Reuters",
+      "summary": "Exclusive: UAE to unlock billions of dollars for Iran, sources say\u00a0\u00a0Reuters",
+      "source": "Reuters",
+      "url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxNdU8xSkdDSVRGOXhzQTVoemlTUi1GaFEyMzFNSUFXdGdQd21pbUNENTdfX01KaGFXdGQ5RklfMVNiSDlBRzRvb0xZVkU1dVd6Q0NTakI1WmxVaXZMMlVtUHVEZ2I1d3NkbExTQXU4RlRSQVhueHE0RU9sbTg5VjJWU0VwUjRMeGJtRmhXbzBQM013T3p4Y05JU2JnZkt1d0k?oc=5",
+      "datetime": 1781304005
     }
   ],
   "meta": {
     "tickers_received": [
-      "TSLA",
-      "BHP.AX",
-      "VOO",
-      "VOW.AX",
-      "DAX",
-      "NVDA",
-      "RIO.AX",
       "META",
-      "AAPL",
-      "COM.AX"
+      "VOO",
+      "NVDA",
+      "TSLA",
+      "AAPL"
     ],
     "countries_received": [],
     "status": "active"

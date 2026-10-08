@@ -1,5 +1,5 @@
 import json
-
+# top 10 now
 def get_top5_by_country(json_path, countries):
     if isinstance(countries, str):
         countries = [countries]
@@ -17,7 +17,7 @@ def get_top5_by_country(json_path, countries):
 
         filtered.sort(key=lambda x: x.get("rank", float("inf")))
 
-        top5 = [item["symbol"] for item in filtered[:5]]
+        top5 = [item["symbol"] for item in filtered[:10]]
 
         result[country] = top5
 

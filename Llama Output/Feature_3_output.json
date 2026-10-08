@@ -1,34 +1,36 @@
 {
-  "summary": "The portfolio has a total current value of $103,459.49, with a total return of 58.53% and a total profit/loss of $38,197.49. The portfolio is primarily invested in US stocks, with a geographic exposure of 0% in Australia and Germany. The primary risk is the high concentration of investments in the technology sector, with companies such as NVDA, AAPL, and TSLA making up a significant portion of the portfolio.",
+  "summary": "The portfolio has a total current value of $103,505.41, with a total return of 58.6% and a profit/loss of $38,243.41. The portfolio is primarily invested in US stocks, with a geographic spread that is heavily concentrated in the United States. The primary risk or opportunity is the potential for market volatility, given the high concentration of investments in the technology sector.",
   "pros": [
-    "The portfolio has a high total return of 58.53%, indicating strong growth potential.",
-    "The technology sector, which makes up a significant portion of the portfolio, has a market share of 25% and a sector CAGR of 10%.",
-    "The portfolio has a diversified mix of stocks and ETFs, including NVDA, AAPL, TSLA, META, VOO, and QQQ.",
-    "The portfolio has a long-term investment horizon, with a focus on buy-and-hold strategy.",
-    "The portfolio has a total investment capital of $50,000, with a recommended allocation of 20% to each of the top 5 picks.",
-    "The portfolio has a medium to high risk tolerance, with a focus on long-term growth."
+    "The portfolio has a strong return percentage of 58.6%, indicating a successful investment strategy.",
+    "The total current value of the portfolio is $103,505.41, which is a significant increase from the initial investment.",
+    "The portfolio has a diversified mix of stocks, including NVDA, AAPL, TSLA, and META, which helps to mitigate risk.",
+    "The portfolio's investment in VOO and QQQ provides exposure to a broad range of stocks, further diversifying the portfolio.",
+    "The portfolio's crypto holdings, including BTC and ETH, provide a hedge against market volatility.",
+    "The emergency cash reserve of $10,000 provides a cushion against unexpected expenses or market downturns."
   ],
   "cons": [
-    "The portfolio has a high concentration of investments in the technology sector, which may increase risk.",
-    "The portfolio has a limited geographic exposure, with 0% invested in Australia and Germany.",
-    "The portfolio has a high volatility, with an annualized volatility of 60.33% for the YOU stock.",
-    "The portfolio has a limited diversification, with a focus on US stocks and ETFs.",
-    "The portfolio has a high P/E ratio, with an average P/E ratio of 31.95 for the NVDA stock.",
-    "The portfolio has a limited yield, with no dividend-paying stocks or ETFs."
+    "The portfolio is heavily concentrated in the technology sector, which may increase risk if the sector experiences a downturn.",
+    "The portfolio has a high concentration of investments in the United States, which may increase risk if the US market experiences a downturn.",
+    "The portfolio's investment in TSLA has a high volatility of 40.56%, which may increase risk.",
+    "The portfolio's investment in META has a high volatility of 38.52%, which may increase risk.",
+    "The portfolio's crypto holdings, including BTC and ETH, are highly volatile and may increase risk.",
+    "The portfolio's lack of international diversification may increase risk if the US market experiences a downturn."
   ],
   "next_steps": [
-    "Consider diversifying the portfolio by investing in Australian and German stocks, such as BHP.AX and DAX.",
-    "Allocate 10% of the portfolio to Australian and German stocks, with a focus on buy-and-hold strategy.",
-    "Monitor the portfolio's performance and adjust the allocation as needed to maintain a balanced portfolio.",
-    "Consider investing in dividend-paying stocks or ETFs to increase the portfolio's yield.",
-    "Review the portfolio's risk tolerance and adjust the allocation accordingly."
+    "Consider diversifying the portfolio by investing in international stocks or bonds to reduce risk.",
+    "Consider reducing the concentration of investments in the technology sector to mitigate risk.",
+    "Consider investing in dividend-paying stocks to provide a regular income stream.",
+    "Consider investing in a broad-based index fund to provide further diversification.",
+    "Consider increasing the emergency cash reserve to 3-6 months' worth of expenses to provide a cushion against unexpected expenses or market downturns.",
+    "Consider reviewing the portfolio's investment strategy to ensure it aligns with the investor's risk tolerance and investment goals."
   ],
-  "question_response": "## Australian and German Stocks\nThe Australian stock market has several attractive options, including BHP.AX, which has a current price of $60.08 and a P/E ratio of 21.006994. The German stock market also has several options, including DAX, which has a current price of 44.7 and a P/E ratio of 17.703077. **BHP.AX** has a market capitalization of $305,247,879,168 and a 1-year change of 38.2%. **DAX** has a market capitalization of None and a 1-year change of 0.43%. Based on the portfolio data and market analysis, it is recommended to allocate 10% of the portfolio to Australian and German stocks, with a focus on buy-and-hold strategy.",
+  "question_response": "## Stock Suggestions from the US and Switzerland\nBased on the portfolio data and market analysis, the following stock suggestions from the US and Switzerland are recommended:\n- **SNDK** (US): a semiconductor stock with a current price of $54.12 and a 1-year CAGR of 25.6%.\n- **MU** (US): a semiconductor stock with a current price of $63.45 and a 1-year CAGR of 30.1%.\n- **GRMN** (Switzerland): a technology stock with a current price of $105.23 and a 1-year CAGR of 20.5%.\n- **CB** (Switzerland): a financial stock with a current price of $23.15 and a 1-year CAGR of 15.6%.\nThese suggestions align with the investor's buy-and-hold strategy and are within the $50,000 investment capital.",
   "sources": [
     "Portfolio data",
     "MARKET ANALYSIS",
     "MARKET PREDICTIONS",
     "NEWS CONTEXT",
+    "DOMESTIC SUGGESTIONS",
     "LIVE MARKET DATA"
   ]
 }

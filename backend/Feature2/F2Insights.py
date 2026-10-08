@@ -298,7 +298,6 @@ def ai_insights(request: AIInsightsRequest):
 
     print("🔍 FastAPI /pf/ai-insights called...")
 
-    # ✅ ROUTER (same as new logic)
     if has_question:
         prompt = build_qa_prompt(data)
         result = get_analysis(prompt)

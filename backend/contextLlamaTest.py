@@ -314,7 +314,7 @@ def save_to_json(data):
 def run():
     user_question = get_user_question()
 
-    # NEW: fetch forecast context
+    # fetch forecast context
     historical, prophet_forecast, slider_forecast = get_forecast_context()
 
     print("\n🔍 Generating analysis...\n")
@@ -325,7 +325,7 @@ def run():
 
     structured = parse_output(analysis)
 
-    # OPTIONAL (NEW): attach context into saved output
+    # attach context into saved output
     structured["historical_context"] = historical
     structured["prophet_forecast_context"] = prophet_forecast
     structured["slider_forecast_context"] = slider_forecast
