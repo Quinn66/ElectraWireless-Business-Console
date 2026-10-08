@@ -188,13 +188,14 @@
   },
   "onboarding": {
     "available": true,
-    "age": 30,
-    "experienceLevel": "beginner",
-    "investmentCapital": 50000,
-    "emergencyCash": 10000,
-    "communicationStyle": "simple",
+    "age": 25,
+    "experienceLevel": "intermediate",
+    "investmentCapital": 102000,
+    "emergencyCash": 18000,
+    "communicationStyle": "technical",
     "investmentStrategies": [
-      "buy_and_hold"
+      "buy_and_hold",
+      "growth"
     ],
     "timeHorizon": "monthly",
     "assetInterests": [
@@ -202,6 +203,7 @@
       "crypto",
       "etf"
     ],
-    "completedAt": "2026-06-09T11:02:24.345928+00:00"
+    "completedAt": "2026-06-13T05:19:26.883806+00:00",
+    "country": "Australia"
   }
 }
